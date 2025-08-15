@@ -105,11 +105,12 @@ def upload_file():
             return jsonify({'code': 403, 'msg': '用户未登录'}), 403
 
         # 获取表单数据
-        user_language = request.form.get('source_language', 'en')
-        target_language = request.form.get('target_language', 'zh-cn')
-        bilingual_translation = request.form.get('bilingual_translation', '0')
-        translation_model = request.form.get('translation_model', 'qwen')  # 默认使用qwen模型
+        user_language = request.form.get('source_language', 'English')
+        target_language = request.form.get('target_language', 'Chinese')
+        bilingual_translation = request.form.get('bilingual_translation', 'paragraph_up')
         select_page = request.form.getlist('select_page')
+        model = request.form.get('model', 'qwen')
+        enable_text_splitting = request.form.get('enable_text_splitting', 'True').lower() == 'true'
 
         # 转换select_page为整数列表
         if select_page and select_page[0]:
@@ -241,8 +242,9 @@ def upload_file():
                 source_language=user_language,
                 target_language=target_language,
                 bilingual_translation=bilingual_translation,
-                translation_model=translation_model,  # 添加翻译模型参数
-                priority=priority
+                priority=priority,
+                model=model,
+                enable_text_splitting=enable_text_splitting
             )
 
             return jsonify({
@@ -303,7 +305,7 @@ def process_queue(app, stop_words_list, custom_translations,source_language, tar
                                                          custom_translations,source_language, target_language,bilingual_translation)
 
                 else:
-                    process_presentation(task['file_path'], stop_words_list, custom_translations,task['select_page'],source_language, target_language,bilingual_translation)
+                    process_presentation(task['file_path'], stop_words_list, custom_translations,task['select_page'],source_language, target_language,bilingual_translation, model=task.get('model', 'qwen'), enable_text_splitting=task.get('enable_text_splitting', True))
 
                 set_textbox_autofit(task['file_path'])
 

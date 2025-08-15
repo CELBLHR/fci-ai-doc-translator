@@ -79,29 +79,29 @@ class PageBasedTranslator:
 
         # 处理普通文本框
         for shape_index, shape in enumerate(slide.shapes):
-            if shape.has_text_frame:
-                text_frame = shape.text_frame
-                for paragraph_index, paragraph in enumerate(text_frame.paragraphs):
-                    text = paragraph.text.strip()
-                    if text:
-                        is_translatable = self.is_translatable_text(text)
-                        para_info = ParagraphInfo(
-                            text=text,
-                            slide_index=slide_index,
-                            shape_index=shape_index,
-                            paragraph_index=paragraph_index,
-                            shape_type='textbox',
-                            is_translatable=is_translatable
-                        )
-                        paragraphs.append(para_info)
+        #     if shape.has_text_frame:
+        #         text_frame = shape.text_frame
+        #         for paragraph_index, paragraph in enumerate(text_frame.paragraphs):
+        #             text = paragraph.text.strip()
+        #             if text:
+        #                 is_translatable = self.is_translatable_text(text)
+        #                 para_info = ParagraphInfo(
+        #                     text=text,
+        #                     slide_index=slide_index,
+        #                     shape_index=shape_index,
+        #                     paragraph_index=paragraph_index,
+        #                     shape_type='textbox',
+        #                     is_translatable=is_translatable
+        #                 )
+        #                 paragraphs.append(para_info)
 
-                        if is_translatable:
-                            logger.debug(f"收集可翻译段落: '{text[:50]}...'")
-                        else:
-                            logger.debug(f"收集不可翻译段落: '{text[:50]}...'")
+        #                 if is_translatable:
+        #                     logger.debug(f"收集可翻译段落: '{text[:50]}...'")
+        #                 else:
+        #                     logger.debug(f"收集不可翻译段落: '{text[:50]}...'")
 
             # 处理表格
-            elif shape.has_table:
+            if shape.has_table:
                 table = shape.table
                 for row_index, row in enumerate(table.rows):
                     for col_index, cell in enumerate(row.cells):
@@ -302,7 +302,7 @@ class PageBasedTranslator:
 
     async def translate_slide_paragraphs(self, slide, slide_index: int,
                                        source_language: str, target_language: str,
-                                       field: str = "通用", model_name: str = "qwen") -> Dict[int, str]:
+                                       field: str = "通用") -> Dict[int, str]:
         """翻译单页幻灯片的段落"""
         # 1. 收集段落
         paragraphs = self.collect_slide_paragraphs(slide, slide_index)
@@ -318,40 +318,19 @@ class PageBasedTranslator:
 
         # 3. 调用翻译API
         try:
-            # 根据模型名称选择相应的翻译函数
-            if model_name == "deepseek":
+            from .local_qwen_async import translate_async
 
-                from .translate_deepseek_async import translate_deepseek_async
-                translation_result = await translate_deepseek_async(text=translation_text,
-                    field=field,
-                    stop_words=[],  # 空的停止词列表
-                    custom_translations={},  # 空的自定义翻译
-                    source_language=source_language,
-                    target_language=target_language)
+            logger.info(f"开始翻译第 {slide_index + 1} 页内容...")
 
-            elif model_name == "gpt-4o":
-
-                from .translate_gpt4o_async import translate_gpt4o_async
-                translation_result = await translate_gpt4o_async(text=translation_text,
-                    field=field,
-                    stop_words=[],  # 空的停止词列表
-                    custom_translations={},  # 空的自定义翻译
-                    source_language=source_language,
-                    target_language=target_language)
-
-            else:  # 默认使用qwen模型
-                from .local_qwen_async import translate_async
-                logger.info(f"开始翻译第 {slide_index + 1} 页内容 (使用 {model_name} 模型)...")
-
-                # 构造翻译参数
-                translation_result = await translate_async(
-                    text=translation_text,
-                    field=field,
-                    stop_words=[],  # 空的停止词列表
-                    custom_translations={},  # 空的自定义翻译
-                    source_language=source_language,
-                    target_language=target_language
-                )
+            # 构造翻译参数
+            translation_result = await translate_async(
+                text=translation_text,
+                field=field,
+                stop_words=[],  # 空的停止词列表
+                custom_translations={},  # 空的自定义翻译
+                source_language=source_language,
+                target_language=target_language
+            )
 
             if not translation_result:
                 logger.error(f"第 {slide_index + 1} 页翻译失败：返回空结果")
@@ -429,12 +408,21 @@ class PageBasedTranslator:
                         try:
                             from .color_protection import safe_replace_paragraph_text
 
+                            if str(bilingual_translation) == "paragraph_up":
+                                # 双语模式：原文再上 + 译文在下
+                                new_text = para_info.text + "\n" + translation
+                            elif str(bilingual_translation) == "paragraph_down":
+                                # 双语模式：原文再下 + 译文在上
+                                new_text = translation + "\n" + para_info.text
+                            else:
+                                # 仅翻译模式
+                                new_text = translation
 
                             # 使用安全替换，保持所有格式
-                            success = safe_replace_paragraph_text(paragraph,bilingual_translation, para_info.text,translation, preserve_formatting=True)
+                            success = safe_replace_paragraph_text(paragraph, new_text, preserve_formatting=True)
                             if not success:
                                 # 如果安全替换失败，使用传统方法
-                                paragraph.text = para_info.text+"\n"+translation
+                                paragraph.text = new_text
                                 # 恢复字体颜色（简化版）
                                 if original_color and paragraph.runs:
                                     try:
@@ -575,12 +563,12 @@ page_translator = PageBasedTranslator()
 
 async def translate_slide_by_page(slide, slide_index: int, source_language: str,
                                 target_language: str, bilingual_translation: str = "1",
-                                field: str = "通用", model_name: str = "qwen") -> int:
+                                field: str = "通用") -> int:
     """按页翻译幻灯片（外部接口）"""
     try:
         # 翻译段落
         matches = await page_translator.translate_slide_paragraphs(
-            slide, slide_index, source_language, target_language, field, model_name
+            slide, slide_index, source_language, target_language, field
         )
 
         # 应用翻译
