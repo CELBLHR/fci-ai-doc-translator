@@ -3,7 +3,7 @@ import json
 import string
 import tempfile
 import shutil
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from pathlib import Path
 from pptx import Presentation
 from pptx.shapes.picture import Picture
@@ -26,6 +26,109 @@ from translator import TranslationManager
 
 # 获取日志记录器
 logger = get_logger("ocr_controller")
+
+
+class TextLineSplitter:
+    """JSON文本行分割器 - 将包含换行符的文本拆分成多个text字段"""
+    
+    def __init__(self):
+        self.processed_count = 0
+        self.split_count = 0
+    
+    def process_json_file(self, json_file_path: str) -> bool:
+        """
+        处理JSON文件中的文本行分割
+        
+        Args:
+            json_file_path: JSON文件路径
+            
+        Returns:
+            是否处理成功
+        """
+        try:
+            # 检查文件是否存在
+            if not os.path.exists(json_file_path):
+                logger.error(f"JSON文件不存在: {json_file_path}")
+                return False
+            
+            # 读取JSON文件
+            with open(json_file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # 处理数据
+            self._process_mapping_data(data)
+            
+            # 保存处理后的数据
+            with open(json_file_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"✅ 文本行分割完成！处理图片数: {self.processed_count}, 分割文本数: {self.split_count}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"处理JSON文件时出错: {str(e)}")
+            return False
+    
+    def _process_mapping_data(self, data: Dict[str, Any]):
+        """处理映射数据中的所有文本"""
+        for slide_key, slide_data in data.items():
+            if 'images' not in slide_data:
+                continue
+            
+            for image_info in slide_data['images']:
+                filename = image_info.get('filename', '未知文件')
+                
+                # 处理all_text字段
+                if 'all_text' in image_info and image_info['all_text']:
+                    original_all_text = image_info['all_text'].copy()
+                    new_all_text = self._split_text_dict(original_all_text)
+                    
+                    if new_all_text != original_all_text:
+                        image_info['all_text'] = new_all_text
+                        self.split_count += 1
+                        logger.info(f"🔄 已分割 {filename} 的文本行")
+                
+                self.processed_count += 1
+    
+    def _split_text_dict(self, text_dict: Dict[str, str]) -> Dict[str, str]:
+        """
+        分割文本字典中的文本行
+        
+        Args:
+            text_dict: 包含文本的字典
+            
+        Returns:
+            分割后的文本字典
+        """
+        new_dict = {}
+        text_counter = 1
+        
+        for key, text_value in text_dict.items():
+            if not text_value:
+                # 空文本直接跳过
+                continue
+            
+            # 检查是否包含换行符
+            if '\n' in text_value:
+                # 按换行符分割
+                lines = text_value.split('\n')
+                
+                logger.info(f"📝 发现多行文本 {key}: {len(lines)} 行")
+                
+                # 为每一行创建新的text字段
+                for line in lines:
+                    new_key = f"text{text_counter}"
+                    new_dict[new_key] = line  # 保留空行，不进行strip()
+                    text_counter += 1
+                    
+            else:
+                # 单行文本，直接使用新的编号
+                new_key = f"text{text_counter}"
+                new_dict[new_key] = text_value
+                text_counter += 1
+        
+        return new_dict
 
 
 class PPTImageExtractor:
@@ -389,10 +492,10 @@ class PPTImageReplacer:
                 slide_width_inches = slide_width / 914400
                 slide_height_inches = slide_height / 914400
                 
-                logger.info(f" 成功获取幻灯片尺寸: {slide_width_inches:.2f} x {slide_height_inches:.2f} 英寸")
+                logger.info(f"✅ 成功获取幻灯片尺寸: {slide_width_inches:.2f} x {slide_height_inches:.2f} 英寸")
                 
             except Exception as size_error:
-                logger.warning(f" 无法获取幻灯片尺寸，使用标准尺寸: {str(size_error)}")
+                logger.warning(f"⚠️ 无法获取幻灯片尺寸，使用标准尺寸: {str(size_error)}")
                 # 使用标准的16:9幻灯片尺寸作为备用
                 slide_width_inches = 13.33  # 标准宽屏PPT宽度
                 slide_height_inches = 7.5   # 标准宽屏PPT高度
@@ -427,7 +530,7 @@ class PPTImageReplacer:
             # 添加标题段落
             title_text = f"第 {slide_number} 页 OCR识别结果"
             if show_translation:
-                title_text += " (英中对照)"
+                title_text += " (逐行对照)"
             
             title_paragraph = text_frame.paragraphs[0]
             title_paragraph.text = title_text
@@ -443,14 +546,14 @@ class PPTImageReplacer:
             separator_paragraph.font.color.rgb = RGBColor(0, 0, 0)
             separator_paragraph.alignment = PP_ALIGN.CENTER
             
-            # 添加OCR内容段落（新的成对显示逻辑）
+            # 添加OCR内容段落（新的逐行对照显示逻辑）
             for i, ocr_data in enumerate(ocr_data_list, 1):
                 filename = ocr_data['filename']
                 text_pairs = ocr_data['text_pairs']
                 
                 # 图片标题段落
                 img_title_paragraph = text_frame.add_paragraph()
-                img_title_paragraph.text = f"\n 图片 {i}: {filename}"
+                img_title_paragraph.text = f"\n🖼️ 图片 {i}: {filename}"
                 img_title_paragraph.font.size = Pt(12)
                 img_title_paragraph.font.bold = True
                 img_title_paragraph.font.color.rgb = RGBColor(0, 0, 0)
@@ -460,57 +563,48 @@ class PPTImageReplacer:
                     original_text = text_pair['original']
                     translated_text = text_pair['translated']
                     
-                    # 如果有多个文本对，添加序号
-                    if len(text_pairs) > 1:
-                        # 文本序号段落
-                        text_num_paragraph = text_frame.add_paragraph()
-                        text_num_paragraph.text = f"\n 文本片段 {j}:"
-                        text_num_paragraph.font.size = Pt(10)
-                        text_num_paragraph.font.bold = True
-                        text_num_paragraph.font.color.rgb = RGBColor(102, 102, 102)  # 深灰色
-                    
                     # 原文部分
                     if original_text:
                         # 原文标签
                         original_label_paragraph = text_frame.add_paragraph()
-                        original_label_paragraph.text = " 原文:"
-                        original_label_paragraph.font.size = Pt(10)
+                        original_label_paragraph.text = "🔤 原文:"
+                        original_label_paragraph.font.size = Pt(9)
                         original_label_paragraph.font.bold = True
                         original_label_paragraph.font.color.rgb = RGBColor(0, 102, 204)  # 蓝色
                         
                         # 原文内容
                         original_content_paragraph = text_frame.add_paragraph()
                         original_content_paragraph.text = original_text
-                        original_content_paragraph.font.size = Pt(10)
+                        original_content_paragraph.font.size = Pt(9)
                         original_content_paragraph.font.color.rgb = RGBColor(0, 0, 0)
                     
                     # 翻译部分（紧跟在对应原文后面）
                     if show_translation and translated_text:
                         # 翻译标签
                         translated_label_paragraph = text_frame.add_paragraph()
-                        translated_label_paragraph.text = " 译文:"
-                        translated_label_paragraph.font.size = Pt(10)
+                        translated_label_paragraph.text = "🌐 译文:"
+                        translated_label_paragraph.font.size = Pt(9)
                         translated_label_paragraph.font.bold = True
                         translated_label_paragraph.font.color.rgb = RGBColor(204, 102, 0)  # 橙色
                         
                         # 翻译内容
                         translated_content_paragraph = text_frame.add_paragraph()
                         translated_content_paragraph.text = translated_text
-                        translated_content_paragraph.font.size = Pt(10)
+                        translated_content_paragraph.font.size = Pt(9)
                         translated_content_paragraph.font.color.rgb = RGBColor(0, 0, 0)
                     
                     # 如果不是最后一个文本对，添加小分隔线
-                    if j < len(text_pairs) - 1:
+                    if j < len(text_pairs):
                         small_sep_paragraph = text_frame.add_paragraph()
-                        small_sep_paragraph.text = "- - - - -"
-                        small_sep_paragraph.font.size = Pt(10)
+                        small_sep_paragraph.text = "- - -"
+                        small_sep_paragraph.font.size = Pt(7)
                         small_sep_paragraph.font.color.rgb = RGBColor(180, 180, 180)  # 更浅的灰色
                         small_sep_paragraph.alignment = PP_ALIGN.CENTER
                 
                 # 图片之间的分隔线
                 if i < len(ocr_data_list):  # 不是最后一个图片则添加分隔线
                     sep_paragraph = text_frame.add_paragraph()
-                    sep_paragraph.text = "━" * 35
+                    sep_paragraph.text = "─" * 35
                     sep_paragraph.font.size = Pt(10)
                     sep_paragraph.font.color.rgb = RGBColor(128, 128, 128)  # 灰色分隔线
                     sep_paragraph.alignment = PP_ALIGN.CENTER
@@ -535,8 +629,8 @@ class PPTImageReplacer:
             # 统计显示的文本对数量
             total_pairs = sum(len(ocr_data['text_pairs']) for ocr_data in ocr_data_list)
             translation_info = "和翻译" if show_translation else ""
-            logger.info(f" 已在第{slide_number}页右侧添加OCR文本框{translation_info}")
-            logger.info(f"    包含{len(ocr_data_list)}张图片，共{total_pairs}个文本对")
+            logger.info(f"✅ 已在第{slide_number}页右侧添加OCR文本框{translation_info}")
+            logger.info(f"   📊 包含{len(ocr_data_list)}张图片，共{total_pairs}个文本对")
             
         except Exception as e:
             logger.error(f"在第{slide_number}页添加成对文本框时出错: {str(e)}")
@@ -551,7 +645,7 @@ class PPTImageReplacer:
                 )
                 
                 text_frame = textbox.text_frame
-                simple_content = f"第{slide_number}页OCR结果 (交错显示):\n\n"
+                simple_content = f"第{slide_number}页OCR结果 (逐行对照):\n\n"
                 
                 for i, ocr_data in enumerate(ocr_data_list, 1):
                     simple_content += f"{i}. {ocr_data['filename']}\n"
@@ -565,10 +659,10 @@ class PPTImageReplacer:
                 text_frame.paragraphs[0].font.size = Pt(9)
                 text_frame.paragraphs[0].font.color.rgb = RGBColor(0, 0, 0)
                 
-                logger.warning(f"使用备用方案在第{slide_number}页添加OCR文本")
+                logger.warning(f"⚠️ 使用备用方案在第{slide_number}页添加OCR文本")
                 
             except Exception as backup_error:
-                logger.error(f" 备用方案也失败: {str(backup_error)}")
+                logger.error(f"❌ 备用方案也失败: {str(backup_error)}")
 
 
 def ocr_controller(presentation_path: str, 
@@ -576,9 +670,10 @@ def ocr_controller(presentation_path: str,
                   output_path: str = None,
                   enable_translation: bool = True,
                   target_language: str = "中文",
-                  source_language: str = "英文") -> str:
+                  source_language: str = "英文",
+                  enable_text_splitting: bool = True) -> str:
     """
-    OCR主控制器：提取图片、OCR识别、翻译、写回PPT
+    OCR主控制器：提取图片、OCR识别、文本行分割、翻译、写回PPT
     
     Args:
         presentation_path: PPT文件路径
@@ -587,6 +682,7 @@ def ocr_controller(presentation_path: str,
         enable_translation: 是否启用翻译功能
         target_language: 目标语言
         source_language: 源语言
+        enable_text_splitting: 是否启用文本行分割处理
         
     Returns:
         处理后的PPT文件路径
@@ -609,7 +705,7 @@ def ocr_controller(presentation_path: str,
 
         # 1. 提取图片
         logger.info("=" * 50)
-        logger.info(" 第一步：提取PPT中的图片")
+        logger.info("🔍 第一步：提取PPT中的图片")
         logger.info("=" * 50)
         extractor = PPTImageExtractor()
         temp_dir, image_mapping = extractor.extract_images_from_slides(
@@ -618,24 +714,11 @@ def ocr_controller(presentation_path: str,
         if not image_mapping:
             logger.warning("未找到需要处理的图片")
             return presentation_path
-        logger.info(f" 图片提取完成，临时目录: {temp_dir}")
+        logger.info(f"✅ 图片提取完成，临时目录: {temp_dir}")
 
-        '''
-        旧方法：调用min什么什么模型进行ocr识别，效果不够好，改用qwen-vl-ocr模型
-        '''
-        # logger.info("\n" + "=" * 50)
-        # logger.info("🤖 第二步：调用OCR API进行文本识别")
-        # logger.info("=" * 50)
-        # ocr_token = os.getenv("OCR_TOKEN")
-        # ocr_processor = OCRProcessor(ocr_token, temp_dir)
-        # batch_id = ocr_processor.batch_process_folder(temp_dir)
-        # if not batch_id:
-        #     raise Exception("OCR处理失败")
-        # logger.info(f"✅ OCR处理完成，批次ID: {batch_id}")
-
-        # 2.调用qwen-vl-ocr的api进行图片的文字提取
+        # 2. 调用qwen-vl-ocr的api进行图片的文字提取
         logger.info("\n" + "=" * 50)
-        logger.info(" 第二步：调用OCR QWEN API进行文本识别")
+        logger.info("🤖 第二步：调用OCR QWEN API进行文本识别")
         logger.info("=" * 50)
 
         folder_path = temp_dir  # 替换为你的图片文件夹路径
@@ -645,10 +728,30 @@ def ocr_controller(presentation_path: str,
         # 执行批量处理
         process_folder_with_mapping(folder_path, json_path, API_KEY)
 
-        # 3. 翻译OCR识别结果（如果启用）
+        # 3. 文本行分割处理（可选）
+        if enable_text_splitting:
+            logger.info("\n" + "=" * 50)
+            logger.info("✂️ 第三步：文本行分割处理")
+            logger.info("=" * 50)
+            
+            splitter = TextLineSplitter()
+            split_success = splitter.process_json_file(json_path)
+            
+            if split_success:
+                logger.info("✅ 文本行分割完成")
+            else:
+                logger.warning("⚠️ 文本行分割失败，将使用原始文本继续处理")
+        else:
+            logger.info("\n" + "=" * 50)
+            logger.info("⏭️ 第三步：跳过文本行分割处理")
+            logger.info("=" * 50)
+            logger.info("✅ 保持原始文本格式")
+
+        # 4. 翻译OCR识别结果
+        step_num = 4 if enable_text_splitting else 3
         if enable_translation:
             logger.info("\n" + "=" * 50)
-            logger.info(f" 第三步：翻译识别结果 ({source_language} → {target_language})")
+            logger.info(f"🌐 第{step_num}步：翻译识别结果 ({source_language} → {target_language})")
             logger.info("=" * 50)
             
             translation_success = TranslationManager.translate_ocr_results(
@@ -658,32 +761,32 @@ def ocr_controller(presentation_path: str,
             )
             
             if translation_success:
-                logger.info(f" 翻译完成")
+                logger.info(f"✅ 翻译完成")
                 
                 # 显示翻译摘要
                 mapping_file = os.path.join(temp_dir, "image_mapping.json")
                 summary = TranslationManager.get_translation_summary(mapping_file)
                 if summary:
-                    logger.info(f" 翻译摘要:")
+                    logger.info(f"📊 翻译摘要:")
                     logger.info(f"   - 总图片数: {summary.get('total_images', 0)}")
                     logger.info(f"   - 包含文本的图片: {summary.get('images_with_text', 0)}")
                     logger.info(f"   - 包含翻译的图片: {summary.get('images_with_translation', 0)}")
                     logger.info(f"   - 翻译成功率: {summary.get('translation_success_rate', 0):.1f}%")
             else:
-                logger.warning(" 翻译失败，将只显示原文")
+                logger.warning("⚠️ 翻译失败，将只显示原文")
                 enable_translation = False
 
-        # 4. 读取更新后的映射文件
-        step_num = 4 if enable_translation else 3
+        # 5. 读取更新后的映射文件
+        step_num = 5 if enable_translation else (4 if enable_text_splitting else 3)
         logger.info(f"\n" + "=" * 50)
-        logger.info(f" 第{step_num}步：读取处理结果")
+        logger.info(f"📖 第{step_num}步：读取处理结果")
         logger.info("=" * 50)
         mapping_file = os.path.join(temp_dir, "image_mapping.json")
         if not os.path.exists(mapping_file):
             raise Exception(f"映射文件不存在: {mapping_file}")
         with open(mapping_file, 'r', encoding='utf-8') as f:
             updated_mapping = json.load(f)
-        logger.info(" 处理结果读取完成")
+        logger.info("✅ 处理结果读取完成")
         
         # 统计结果
         ocr_count = 0
@@ -694,22 +797,22 @@ def ocr_controller(presentation_path: str,
                     ocr_count += 1
                     filename = image_info.get("filename", "未知文件")
                     text_preview = str(list(image_info["all_text"].values())[0])[:50] + "..."
-                    logger.info(f"    {filename}: {text_preview}")
+                    logger.info(f"   📄 {filename}: {text_preview}")
                     
                     if enable_translation and "translated_text" in image_info and image_info["translated_text"]:
                         translation_count += 1
                         trans_preview = str(list(image_info["translated_text"].values())[0])[:50] + "..."
-                        logger.info(f"    翻译: {trans_preview}")
+                        logger.info(f"   🌐 翻译: {trans_preview}")
         
-        logger.info(f" 共识别出 {ocr_count} 张包含文本的图片")
+        logger.info(f"📊 共识别出 {ocr_count} 张包含文本的图片")
         if enable_translation:
-            logger.info(f" 共翻译了 {translation_count} 张图片的文本")
+            logger.info(f"📊 共翻译了 {translation_count} 张图片的文本")
 
-        # 5. 将OCR结果和翻译添加到PPT右侧
-        step_num = 5 if enable_translation else 4
+        # 6. 将OCR结果和翻译添加到PPT右侧
+        step_num = 6 if enable_translation else (5 if enable_text_splitting else 4)
         logger.info(f"\n" + "=" * 50)
         content_desc = "OCR识别结果和翻译" if enable_translation else "OCR识别结果"
-        logger.info(f" 第{step_num}步：在PPT右侧添加{content_desc}")
+        logger.info(f"🎨 第{step_num}步：在PPT右侧添加{content_desc}")
         logger.info("=" * 50)
         
         PPTImageReplacer.add_ocr_text_to_slides(
@@ -720,19 +823,19 @@ def ocr_controller(presentation_path: str,
         )
         
         success_desc = "OCR结果和翻译" if enable_translation else "OCR结果"
-        logger.info(f" {success_desc}已添加到PPT右侧")
+        logger.info(f"✅ {success_desc}已添加到PPT右侧")
         logger.info("\n" + "=" * 50)
-        logger.info(" 处理完成！")
+        logger.info("🎉 处理完成！")
         logger.info("=" * 50)
         return output_path or presentation_path
         
     except Exception as e:
         error_msg = f"OCR控制器处理失败: {str(e)}"
-        logger.error(f" {error_msg}")
+        logger.error(f"❌ {error_msg}")
         return presentation_path
     finally:
         if extractor:
-            logger.info(" 清理临时文件...")
+            logger.info("🧹 清理临时文件...")
             extractor.cleanup()
 
 
@@ -763,11 +866,12 @@ if __name__ == "__main__":
         output_path=output_path,
         enable_translation=True,  # 启用翻译
         target_language="英文",   # 目标语言
-        source_language="中文"    # 源语言
+        source_language="中文",   # 源语言
+        enable_text_splitting=True  # 启用文本行分割
     )
     
     if success:
-        logger.info(" PPT OCR和翻译处理成功！")
-        logger.info(f" 结果文件: {output_path}")
+        logger.info("🎉 PPT OCR和翻译处理成功！")
+        logger.info(f"🔗 结果文件: {output_path}")
     else:
-        logger.error("处理失败，请检查错误信息。")
+        logger.error("❌ 处理失败，请检查错误信息。")

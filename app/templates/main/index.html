@@ -766,8 +766,8 @@
         <div class="form-group">
             <label for="bilingual_translation">是否保留源语言</label>
             <select id="bilingual_translation" class="form-control">
-                <option value="1">保留源语言</option>
-                <option value="0">不保留源语言</option>
+                <option value="paragraph_up">保留源语言在译文上方</option>
+                <option value="paragraph_down">保留源语言在译文下方</option>
             </select>
         </div>
 
@@ -776,7 +776,15 @@
             <select id="model" class="form-control">
                 <option value="qwen">Qwen2.5</option>
                 <option value="deepseek">DeepSeek-Chat</option>
-                <option value="gpt-4o">ChatGPT-4o</option>
+                <option value="gpt4o">ChatGPT-4o</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="enable_text_splitting">OCR文本行分割</label>
+            <select id="enable_text_splitting" class="form-control">
+                <option value="True">启用文本行分割（推荐）</option>
+                <option value="False">保持原始文本格式</option>
             </select>
         </div>
     </div>
@@ -895,8 +903,9 @@
     let totalPageCount = 0;
     let sourceLanguage = 'English';
     let targetLanguage = 'Chinese';
-    let bilingual_translation = "1";
+    let bilingual_translation = "paragraph_up";
     let model = 'qwen';
+    let enable_text_splitting = true;
 
     // 监听语言选择变化
     document.getElementById('source-language').addEventListener('change', function(e) {
@@ -913,6 +922,10 @@
 
     document.getElementById('model').addEventListener('change', function(e) {
         model = e.target.value;
+    });
+
+    document.getElementById('enable_text_splitting').addEventListener('change', function(e) {
+        enable_text_splitting = e.target.value === 'True';
     });
 
     document.getElementById('annotation-file').addEventListener('change', function(e) {
@@ -1049,6 +1062,7 @@
             formData.append('target_language', targetLanguage);
             formData.append('bilingual_translation', bilingual_translation);
             formData.append('model', model);
+            formData.append('enable_text_splitting', enable_text_splitting);
             if (selectedAnnotationFile) {
                 formData.append('annotation_filename', selectedAnnotationFile);
             }

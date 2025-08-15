@@ -24,11 +24,11 @@ class TranslationTask:
     """翻译任务类，用于存储任务信息"""
 
     def __init__(self, task_id: str, user_id: int, user_name: str,
-                file_path: str, task_type: str = 'ppt_translate',
+                file_path: str,model:str, task_type: str = 'ppt_translate',
                 source_language: str = 'en', target_language: str = 'zh-cn',
                 priority: int = 0, annotation_filename: str = None,
                 annotation_json: Dict = None, select_page: List[int] = None,
-                bilingual_translation: bool = False, translation_model: str = 'qwen', **kwargs):
+                bilingual_translation: str = 'paragraph_up',  **kwargs):
         """
         初始化翻译任务
 
@@ -60,7 +60,8 @@ class TranslationTask:
         self.annotation_json = annotation_json  # 添加注释数据字段
         self.select_page = select_page or []
         self.bilingual_translation = bilingual_translation
-        self.translation_model = translation_model  # 添加翻译模型字段
+        self.model = model
+        self.enable_text_splitting = kwargs.get('enable_text_splitting', True)
 
         # PDF注释相关参数
         self.annotations = kwargs.get('annotations', [])
@@ -101,7 +102,7 @@ class TranslationTask:
 
         # 获取任务专用的日志记录器
         self.logger = logging.getLogger(f"{__name__}.task.{user_id}")
-        self.logger.info(f"创建新任务: 用户={user_name}, 文件={os.path.basename(file_path)}, 模型={translation_model}")
+        self.logger.info(f"创建新任务: 用户={user_name}, 文件={os.path.basename(file_path)}, 模型={model}")
 
 class EnhancedTranslationQueue:
     """增强版翻译任务队列，支持多线程并发处理"""
@@ -163,12 +164,11 @@ class EnhancedTranslationQueue:
                 # 启动定期回收数据库连接的后台线程
                 self.schedule_db_connection_recycling()
 
-    def add_task(self, user_id: int, user_name: str, file_path: str,
+    def add_task(self, user_id: int, user_name: str, file_path: str,model:str,
                 task_type: str = 'ppt_translate', source_language: str = 'en',
                 target_language: str = 'zh-cn', priority: int = 0,
                 annotation_filename: str = None, annotation_json: Dict = None,
-                select_page: List[int] = None, bilingual_translation: bool = False,
-                translation_model: str = 'qwen', **kwargs) -> int:
+                select_page: List[int] = None, bilingual_translation: str = "paragraph_up",**kwargs) -> int:
         """
         添加任务到队列
 
@@ -184,7 +184,7 @@ class EnhancedTranslationQueue:
             annotation_json: 注释数据（直接传递）
             select_page: 选择的页面列表
             bilingual_translation: 是否双语翻译
-            translation_model: 翻译模型 (qwen, deepseek, gpt-4o)
+            model: 模型类型
             **kwargs: 其他参数
 
         Returns:
@@ -223,7 +223,7 @@ class EnhancedTranslationQueue:
                 annotation_json=annotation_json,  # 添加注释数据
                 select_page=select_page,
                 bilingual_translation=bilingual_translation,
-                translation_model=translation_model,
+                model=model,
                 **kwargs
             )
 
@@ -965,8 +965,9 @@ class EnhancedTranslationQueue:
                     custom_translations=custom_translations,
                     source_language=task.source_language,
                     target_language=task.target_language,
-                    bilingual_translation=str(int(task.bilingual_translation)),
-                    progress_callback=progress_callback
+                    bilingual_translation=task.bilingual_translation,
+                    progress_callback=progress_callback,
+                    model=task.model
                 )
             else:
                 # 使用普通处理函数
@@ -977,9 +978,10 @@ class EnhancedTranslationQueue:
                     select_page=task.select_page,
                     source_language=task.source_language,
                     target_language=task.target_language,
-                    bilingual_translation=str(int(task.bilingual_translation)),
-                    model_name=task.translation_model,
-                    progress_callback=progress_callback
+                    bilingual_translation=task.bilingual_translation,
+                    progress_callback=progress_callback,
+                    model=task.model,
+                    enable_text_splitting = task.enable_text_splitting
                 )
 
             return result
