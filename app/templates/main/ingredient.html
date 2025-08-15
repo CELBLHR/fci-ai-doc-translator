@@ -1,0 +1,304 @@
+{% extends "main/base_layout.html" %}
+
+{% block title %}保健食品成分搜索{% endblock %}
+
+{% block styles %}
+<style>
+/* 重写容器样式 */
+.container {
+    margin-left: 17vw !important;
+    width: 83vw !important;
+    background-color: #f8f9fa;
+    color: rgb(110,111,114);
+    line-height: 1.6;
+    padding: 1.4vw;
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+/* 页面标题样式 */
+.page-title {
+    color: rgb(0,148,217);
+    margin-bottom: 2.1vw;
+    font-size: 2rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.7vw;
+}
+
+/* 搜索容器样式 */
+.ingredient-container {
+    color: rgb(110,111,114);
+    background: white;
+    border-radius: 0.8vw;
+    padding: 2.1vw;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* 搜索输入框样式 */
+.search-input {
+    color: rgb(110,111,114);
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5vw;
+    padding: 0.8vw 1.2vw;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: rgb(0,148,217);
+    box-shadow: 0 0 0 3px rgba(0,148,217,0.1);
+}
+
+.search-input::placeholder {
+    color: rgba(110,111,114,0.6);
+}
+
+.search-btn {
+    background-color: rgb(0,148,217);
+    color: white;
+    border: none;
+    border-radius: 0.5vw;
+    padding: 0.8vw 2.1vw;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5vw;
+}
+
+.search-btn:hover {
+    background-color: rgb(0,130,190);
+}
+
+/* 搜索结果样式 */
+.search-results {
+    color: rgb(110,111,114);
+    background: #f8f9fa;
+    border-radius: 0.6vw;
+    padding: 1.8vw;
+    border: 1px solid #e9ecef;
+    margin-top: 1.4vw;
+}
+
+/* 搜索结果卡片布局 */
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(20vw, 1fr));
+    gap: 1.5vw;
+    margin-top: 1vw;
+}
+
+.results-header {
+    margin-bottom: 1vw;
+    padding-bottom: 0.5vw;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.results-header p {
+    margin: 0;
+    color: rgb(70,71,74);
+    font-size: 0.9rem;
+}
+
+.result-card {
+    background: white;
+    border-radius: 0.6vw;
+    padding: 1.2vw;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    border: 1px solid #e9ecef;
+    transition: all 0.2s ease;
+}
+
+.result-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    transform: translateY(-2px);
+}
+
+.result-card h3 {
+    color: rgb(0,148,217);
+    margin-top: 0;
+    margin-bottom: 0.8vw;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.result-card p {
+    margin: 0.6vw 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.result-card .download-btn {
+    margin-top: 1vw;
+    background-color: rgb(0,148,217);
+    color: white;
+    border: none;
+    border-radius: 0.4vw;
+    padding: 0.5vw 1vw;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.result-card .download-btn:hover {
+    background-color: rgb(0,130,190);
+}
+
+/* 分页控件样式 */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1vw;
+    margin-top: 2vw;
+    padding: 1vw 0;
+}
+
+.pagination-btn {
+    background-color: white;
+    color: rgb(110,111,114);
+    border: 1px solid #dee2e6;
+    border-radius: 0.4vw;
+    padding: 0.5vw 1vw;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.3vw;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.pagination-info {
+    font-size: 0.9rem;
+    color: rgb(110,111,114);
+    padding: 0 1vw;
+}
+
+/* 搜索容器布局 */
+.search-container {
+    display: flex;
+    gap: 1.2vw;
+    align-items: center;
+}
+
+.search-container input {
+    flex: 1;
+}
+
+/* 数据源筛选样式 */
+.data-source-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.5vw;
+}
+
+.data-source-filter label {
+    font-weight: 500;
+    color: rgb(70,71,74);
+}
+
+.filter-select {
+    padding: 0.6vw 1vw;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5vw;
+    background-color: white;
+    color: rgb(110,111,114);
+    font-size: 0.9rem;
+}
+
+/* 数据源标签样式 */
+.data-source-tag {
+    display: inline-block;
+    padding: 0.2vw 0.6vw;
+    border-radius: 0.3vw;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-left: 0.5vw;
+}
+
+.registration-tag {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.filing-tag {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.unknown-tag {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .search-container {
+        flex-direction: column;
+        gap: 1vw;
+    }
+    
+    .search-btn {
+        align-self: flex-start;
+    }
+    
+    .data-source-filter {
+        align-self: flex-start;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ingredient-container">
+    <h1 class="page-title">
+        <i class="bi bi-search"></i>
+        保健食品成分搜索
+    </h1>
+    
+    <div class="search-container">
+        <input type="text" id="searchInput" class="search-input" placeholder="请输入要查询的成分名称...">
+        <div class="data-source-filter">
+            <label>数据源:</label>
+            <select id="dataSourceFilter" class="filter-select">
+                <option value="all">全部</option>
+                <option value="registration">注册数据</option>
+                <option value="filing">备案数据</option>
+            </select>
+        </div>
+        <button type="button" class="search-btn" onclick="searchIngredient()">
+            <i class="bi bi-search"></i> 查询
+        </button>
+    </div>
+
+    <div id="searchResults" class="search-results">
+        <!-- 搜索结果将在这里动态显示 -->
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/ingredient.js') }}"></script>
+{% endblock %}

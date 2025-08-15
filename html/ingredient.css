@@ -1,0 +1,374 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f5f5f5;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    color: #303133;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.search-section {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.search-container {
+    display: flex;
+    gap: 10px;
+}
+
+#ingredientInput {
+    flex: 1;
+    padding: 12px 16px;
+    border: 2px solid #dcdfe6;
+    border-radius: 4px;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+#ingredientInput:focus {
+    border-color: #409EFF;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+.search-btn {
+    background-color: #409EFF;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+.search-btn:hover {
+    background-color: #66b1ff;
+}
+
+.search-btn i {
+    font-size: 18px;
+}
+
+.result-section {
+    max-width: 800px;
+    margin: 20px auto;
+    min-height: 200px;
+}
+
+.result-container {
+    padding: 20px;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+}
+
+.no-result {
+    text-align: center;
+    padding: 40px;
+    color: #909399;
+}
+
+.no-result i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+}
+
+.no-result p {
+    margin: 0;
+    font-size: 16px;
+}
+
+.download-section {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.download-btn {
+    background-color: #67c23a;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.download-btn:hover {
+    background-color: #85ce61;
+}
+
+.download-btn:disabled {
+    background-color: #a3e0a3;
+    cursor: not-allowed;
+}
+
+.result-item {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s;
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.result-main {
+    flex: 1;
+    min-width: 0; /* 防止内容溢出 */
+}
+
+.result-item h3 {
+    color: #303133;
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.result-details {
+    color: #606266;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.match-content p {
+    margin: 0;
+}
+
+.result-actions {
+    padding-top: 8px;
+}
+
+.download-btn {
+    background-color: #67c23a;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    transition: all 0.3s;
+    white-space: nowrap;
+}
+
+.download-btn:hover {
+    background-color: #85ce61;
+}
+
+.download-btn:disabled {
+    background-color: #a3e0a3;
+    cursor: not-allowed;
+}
+
+.download-btn i {
+    font-size: 16px;
+}
+
+.result-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.result-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.result-item h3 {
+    color: #303133;
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 600;
+    border-bottom: 1px solid #ebeef5;
+    padding-bottom: 8px;
+}
+
+.result-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.match-content, .file-path {
+    display: flex;
+    gap: 8px;
+}
+
+.label {
+    color: #909399;
+    font-size: 14px;
+    min-width: 80px;
+    margin: 0;
+}
+
+.result-details p {
+    color: #606266;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0;
+    flex: 1;
+}
+
+.file-path p {
+    word-break: break-all;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #909399;
+}
+
+.loading i {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
+/* 适配移动设备 */
+@media (max-width: 768px) {
+    .match-content, .file-path {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .label {
+        min-width: auto;
+    }
+
+    .result-item {
+        flex-direction: column;
+    }
+
+    .result-actions {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 16px;
+        border-top: 1px solid #ebeef5;
+    }
+}
+
+/* 添加分页样式 */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+.page-btn {
+    padding: 6px 12px;
+    border: 1px solid #dcdfe6;
+    background-color: white;
+    color: #606266;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 32px;
+}
+
+.page-btn:hover:not(.disabled) {
+    color: #409EFF;
+    border-color: #c6e2ff;
+    background-color: #ecf5ff;
+}
+
+.page-btn.active {
+    background-color: #409EFF;
+    color: white;
+    border-color: #409EFF;
+}
+
+.page-btn.disabled {
+    cursor: not-allowed;
+    color: #c0c4cc;
+    background-color: #f4f4f5;
+}
+
+.prev-btn, .next-btn {
+    padding: 6px 12px;
+}
+
+.page-ellipsis {
+    color: #606266;
+}
+
+/* 添加更新按钮样式 */
+.update-section {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+.update-btn {
+    background-color: #409EFF;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.update-btn:hover {
+    background-color: #66b1ff;
+}
+
+.update-btn:disabled {
+    background-color: #a0cfff;
+    cursor: not-allowed;
+}
+
+.update-btn i {
+    font-size: 16px;
+}
+
+.update-btn i.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+} 

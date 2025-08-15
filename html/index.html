@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPT翻译</title>
+    <link rel="stylesheet" href="nav.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="toast.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spinkit/spinkit.min.css">
+</head>
+<body>
+    <nav class="nav-menu">
+        <div class="nav-container">
+            <a href="index.html" class="nav-brand">翻译管理系统</a>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link active">
+                    <i class="bi bi-translate"></i>
+                    PPT翻译
+                </a>
+                <a href="database.html" class="nav-link">
+                    <i class="bi bi-database"></i>
+                    训练数据库管理
+                </a>
+                <a href="ingredient.html" class="nav-link">
+                    <i class="bi bi-search"></i>
+                    保健食品成分搜索
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>PPT文件翻译工具</h1>
+
+        <div class="upload-container" id="dropZone">
+            <p>拖拽文件到此处或点击选择文件</p>
+            <input type="file" id="fileInput" accept=".ppt,.pptx">
+            <div class="selected-file" id="selectedFile"></div>
+            <button id="uploadBtn" disabled>上传文件</button>
+            <div id="loadingContainer" class="loading-container hidden">
+                <div class="sk-chase">
+                    <div class="sk-chase-dot"></div>
+                    <div class="sk-chase-dot"></div>
+                    <div class="sk-chase-dot"></div>
+                    <div class="sk-chase-dot"></div>
+                    <div class="sk-chase-dot"></div>
+                    <div class="sk-chase-dot"></div>
+                </div>
+                <p class="loading-text">正在上传文件...</p>
+            </div>
+
+            <!-- 进度显示容器 -->
+            <div id="progressContainer" class="progress-container hidden">
+                <div class="progress-info">
+                    <div class="slide-info">
+                        正在翻译第 <span id="currentSlide">0</span> 页，共 <span id="totalSlides">0</span> 页
+                    </div>
+                    <div class="progress-percentage">
+                        <span id="progressText">0%</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div id="progressBarFill" class="progress-bar-fill"></div>
+                </div>
+                <div class="queue-status">
+                    <span id="queueMessage">正在处理中...</span>
+                </div>
+            </div>
+
+            <div id="message"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

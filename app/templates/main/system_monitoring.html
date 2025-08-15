@@ -1,0 +1,596 @@
+{% extends "main/base_layout.html" %}
+
+{% block title %}系统监控{% endblock %}
+
+{% block styles %}
+<style>
+    .system-stats-card {
+        margin-bottom: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .card-header {
+        padding: 15px;
+        background-color: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .card-body {
+        padding: 15px;
+        background-color: #fff;
+    }
+    
+    .stats-item {
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .stats-item:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+    
+    .stats-label {
+        font-weight: bold;
+        color: #555;
+    }
+    
+    .stats-value {
+        font-family: monospace;
+    }
+    
+    .healthy {
+        color: #28a745;
+    }
+    
+    .warning {
+        color: #ffc107;
+    }
+    
+    .danger {
+        color: #dc3545;
+    }
+    
+    .status-circle {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+    
+    .status-circle.healthy {
+        background-color: #28a745;
+    }
+    
+    .status-circle.warning {
+        background-color: #ffc107;
+    }
+    
+    .status-circle.danger {
+        background-color: #dc3545;
+    }
+    
+    .task-count {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: bold;
+        background-color: #eee;
+        margin-left: 5px;
+    }
+    
+    .action-panel {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+    }
+    
+    .action-panel h5 {
+        margin-bottom: 15px;
+        color: #495057;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>系统监控</h2>
+    <p>当前系统状态和资源使用情况</p>
+    
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div id="system-time" class="mb-3">
+                <strong>系统时间：</strong> <span id="current-time">加载中...</span>
+            </div>
+            <div class="mb-3">
+                <button id="refreshStats" class="btn btn-primary" data-debounce="1000" data-loading-text="<i class='fas fa-sync fa-spin'></i> 刷新中...">
+                    <i class="fas fa-sync"></i> 刷新统计信息
+                </button>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div id="refresh-status">最后更新时间: <span id="last-refresh">-</span></div>
+            <div id="auto-refresh-settings" class="form-check">
+                <input type="checkbox" class="form-check-input" id="auto-refresh">
+                <label class="form-check-label" for="auto-refresh">自动刷新（10秒）</label>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- 系统资源状态 -->
+        <div class="col-md-6">
+            <div class="system-stats-card">
+                <div class="card-header">
+                    <h4>系统资源</h4>
+                    <div id="system-status-indicator">
+                        <span class="status-circle danger"></span>
+                        <span id="system-status-text">检查中...</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="stats-item">
+                        <div class="stats-label">CPU 使用率</div>
+                        <div class="stats-value">
+                            <div class="progress" style="height: 20px;">
+                                <div id="cpu-usage" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-item">
+                        <div class="stats-label">内存使用率</div>
+                        <div class="stats-value">
+                            <div class="progress" style="height: 20px;">
+                                <div id="memory-usage" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-item">
+                        <div class="stats-label">内存详情</div>
+                        <div class="stats-value">
+                            <div id="memory-details">
+                                总内存: <span id="memory-total">0</span> MB<br>
+                                已用内存: <span id="memory-used">0</span> MB<br>
+                                可用内存: <span id="memory-available">0</span> MB
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-item">
+                        <div class="stats-label">CPU 核心数</div>
+                        <div class="stats-value" id="cpu-cores">
+                            物理核心: 0, 逻辑核心: 0
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 线程池状态 -->
+        <div class="col-md-6">
+            <div class="system-stats-card">
+                <div class="card-header">
+                    <h4>线程池状态</h4>
+                    <div id="thread-pool-status-indicator">
+                        <span class="status-circle danger"></span>
+                        <span id="thread-pool-status-text">检查中...</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="stats-item">
+                        <div class="stats-label">线程池健康状态</div>
+                        <div class="stats-value" id="thread-pool-health">
+                            未知
+                        </div>
+                    </div>
+                    
+                    <div class="stats-item">
+                        <div class="stats-label">活跃线程数</div>
+                        <div class="stats-value" id="thread-pool-active">
+                            IO线程: 0, CPU线程: 0
+                        </div>
+                    </div>
+                    
+                    <div class="stats-item">
+                        <div class="stats-label">配置信息</div>
+                        <div class="stats-value" id="thread-pool-config">
+                            最大线程数: 0<br>
+                            IO线程池大小: 0<br>
+                            CPU线程池大小: 0
+                        </div>
+                    </div>
+                    
+                    <div class="stats-item">
+                        <div class="stats-label">运行状态</div>
+                        <div class="stats-value" id="thread-pool-runtime">
+                            运行时间: 0秒<br>
+                            错误计数: 0<br>
+                            恢复次数: 0<br>
+                            最后错误: 无
+                        </div>
+                    </div>
+                    
+                    <div class="stats-item">
+                        <div class="stats-label">任务统计</div>
+                        <div class="stats-value" id="thread-pool-tasks">
+                            总任务数: 0<br>
+                            活跃任务: 0<br>
+                            等待任务: 0<br>
+                            已完成: 0<br>
+                            失败: 0<br>
+                            取消: 0
+                        </div>
+                    </div>
+                    
+                    <div class="action-panel">
+                        <h5>线程池管理操作</h5>
+                        <button id="resetThreadPool" class="btn btn-warning" data-debounce="3000" data-loading-text="<i class='fas fa-sync fa-spin'></i> 重置中...">
+                            <i class="fas fa-redo"></i> 重置线程池
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <!-- 任务队列状态 -->
+        <div class="col-md-6">
+            <div class="system-stats-card">
+                <div class="card-header">
+                    <h4>任务队列状态</h4>
+                    <div id="task-queue-status-indicator">
+                        <span class="status-circle danger"></span>
+                        <span id="task-queue-status-text">检查中...</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="stats-item">
+                        <div class="stats-label">队列配置</div>
+                        <div class="stats-value" id="task-queue-config">
+                            最大并发任务: 0<br>
+                            任务超时时间: 0秒<br>
+                            重试次数: 0
+                        </div>
+                    </div>
+                    
+                    <div class="stats-item">
+                        <div class="stats-label">任务统计</div>
+                        <div class="stats-value" id="task-queue-stats">
+                            <div class="mb-2">
+                                总任务数: <span id="task-queue-total">0</span>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <span>等待中 <span class="task-count" id="task-waiting">0</span></span>
+                                <span>处理中 <span class="task-count" id="task-processing">0</span></span>
+                                <span>已完成 <span class="task-count" id="task-completed">0</span></span>
+                            </div>
+                            <div class="mt-2 d-flex justify-content-between">
+                                <span>失败 <span class="task-count" id="task-failed">0</span></span>
+                                <span>取消 <span class="task-count" id="task-canceled">0</span></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="action-panel">
+                        <h5>任务队列管理操作</h5>
+                        <button id="resetTaskQueue" class="btn btn-warning" data-debounce="3000" data-loading-text="<i class='fas fa-sync fa-spin'></i> 重置中...">
+                            <i class="fas fa-redo"></i> 重置任务队列
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 数据库连接状态 -->
+        <div class="col-md-6">
+            <div class="system-stats-card">
+                <div class="card-header">
+                    <h4>数据库连接状态</h4>
+                    <div id="db-status-indicator">
+                        <span class="status-circle danger"></span>
+                        <span id="db-status-text">检查中...</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="stats-item">
+                        <div class="stats-label">连接池配置</div>
+                        <div class="stats-value" id="db-config">
+                            池大小: 0<br>
+                            最大溢出连接: 0<br>
+                            连接超时: 0秒<br>
+                            连接回收时间: 0秒
+                        </div>
+                    </div>
+                    
+                    <div class="stats-item">
+                        <div class="stats-label">连接状态</div>
+                        <div class="stats-value" id="db-connections">
+                            当前池大小: 0<br>
+                            已签入连接: 0<br>
+                            已签出连接: 0<br>
+                            溢出连接: 0
+                        </div>
+                    </div>
+                    
+                    <div class="action-panel">
+                        <h5>数据库连接管理操作</h5>
+                        <button id="recycleConnections" class="btn btn-warning" data-debounce="3000" data-loading-text="<i class='fas fa-recycle fa-spin'></i> 回收中...">
+                            <i class="fas fa-recycle"></i> 回收空闲连接
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // 初始化防抖动按钮
+    initDebouncedButtons();
+    
+    // 更新系统时间
+    function updateSystemTime() {
+        const now = new Date();
+        $('#current-time').text(now.toLocaleString());
+    }
+    
+    // 每秒更新系统时间
+    setInterval(updateSystemTime, 1000);
+    updateSystemTime();
+    
+    // 加载系统状态
+    function loadSystemStatus() {
+        $.ajax({
+            url: '/system_status',
+            type: 'GET',
+            success: function(data) {
+                updateSystemStats(data);
+                $('#last-refresh').text(new Date().toLocaleTimeString());
+            },
+            error: function(xhr, status, error) {
+                showToast('错误', '获取系统状态失败: ' + error, 'error');
+            }
+        });
+    }
+    
+    // 更新系统状态数据
+    function updateSystemStats(data) {
+        // 更新CPU和内存信息
+        $('#cpu-usage').css('width', data.cpu.percent + '%').text(data.cpu.percent + '%');
+        $('#memory-usage').css('width', data.memory.percent + '%').text(data.memory.percent + '%');
+        
+        $('#memory-total').text((data.memory.total / 1024 / 1024).toFixed(0));
+        $('#memory-used').text((data.memory.used / 1024 / 1024).toFixed(0));
+        $('#memory-available').text((data.memory.available / 1024 / 1024).toFixed(0));
+        
+        $('#cpu-cores').text(`物理核心: ${data.cpu.count}, 逻辑核心: ${data.cpu.logical_count}`);
+        
+        // 更新系统状态指示器
+        updateStatusIndicator(
+            'system', 
+            data.memory.percent < 80 && data.cpu.percent < 80, 
+            `内存: ${data.memory.percent}%, CPU: ${data.cpu.percent}%`
+        );
+        
+        // 更新线程池信息
+        const threadPool = data.thread_pool;
+        const health = threadPool.health;
+        
+        $('#thread-pool-health').html(
+            health.healthy 
+            ? '<span class="healthy"><i class="fas fa-check-circle"></i> 正常</span>' 
+            : '<span class="danger"><i class="fas fa-exclamation-circle"></i> 异常</span>'
+        );
+        
+        $('#thread-pool-active').text(
+            `IO线程: ${health.io_active_threads}, CPU线程: ${health.cpu_active_threads}`
+        );
+        
+        $('#thread-pool-config').html(
+            `最大线程数: ${threadPool.stats.max_workers}<br>` +
+            `IO线程池大小: ${threadPool.stats.io_bound_workers}<br>` +
+            `CPU线程池大小: ${threadPool.stats.cpu_bound_workers}`
+        );
+        
+        const uptime = threadPool.stats.uptime || 0;
+        const uptimeText = uptime > 3600 
+            ? (uptime / 3600).toFixed(2) + '小时' 
+            : uptime > 60 
+                ? (uptime / 60).toFixed(2) + '分钟' 
+                : uptime.toFixed(0) + '秒';
+        
+        $('#thread-pool-runtime').html(
+            `运行时间: ${uptimeText}<br>` +
+            `错误计数: ${threadPool.stats.error_count || 0}<br>` +
+            `恢复次数: ${threadPool.stats.recovery_count || 0}<br>` +
+            `最后错误: ${threadPool.stats.last_error_time ? new Date(threadPool.stats.last_error_time * 1000).toLocaleTimeString() : '无'}`
+        );
+        
+        const taskCounts = threadPool.stats.task_status_counts || {};
+        $('#thread-pool-tasks').html(
+            `总任务数: ${threadPool.stats.total_tasks_created || 0}<br>` +
+            `活跃任务: ${threadPool.stats.active_tasks || 0}<br>` +
+            `等待任务: ${taskCounts.pending || 0}<br>` +
+            `已完成: ${taskCounts.completed || 0}<br>` +
+            `失败: ${taskCounts.failed || 0}<br>` +
+            `取消: ${taskCounts.canceled || 0}`
+        );
+        
+        // 更新线程池状态指示器
+        updateStatusIndicator(
+            'thread-pool', 
+            health.healthy, 
+            health.healthy ? '正常运行' : '运行异常'
+        );
+        
+        // 更新任务队列信息
+        const queue = data.task_queue;
+        
+        $('#task-queue-config').html(
+            `最大并发任务: ${queue.max_concurrent}<br>` +
+            `任务超时时间: ${queue.task_timeout}秒<br>` +
+            `重试次数: ${queue.retry_times}`
+        );
+        
+        $('#task-queue-total').text(queue.total);
+        $('#task-waiting').text(queue.waiting);
+        $('#task-processing').text(queue.processing);
+        $('#task-completed').text(queue.completed);
+        $('#task-failed').text(queue.failed);
+        $('#task-canceled').text(queue.canceled);
+        
+        // 更新任务队列状态指示器
+        const queueHealthy = queue.processing < queue.max_concurrent && queue.failed < queue.total * 0.3;
+        updateStatusIndicator(
+            'task-queue', 
+            queueHealthy, 
+            `活跃: ${queue.processing}/${queue.max_concurrent}, 等待: ${queue.waiting}`
+        );
+        
+        // 更新数据库连接信息
+        const db = data.database;
+        
+        $('#db-config').html(
+            `池大小: ${db.pool_size}<br>` +
+            `最大溢出连接: ${db.max_overflow}<br>` +
+            `连接超时: ${db.pool_config?.timeout || 0}秒<br>` +
+            `连接回收时间: ${db.pool_config?.recycle || 0}秒`
+        );
+        
+        $('#db-connections').html(
+            `当前池大小: ${db.current_size}<br>` +
+            `已签入连接: ${db.checked_in}<br>` +
+            `已签出连接: ${db.checked_out}<br>` +
+            `溢出连接: ${db.overflow}`
+        );
+        
+        // 更新数据库状态指示器
+        const dbHealthy = db.checked_out < db.pool_size && db.overflow < 5;
+        updateStatusIndicator(
+            'db', 
+            dbHealthy, 
+            `签出: ${db.checked_out}/${db.pool_size}, 溢出: ${db.overflow}`
+        );
+    }
+    
+    // 更新状态指示器
+    function updateStatusIndicator(prefix, isHealthy, statusText) {
+        const $indicator = $(`#${prefix}-status-indicator .status-circle`);
+        const $text = $(`#${prefix}-status-text`);
+        
+        if (isHealthy) {
+            $indicator.removeClass('warning danger').addClass('healthy');
+            $text.removeClass('warning danger').addClass('healthy');
+        } else {
+            $indicator.removeClass('healthy warning').addClass('danger');
+            $text.removeClass('healthy warning').addClass('danger');
+        }
+        
+        $text.text(statusText);
+    }
+    
+    // 刷新统计信息
+    $('#refreshStats').on('click', function() {
+        loadSystemStatus();
+    });
+    
+    // 自动刷新
+    $('#auto-refresh').on('change', function() {
+        if ($(this).is(':checked')) {
+            autoRefreshTimer = setInterval(loadSystemStatus, 10000);
+            showToast('提示', '已启用自动刷新 (10秒)', 'info');
+        } else {
+            clearInterval(autoRefreshTimer);
+            showToast('提示', '已禁用自动刷新', 'info');
+        }
+    });
+    
+    // 重置线程池
+    $('#resetThreadPool').on('click', function() {
+        if (confirm("确定要重置线程池吗？这可能会中断正在执行的任务。")) {
+            $.ajax({
+                url: '/system/reset_thread_pool',
+                type: 'POST',
+                success: function(data) {
+                    if (data.success) {
+                        showToast('成功', '线程池已重置', 'success');
+                        loadSystemStatus();
+                    } else {
+                        showToast('错误', data.message, 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showToast('错误', '重置线程池失败: ' + error, 'error');
+                }
+            });
+        }
+    });
+    
+    // 重置任务队列
+    $('#resetTaskQueue').on('click', function() {
+        if (confirm("确定要重置任务队列吗？这可能会中断正在执行的任务。")) {
+            $.ajax({
+                url: '/system/reset_task_queue',
+                type: 'POST',
+                success: function(data) {
+                    if (data.success) {
+                        showToast('成功', '任务队列已重置', 'success');
+                        loadSystemStatus();
+                    } else {
+                        showToast('错误', data.message, 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showToast('错误', '重置任务队列失败: ' + error, 'error');
+                }
+            });
+        }
+    });
+    
+    // 回收数据库连接
+    $('#recycleConnections').on('click', function() {
+        if (confirm("确定要回收空闲的数据库连接吗？")) {
+            $.ajax({
+                url: '/recycle_connections',
+                type: 'POST',
+                success: function(data) {
+                    if (data.success) {
+                        showToast('成功', '已回收空闲数据库连接', 'success');
+                        loadSystemStatus();
+                    } else {
+                        showToast('错误', data.message, 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showToast('错误', '回收数据库连接失败: ' + error, 'error');
+                }
+            });
+        }
+    });
+    
+    // 页面加载时自动获取系统状态
+    loadSystemStatus();
+    
+    // 自动刷新定时器
+    let autoRefreshTimer;
+});
+</script>
+{% endblock %} 

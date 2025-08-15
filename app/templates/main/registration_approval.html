@@ -1,0 +1,384 @@
+{% extends "main/base_layout.html" %}
+
+{% block title %}注册审批{% endblock %}
+
+{% block styles %}
+<style>
+/* 重写容器样式 */
+.container {
+    margin-left: 17vw !important;
+    width: 83vw !important;
+    background-color: #f8f9fa;
+    color: rgb(110,111,114);
+    line-height: 1.6;
+    padding: 1.4vw;
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+.approval-container {
+    max-width: none;
+    margin: 0;
+    background: white;
+    border-radius: 0.8vw;
+    padding: 2.1vw;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.approval-header {
+    margin-bottom: 2.1vw;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 1.4vw;
+}
+
+.approval-header h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    color: rgb(0,148,217);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.7vw;
+}
+
+.status-filter {
+    display: flex;
+    gap: 0.8vw;
+}
+
+.status-btn {
+    padding: 0.6vw 1.2vw;
+    border: none;
+    border-radius: 0.4vw;
+    cursor: pointer;
+    background: #f8f9fa;
+    color: rgb(110,111,114);
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border: 1px solid #dee2e6;
+}
+
+.status-btn.active {
+    background: rgb(0,148,217);
+    color: white;
+    border-color: rgb(0,148,217);
+}
+
+.status-btn:hover:not(.active) {
+    background: rgba(0,148,217,0.1);
+    color: rgb(0,148,217);
+    border-color: rgb(0,148,217);
+}
+
+.approval-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 0.6vw;
+    overflow: hidden;
+    border: 1px solid #e9ecef;
+    font-size: 1rem;
+}
+
+.approval-table th,
+.approval-table td {
+    padding: 1.2vw;
+    text-align: left;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.approval-table th {
+    background: #fafbfc;
+    font-weight: 600;
+    color: rgb(0,148,217);
+    font-size: 1rem;
+}
+
+.approval-table td {
+    color: rgb(110,111,114);
+}
+
+.approval-table tr:hover {
+    background: rgba(0,148,217,0.05);
+}
+
+.status-badge {
+    padding: 0.4vw 0.8vw;
+    border-radius: 1.2vw;
+    font-size: 0.9rem;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.status-pending {
+    background: rgba(255,193,7,0.15);
+    color: #b8860b;
+}
+
+.status-approved {
+    background: rgba(40,167,69,0.15);
+    color: #28a745;
+}
+
+.status-rejected {
+    background: rgba(220,53,69,0.15);
+    color: #dc3545;
+}
+
+.action-btns {
+    display: flex;
+    gap: 0.5vw;
+}
+
+.action-btn {
+    padding: 0.6vw 1.2vw;
+    border: none;
+    border-radius: 0.4vw;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.4vw;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.approve-btn {
+    background: rgba(40,167,69,0.15);
+    color: #28a745;
+    border: 1px solid rgba(40,167,69,0.3);
+}
+
+.approve-btn:hover {
+    background: #28a745;
+    color: white;
+    border-color: #28a745;
+}
+
+.reject-btn {
+    background: rgba(220,53,69,0.15);
+    color: #dc3545;
+    border: 1px solid rgba(220,53,69,0.3);
+}
+
+.reject-btn:hover {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 分页样式 */
+.pagination {
+    margin-top: 2.1vw;
+    display: flex;
+    justify-content: center;
+    gap: 0.4vw;
+}
+
+.pagination button {
+    padding: 0.6vw 1.2vw;
+    border: 1px solid #dee2e6;
+    border-radius: 0.4vw;
+    background: white;
+    color: rgb(110,111,114);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.pagination button:hover:not(.active) {
+    background: rgba(0,148,217,0.1);
+    border-color: rgb(0,148,217);
+    color: rgb(0,148,217);
+}
+
+.pagination button.active {
+    background: rgb(0,148,217);
+    color: white;
+    border-color: rgb(0,148,217);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="approval-container">
+    <div class="approval-header">
+        <h1><i class="bi bi-person-check"></i> 注册审批</h1>
+        <div class="status-filter">
+            <button class="status-btn active" data-status="all">全部</button>
+            <button class="status-btn" data-status="pending">待审批</button>
+            <button class="status-btn" data-status="approved">已通过</button>
+            <button class="status-btn" data-status="rejected">已拒绝</button>
+        </div>
+    </div>
+
+    <table class="approval-table">
+        <thead>
+            <tr>
+                <th>用户名</th>
+                <th>注册时间</th>
+                <th>状态</th>
+                <th>审批人</th>
+                <th>审批时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="approvalList">
+            <!-- 数据将通过JavaScript动态添加 -->
+        </tbody>
+    </table>
+
+    <div id="pagination" class="pagination">
+        <!-- 分页将通过JavaScript动态添加 -->
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentStatus = 'all';
+let currentPage = 1;
+
+// 加载注册申请列表
+async function loadRegistrations(status = 'all', page = 1) {
+    try {
+        const response = await fetch(`/api/registrations?status=${status}&page=${page}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            const tbody = document.getElementById('approvalList');
+            tbody.innerHTML = data.registrations.map(reg => `
+                <tr>
+                    <td>${reg.username}</td>
+                    <td>${reg.register_time}</td>
+                    <td>
+                        <span class="status-badge status-${reg.status}">
+                            ${getStatusText(reg.status)}
+                        </span>
+                    </td>
+                    <td>${reg.approve_user || '-'}</td>
+                    <td>${reg.approve_time || '-'}</td>
+                    <td>
+                        <div class="action-btns">
+                            ${reg.status === 'pending' ? `
+                                <button class="action-btn approve-btn" onclick="approveRegistration(${reg.id})">
+                                    <i class="bi bi-check-lg"></i>
+                                    通过
+                                </button>
+                                <button class="action-btn reject-btn" onclick="rejectRegistration(${reg.id})">
+                                    <i class="bi bi-x-lg"></i>
+                                    拒绝
+                                </button>
+                            ` : '-'}
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+
+            // 更新分页
+            updatePagination(data.total_pages, page);
+        } else {
+            throw new Error(data.error || '加载失败');
+        }
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+// 更新分页
+function updatePagination(totalPages, currentPage) {
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = '';
+    
+    if (totalPages <= 1) return;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        const button = document.createElement('button');
+        button.textContent = i;
+        button.className = i === currentPage ? 'active' : '';
+        button.onclick = () => {
+            currentPage = i;
+            loadRegistrations(currentStatus, i);
+        };
+        pagination.appendChild(button);
+    }
+}
+
+// 获取状态文本
+function getStatusText(status) {
+    const statusMap = {
+        'pending': '待审批',
+        'approved': '已通过',
+        'rejected': '已拒绝'
+    };
+    return statusMap[status] || status;
+}
+
+// 通过注册申请
+async function approveRegistration(id) {
+    if (!confirm('确定要通过这个注册申请吗？')) return;
+    
+    try {
+        const response = await fetch(`/api/registrations/${id}/approve`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showToast('审批成功', 'success');
+            loadRegistrations(currentStatus, currentPage);
+        } else {
+            throw new Error(data.error || '审批失败');
+        }
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+// 拒绝注册申请
+async function rejectRegistration(id) {
+    if (!confirm('确定要拒绝这个注册申请吗？')) return;
+    
+    try {
+        const response = await fetch(`/api/registrations/${id}/reject`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showToast('已拒绝申请', 'success');
+            loadRegistrations(currentStatus, currentPage);
+        } else {
+            throw new Error(data.error || '操作失败');
+        }
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+// 状态过滤按钮点击事件
+document.querySelectorAll('.status-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentStatus = btn.dataset.status;
+        currentPage = 1;
+        loadRegistrations(currentStatus, currentPage);
+    });
+});
+
+// 初始加载
+loadRegistrations();
+</script>
+{% endblock %} 

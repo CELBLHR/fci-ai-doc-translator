@@ -1,0 +1,450 @@
+{% extends "main/base_layout.html" %}
+
+{% block title %}数据库连接池状态{% endblock %}
+
+{% block styles %}
+<style>
+.db-stats-container {
+    padding: 20px;
+}
+
+.stats-card {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(0, 168, 255, 0.2);
+}
+
+.stats-title {
+    color: var(--text-color);
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+}
+
+.stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+}
+
+.stats-table th,
+.stats-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stats-table th {
+    color: var(--primary-color);
+    font-weight: normal;
+}
+
+.stats-value {
+    font-family: monospace;
+}
+
+.stats-error {
+    color: #ff5252;
+    padding: 10px;
+    background: rgba(255, 82, 82, 0.1);
+    border-radius: 5px;
+    margin: 10px 0;
+}
+
+.stats-warning {
+    color: #ffb300;
+    padding: 10px;
+    background: rgba(255, 179, 0, 0.1);
+    border-radius: 5px;
+    margin: 10px 0;
+}
+
+.stats-success {
+    color: #4caf50;
+    padding: 10px;
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 5px;
+    margin: 10px 0;
+}
+
+.action-buttons {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.action-button {
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.action-button:hover {
+    background: var(--primary-color-dark);
+}
+
+.action-button.secondary {
+    background: rgba(0, 168, 255, 0.2);
+    border: 1px solid var(--primary-color);
+}
+
+.action-button.secondary:hover {
+    background: rgba(0, 168, 255, 0.3);
+}
+
+.refresh-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+.connection-status {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.status-active {
+    background-color: #4caf50;
+}
+
+.status-idle {
+    background-color: #2196f3;
+}
+
+.status-error {
+    background-color: #ff5252;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading {
+    animation: spin 1s linear infinite;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="db-stats-container">
+    <h1>数据库连接池状态</h1>
+    
+    {% if error %}
+    <div class="stats-error">
+        <strong>错误:</strong> {{ error }}
+    </div>
+    {% endif %}
+    
+    <!-- 数据库连接池状态 -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">数据库连接池状态</h5>
+            <div>
+                <button id="refreshStats" class="btn btn-sm btn-primary" data-debounce="1000" data-loading-text="<i class='fas fa-sync fa-spin'></i> 刷新中...">
+                    <i class="fas fa-sync"></i> 刷新统计信息
+                </button>
+                <button id="recycleConnections" class="btn btn-sm btn-warning" data-debounce="2000" data-loading-text="<i class='fas fa-recycle fa-spin'></i> 回收中...">
+                    <i class="fas fa-recycle"></i> 回收空闲连接
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>连接池配置</h6>
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td>配置的连接池大小</td>
+                                <td id="poolSize">{{ db_stats.pool_size }}</td>
+                            </tr>
+                            <tr>
+                                <td>最大溢出连接数</td>
+                                <td id="maxOverflow">{{ db_stats.max_overflow }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6>当前状态</h6>
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td>当前连接池大小</td>
+                                <td id="currentSize">{{ db_stats.current_size }}</td>
+                            </tr>
+                            <tr>
+                                <td>已签入连接数</td>
+                                <td id="checkedIn">{{ db_stats.checked_in }}</td>
+                            </tr>
+                            <tr>
+                                <td>已签出连接数</td>
+                                <td id="checkedOut">{{ db_stats.checked_out }}</td>
+                            </tr>
+                            <tr>
+                                <td>溢出连接数</td>
+                                <td id="overflow">{{ db_stats.overflow }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            {% if db_stats.checked_out_details %}
+            <div class="mt-3">
+                <h6>已签出连接详情</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>连接ID</th>
+                                <th>签出时间</th>
+                                <th>已用时间</th>
+                                <th>堆栈跟踪</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checkedOutDetails">
+                            {% for conn in db_stats.checked_out_details %}
+                            <tr>
+                                <td>{{ conn.connection_id }}</td>
+                                <td>{{ conn.checkout_time }}</td>
+                                <td>{{ conn.duration }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#stack{{ loop.index }}">
+                                        查看堆栈
+                                    </button>
+                                    <div class="collapse mt-2" id="stack{{ loop.index }}">
+                                        <div class="card card-body">
+                                            <pre class="small">{{ conn.stack_trace }}</pre>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div id="recycleResult" class="mt-3 d-none alert alert-info">
+                <h6>回收结果</h6>
+                <div id="recycleResultContent"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 线程池状态 -->
+    <div class="stats-card">
+        <div class="stats-title">线程池状态</div>
+        
+        {% if thread_stats %}
+        <table class="stats-table">
+            <tr>
+                <th>IO线程池大小</th>
+                <td class="stats-value">{{ thread_stats.io_bound_pool_size }}</td>
+                <th>IO活跃线程数</th>
+                <td class="stats-value">{{ thread_stats.io_bound_active_threads }}</td>
+            </tr>
+            <tr>
+                <th>CPU线程池大小</th>
+                <td class="stats-value">{{ thread_stats.cpu_bound_pool_size }}</td>
+                <th>CPU活跃线程数</th>
+                <td class="stats-value">{{ thread_stats.cpu_bound_active_threads }}</td>
+            </tr>
+            <tr>
+                <th>总任务数</th>
+                <td class="stats-value">{{ thread_stats.total_tasks }}</td>
+                <th>完成任务数</th>
+                <td class="stats-value">{{ thread_stats.completed_tasks }}</td>
+            </tr>
+        </table>
+        {% else %}
+        <div class="stats-warning">无法获取线程池状态</div>
+        {% endif %}
+    </div>
+    
+    <!-- 任务队列状态 -->
+    <div class="stats-card">
+        <div class="stats-title">任务队列状态</div>
+        
+        {% if queue_stats %}
+        <table class="stats-table">
+            <tr>
+                <th>队列大小</th>
+                <td class="stats-value">{{ queue_stats.queue_size }}</td>
+                <th>活跃任务数</th>
+                <td class="stats-value">{{ queue_stats.active_tasks }}</td>
+            </tr>
+            <tr>
+                <th>等待任务数</th>
+                <td class="stats-value">{{ queue_stats.waiting_tasks }}</td>
+                <th>完成任务数</th>
+                <td class="stats-value">{{ queue_stats.completed_tasks }}</td>
+            </tr>
+            <tr>
+                <th>失败任务数</th>
+                <td class="stats-value">{{ queue_stats.failed_tasks }}</td>
+                <th>最大并发数</th>
+                <td class="stats-value">{{ queue_stats.max_concurrent }}</td>
+            </tr>
+        </table>
+        {% else %}
+        <div class="stats-warning">无法获取任务队列状态</div>
+        {% endif %}
+    </div>
+    
+    <div class="action-buttons">
+        <button id="refreshStats" class="action-button" data-debounce data-loading-text="刷新中...">
+            <svg class="refresh-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 4v6h-6"></path>
+                <path d="M1 20v-6h6"></path>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
+                <path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            刷新统计信息
+        </button>
+        <button id="recycleConnections" class="action-button secondary" data-debounce data-loading-text="正在回收...">回收空闲连接</button>
+        <a href="/dashboard" class="action-button secondary">返回仪表板</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // 初始化防抖动按钮
+    initDebouncedButtons();
+
+    // 刷新统计信息
+    $("#refreshStats").on("click", function() {
+        refreshDatabaseStats();
+    });
+
+    // 回收空闲连接
+    $("#recycleConnections").on("click", function() {
+        if (confirm("确定要回收空闲的数据库连接吗？这将关闭所有未使用的连接。")) {
+            recycleIdleConnections();
+        }
+    });
+
+    // 刷新统计信息函数
+    function refreshDatabaseStats() {
+        $.ajax({
+            url: '/db_stats_data',
+            type: 'GET',
+            success: function(data) {
+                updateDatabaseStats(data);
+            },
+            error: function(xhr, status, error) {
+                showToast('错误', '获取数据库统计信息失败: ' + error, 'error');
+            }
+        });
+    }
+
+    // 回收空闲连接函数
+    function recycleIdleConnections() {
+        $.ajax({
+            url: '/recycle_connections',
+            type: 'POST',
+            success: function(data) {
+                // 显示回收结果
+                $('#recycleResult').removeClass('d-none');
+                
+                if (data.success) {
+                    $('#recycleResult').removeClass('alert-danger').addClass('alert-success');
+                    
+                    let resultHtml = `<p><strong>${data.message}</strong></p>`;
+                    resultHtml += `<p>执行时间: ${data.execution_time.toFixed(2)}秒</p>`;
+                    
+                    resultHtml += `<div class="row">
+                        <div class="col-md-6">
+                            <h6>回收前</h6>
+                            <table class="table table-sm">
+                                <tr><td>连接池大小</td><td>${data.before.pool_size}</td></tr>
+                                <tr><td>已签入连接</td><td>${data.before.checkedin}</td></tr>
+                                <tr><td>已签出连接</td><td>${data.before.checkedout}</td></tr>
+                                <tr><td>溢出连接</td><td>${data.before.overflow}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>回收后</h6>
+                            <table class="table table-sm">
+                                <tr><td>连接池大小</td><td>${data.after.pool_size}</td></tr>
+                                <tr><td>已签入连接</td><td>${data.after.checkedin}</td></tr>
+                                <tr><td>已签出连接</td><td>${data.after.checkedout}</td></tr>
+                                <tr><td>溢出连接</td><td>${data.after.overflow}</td></tr>
+                            </table>
+                        </div>
+                    </div>`;
+                    
+                    $('#recycleResultContent').html(resultHtml);
+                    
+                    // 刷新统计信息
+                    refreshDatabaseStats();
+                    
+                    showToast('成功', '已成功回收空闲连接', 'success');
+                } else {
+                    $('#recycleResult').removeClass('alert-success').addClass('alert-danger');
+                    $('#recycleResultContent').html(`<p><strong>错误:</strong> ${data.message}</p>`);
+                    showToast('错误', '回收连接失败: ' + data.message, 'error');
+                }
+            },
+            error: function(xhr, status, error) {
+                $('#recycleResult').removeClass('d-none alert-success').addClass('alert-danger');
+                $('#recycleResultContent').html(`<p><strong>错误:</strong> ${error}</p>`);
+                showToast('错误', '回收连接请求失败: ' + error, 'error');
+            }
+        });
+    }
+
+    // 更新数据库统计信息
+    function updateDatabaseStats(data) {
+        $('#poolSize').text(data.pool_size);
+        $('#maxOverflow').text(data.max_overflow);
+        $('#currentSize').text(data.current_size);
+        $('#checkedIn').text(data.checked_in);
+        $('#checkedOut').text(data.checked_out);
+        $('#overflow').text(data.overflow);
+        
+        // 更新已签出连接详情
+        if (data.checked_out_details && data.checked_out_details.length > 0) {
+            let detailsHtml = '';
+            $.each(data.checked_out_details, function(index, conn) {
+                detailsHtml += `<tr>
+                    <td>${conn.connection_id}</td>
+                    <td>${conn.checkout_time}</td>
+                    <td>${conn.duration}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#stack${index+1}">
+                            查看堆栈
+                        </button>
+                        <div class="collapse mt-2" id="stack${index+1}">
+                            <div class="card card-body">
+                                <pre class="small">${conn.stack_trace}</pre>
+                            </div>
+                        </div>
+                    </td>
+                </tr>`;
+            });
+            $('#checkedOutDetails').html(detailsHtml);
+        }
+        
+        showToast('成功', '已更新数据库统计信息', 'success');
+    }
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <title>{% block title %}{% endblock %} - 翻译管理系统</title>
+    <!-- 基础样式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/nav.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/toast.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user-info.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/brand.css') }}">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    
+    <!-- 重写侧边栏样式 -->
+    <style>
+        /* 重写侧边栏样式为浅色主题 */
+        /* 全局样式 - 固定比例布局 */
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 14px; /* 基础字体大小 */
+            overflow-x: hidden;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 1rem; /* 使用相对单位 */
+        }
+
+        /* 侧边栏样式 - 使用视口单位 */
+        .nav-menu {
+            width: 17vw; /* 使用视口宽度的17% */
+            min-width: 200px; /* 最小宽度保证可读性 */
+            max-width: 280px; /* 最大宽度避免过宽 */
+            background: white;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nav-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            padding: 1.4vw;
+            text-decoration: none;
+            color: rgb(0,148,217);
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .nav-brand i {
+            margin-right: 0.8vw;
+            font-size: 1.4rem;
+        }
+
+        .nav-brand:hover {
+            color: rgb(0,130,190);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0.7vw 0;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.8vw 1.4vw;
+            text-decoration: none;
+            color: rgb(110,111,114);
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-link i {
+            margin-right: 0.8vw;
+            font-size: 1.1rem;
+            width: 1.4vw;
+            text-align: center;
+        }
+
+        .nav-link:hover {
+            background: rgba(0,148,217,0.08);
+            color: rgb(0,148,217);
+            text-decoration: none;
+            border-left-color: rgba(0,148,217,0.3);
+        }
+
+        .nav-link.active {
+            background: rgba(0,148,217,0.12);
+            color: rgb(0,148,217);
+            border-left-color: rgb(0,148,217);
+            font-weight: 600;
+        }
+
+        /* 主内容区域 - 自适应侧边栏宽度 */
+        .container {
+            margin-left: 17vw; /* 与侧边栏宽度一致 */
+            width: 83vw; /* 占据剩余的83%视口宽度 */
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* 用户信息卡片 - 响应式定位 */
+        .user-info-card {
+            position: fixed;
+            bottom: 1.4vw;
+            right: 1.4vw;
+            background: white;
+            border-radius: 0.8vw;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            width: 18vw;
+            min-width: 250px;
+            max-width: 350px;
+            z-index: 1001;
+            border: 1px solid #e9ecef;
+        }
+
+        .user-info-header {
+            display: flex;
+            align-items: center;
+            padding: 1vw 1.4vw;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .user-avatar i {
+            font-size: 2.2rem;
+            color: rgb(0,148,217);
+            margin-right: 0.8vw;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: rgb(0,148,217);
+            font-size: 1.1rem;
+        }
+
+        .user-role {
+            color: #ffffff;
+            font-size: 0.9rem;
+            margin-top: 0.1vw;
+        }
+
+        .user-info-toggle {
+            background: none;
+            border: none;
+            color: rgb(110,111,114);
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .user-info-toggle:hover {
+            background: rgba(0,148,217,0.1);
+            color: rgb(0,148,217);
+        }
+
+        .user-info-body {
+            padding: 15px 20px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .user-info-body.expanded {
+            max-height: 250px;
+        }
+
+        .user-info-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: rgb(110,111,114);
+        }
+
+        .user-info-item i {
+            margin-right: 10px;
+            width: 16px;
+            color: rgb(0,148,217);
+        }
+
+        .user-info-actions {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #f1f3f4;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .user-action-btn {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            text-decoration: none;
+            color: rgb(110,111,114);
+            font-size: 13px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .user-action-btn i {
+            margin-right: 8px;
+        }
+
+        .user-action-btn:hover {
+            background: rgba(0,148,217,0.1);
+            color: rgb(0,148,217);
+            text-decoration: none;
+        }
+
+        .user-action-btn.logout-btn:hover {
+            background: rgba(220,53,69,0.1);
+            color: #dc3545;
+        }
+
+        /* Toast 消息 - 响应式定位 */
+        .toast-container {
+            position: fixed;
+            top: 1.4vw;
+            right: 1.4vw;
+            z-index: 1050;
+        }
+
+        .toast {
+            background: white;
+            border-radius: 0.6vw;
+            padding: 1vw 1.4vw;
+            margin-bottom: 0.7vw;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 0.8vw;
+            animation: slideIn 0.3s ease;
+            font-size: 1rem;
+        }
+
+        .toast.success {
+            border-left-color: #28a745;
+            color: #155724;
+        }
+
+        .toast.error {
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+
+        .toast i {
+            font-size: 18px;
+        }
+
+        .toast.success i {
+            color: #28a745;
+        }
+
+        .toast.error i {
+            color: #dc3545;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* 响应式设计 - 保持比例 */
+        @media (max-width: 1400px) {
+            html {
+                font-size: 13px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            html {
+                font-size: 12px;
+            }
+            
+            .nav-menu {
+                width: 16vw;
+                min-width: 180px;
+            }
+            
+            .container {
+                margin-left: 16vw;
+                width: 84vw;
+            }
+        }
+
+        @media (max-width: 768px) {
+            html {
+                font-size: 11px;
+            }
+            
+            .nav-menu {
+                width: 15vw;
+                min-width: 160px;
+            }
+            
+            .container {
+                margin-left: 15vw;
+                width: 85vw;
+            }
+            
+            .user-info-card {
+                width: 25vw;
+                min-width: 200px;
+            }
+        }
+    </style>
+    
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <nav class="nav-menu">
+        <div class="nav-container">
+            <a href="{{ url_for('main.index') }}" class="nav-brand">
+                <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Logo" class="brand-logo">
+                <span style="display: none;">翻译管理系统</span>
+            </a>
+            <div class="nav-links">
+                <a href="{{ url_for('main.index') }}" class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}">
+                    <i class="bi bi-translate"></i>
+                    PPT翻译
+                </a>
+                <a href="{{ url_for('main.dictionary') }}" class="nav-link {% if request.endpoint == 'main.dictionary' %}active{% endif %}">
+                    <i class="bi bi-book"></i>
+                    词库管理
+                </a>
+                {# PDF注释链接暂时注释掉，因为路由可能有问题
+                <a href="{{ url_for('main.pdf_annotate') }}" class="nav-link {% if request.endpoint == 'main.pdf_annotate' %}active{% endif %}">
+                    <i class="bi bi-file-pdf"></i>
+                    PDF注释
+                </a>
+                #}
+                <a href="{{ url_for('main.ingredient') }}" class="nav-link {% if request.endpoint == 'main.ingredient' %}active{% endif %}">
+                    <i class="bi bi-search"></i>
+                    成分搜索
+                </a>
+                {% if current_user.is_authenticated %}
+                    {% if current_user.is_administrator() %}
+                        <a href="{{ url_for('main.registration_approval') }}" class="nav-link"><i class="bi bi-person-check"></i> 注册审批</a>
+                    <a href="{{ url_for('main.user_management') }}" class="nav-link"><i class="bi bi-people"></i> 用户管理</a>
+
+                        <!-- 文件管理页面 -->
+                        <a href="{{ url_for('main.file_management') }}" class="nav-link {% if request.endpoint == 'main.file_management' %}active{% endif %}">
+                            <i class="bi bi-file-earmark-ppt"></i>
+                            文件管理
+                        </a>
+
+                        <!-- 系统监控页面 -->
+{#                        <a href="{{ url_for('main.system_monitoring') }}" class="nav-link {% if request.endpoint == 'main.system_monitoring' %}active{% endif %}">#}
+{#                            <i class="bi bi-speedometer2"></i>#}
+{#                            系统监控#}
+{#                        </a>#}
+{#                        <a href="{{ url_for('db_management.db_stats_page') }}" class="nav-link {% if request.endpoint == 'db_management.db_stats_page' %}active{% endif %}">#}
+{#                            <i class="bi bi-database"></i>#}
+{#                            数据库连接池#}
+{#                        </a>#}
+                        <a href="{{ url_for('main.logs') }}" class="nav-link {% if request.endpoint == 'main.logs' %}active{% endif %}">
+                            <i class="bi bi-journal-text"></i>
+                            日志管理
+                        </a>
+                    {% endif %}
+                    <a href="{{ url_for('auth.logout') }}" class="nav-link">
+                        <i class="bi bi-box-arrow-right"></i>
+                        退出
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="nav-link">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        登录
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- 用户信息卡片 -->
+    {% if current_user.is_authenticated %}
+    <div id="user-info-card" class="user-info-card">
+        <div class="user-info-header">
+            <div class="user-avatar">
+                <i class="bi bi-person-circle"></i>
+            </div>
+            <div class="user-details">
+                <div class="user-name">{{ current_user.get_display_name() }}</div>
+                <div class="user-role">{{ current_user.role.name if current_user.role else '用户' }}</div>
+            </div>
+            <button class="user-info-toggle" onclick="toggleUserInfo()">
+                <i class="bi bi-chevron-up"></i>
+            </button>
+        </div>
+        <div class="user-info-body">
+            <div class="user-info-item">
+                <i class="bi bi-person"></i>
+                <span>用户名: {{ current_user.username }}</span>
+            </div>
+            {% if current_user.email %}
+            <div class="user-info-item">
+                <i class="bi bi-envelope"></i>
+                <span>邮箱: {{ current_user.email }}</span>
+            </div>
+            {% endif %}
+            {% if current_user.is_sso_user() %}
+            <div class="user-info-item">
+                <i class="bi bi-shield-check"></i>
+                <span>SSO用户 ({{ current_user.sso_provider }})</span>
+            </div>
+            {% endif %}
+            {% if current_user.last_login %}
+            <div class="user-info-item">
+                <i class="bi bi-clock"></i>
+                <span>上次登录: {{ current_user.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
+            </div>
+            {% endif %}
+            <div class="user-info-actions">
+                {% if current_user.can_change_password() %}
+                <a href="#" class="user-action-btn" onclick="changePassword()">
+                    <i class="bi bi-key"></i> 修改密码
+                </a>
+                {% endif %}
+                <a href="{{ url_for('auth.logout') }}" class="user-action-btn logout-btn">
+                    <i class="bi bi-box-arrow-right"></i> 退出登录
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 提示消息容器 -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- 基础脚本 -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+    // 处理Flash消息
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                showToast('{{ message }}', '{{ category }}');
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    </script>
+
+    <!-- 防抖动工具函数 -->
+    <script src="{{ url_for('static', filename='js/debounce.js') }}"></script>
+    
+    <!-- 用户信息卡片脚本 -->
+    <script src="{{ url_for('static', filename='js/user-info.js') }}"></script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

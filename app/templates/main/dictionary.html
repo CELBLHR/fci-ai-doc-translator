@@ -1,0 +1,704 @@
+{% extends "main/base_layout.html" %}
+
+{% block title %}词库管理{% endblock %}
+
+{% block styles %}
+<style>
+    /* 重写容器样式 */
+.container {
+    margin-left: 17vw !important;
+    width: 83vw !important;
+    background-color: #f8f9fa;
+    color: rgb(110,111,114);
+    line-height: 1.6;
+    padding: 1.4vw;
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+/* 页面标题 */
+h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    color: rgb(0,148,217);
+    margin-bottom: 2.1vw;
+    display: flex;
+    align-items: center;
+    gap: 0.7vw;
+}
+
+h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: rgb(0,148,217);
+    margin-bottom: 1.4vw;
+}
+
+/* 统计信息区域 */
+.stats-section {
+    background: white;
+    border-radius: 0.8vw;
+    padding: 1.8vw;
+    margin-bottom: 2.1vw;
+    display: flex;
+    align-items: center;
+    gap: 2.8vw;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.stats-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stats-value {
+    font-size: 2.2rem;
+    font-weight: bold;
+    color: rgb(0,148,217);
+}
+
+.stats-label {
+    color: rgb(110,111,114);
+    font-size: 1rem;
+    margin-top: 0.4vw;
+}
+
+/* 添加新翻译区域 */
+.add-section {
+    margin-bottom: 2.1vw;
+    background: white;
+    border-radius: 0.8vw;
+    padding: 1.8vw;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.input-group {
+    display: flex;
+    gap: 1.2vw;
+    margin-bottom: 1.2vw;
+}
+
+.input-group input {
+    flex: 1;
+    padding: 0.8vw 1.2vw;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5vw;
+    background: white;
+    color: rgb(110,111,114);
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: rgb(0,148,217);
+    box-shadow: 0 0 0 3px rgba(0,148,217,0.1);
+}
+
+.input-group input::placeholder {
+    color: rgba(110,111,114,0.6);
+}
+
+.input-group button {
+    padding: 0.8vw 2.1vw;
+    background-color: rgb(0,148,217);
+    color: white;
+    border: none;
+    border-radius: 0.5vw;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5vw;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.input-group button:hover {
+    background-color: rgb(0,130,190);
+    transform: translateY(-1px);
+}
+
+/* 停翻词区域 */
+.stop-words-section {
+    margin-bottom: 2.1vw;
+    background: white;
+    border-radius: 0.8vw;
+    padding: 1.8vw;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.stop-words-input-group {
+    display: flex;
+    gap: 1.2vw;
+    margin-bottom: 1.2vw;
+}
+
+.stop-words-input-group input {
+    flex: 1;
+    padding: 0.8vw 1.2vw;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5vw;
+    background: white;
+    color: rgb(110,111,114);
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.stop-words-input-group input:focus {
+    outline: none;
+    border-color: rgb(0,148,217);
+    box-shadow: 0 0 0 3px rgba(0,148,217,0.1);
+}
+
+.stop-words-input-group input::placeholder {
+    color: rgba(110,111,114,0.6);
+}
+
+.stop-words-input-group button {
+    padding: 0.8vw 2.1vw;
+    background-color: rgb(0,148,217);
+    color: white;
+    border: none;
+    border-radius: 0.5vw;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5vw;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.stop-words-input-group button:hover {
+    background-color: rgb(0,130,190);
+    transform: translateY(-1px);
+}
+
+.stop-words-list {
+    background: #f8f9fa;
+    border-radius: 0.6vw;
+    padding: 1.2vw;
+    margin-top: 1.2vw;
+    border: 1px solid #e9ecef;
+}
+
+.stop-word-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8vw;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    color: rgb(110,111,114);
+}
+
+.stop-word-item:last-child {
+    border-bottom: none;
+}
+
+/* 搜索区域 */
+.search-section {
+    margin-bottom: 2.1vw;
+    background: white;
+    border-radius: 0.8vw;
+    padding: 1.8vw;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.search-container {
+    display: flex;
+    gap: 1.2vw;
+}
+
+.search-container input {
+    flex: 1;
+    padding: 0.8vw 1.2vw;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5vw;
+    background: white;
+    color: rgb(110,111,114);
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.search-container input:focus {
+    outline: none;
+    border-color: rgb(0,148,217);
+    box-shadow: 0 0 0 3px rgba(0,148,217,0.1);
+}
+
+.search-container input::placeholder {
+    color: rgba(110,111,114,0.6);
+}
+
+.search-btn {
+    padding: 0.8vw 2.1vw;
+    background-color: rgb(0,148,217);
+    color: white;
+    border: none;
+    border-radius: 0.5vw;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5vw;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.search-btn:hover {
+    background-color: rgb(0,130,190);
+    transform: translateY(-1px);
+}
+
+/* 数据表格区域 */
+.table-section {
+    background: white;
+    border-radius: 0.8vw;
+    padding: 1.8vw;
+    margin-bottom: 1.4vw;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1rem;
+}
+
+th, td {
+    padding: 1.2vw;
+    text-align: left;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+th {
+    font-weight: 600;
+    color: rgb(0,148,217);
+    background: #fafbfc;
+    font-size: 1rem;
+}
+
+td {
+    color: rgb(110,111,114);
+}
+
+tr:hover {
+    background: rgba(0,148,217,0.05);
+}
+
+/* 操作按钮 */
+.action-btn {
+    padding: 0.4vw 0.8vw;
+    background: none;
+    border: none;
+    color: rgb(110,111,114);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 0.3vw;
+    margin-right: 0.4vw;
+    font-size: 1rem;
+}
+
+.action-btn:hover {
+    color: rgb(0,148,217);
+    background: rgba(0,148,217,0.1);
+}
+
+/* 分页 */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 0.5vw;
+    margin-top: 1.4vw;
+}
+
+.pagination button {
+    padding: 0.6vw 1.2vw;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 0.4vw;
+    color: rgb(110,111,114);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+}
+
+.pagination button:hover {
+    background: rgba(0,148,217,0.1);
+    border-color: rgb(0,148,217);
+    color: rgb(0,148,217);
+}
+
+.pagination button.active {
+    background: rgb(0,148,217);
+    color: white;
+    border-color: rgb(0,148,217);
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 2.8vw;
+    color: rgb(110,111,114);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    color: rgba(0,148,217,0.5);
+    margin-bottom: 1.4vw;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<h1><i class="bi bi-book"></i> 我的词库</h1>
+
+<!-- 统计信息 -->
+<section class="stats-section">
+    <div class="stats-item">
+        <div class="stats-value" id="totalTranslations">0</div>
+        <div class="stats-label">词条总数</div>
+    </div>
+    <div class="stats-item">
+        <div class="stats-value" id="totalStopWords">0</div>
+        <div class="stats-label">停翻词数量</div>
+    </div>
+</section>
+
+<!-- 添加停翻词 -->
+<section class="stop-words-section">
+    <h2>停翻词管理</h2>
+    <div class="stop-words-input-group">
+        <input type="text" id="stopWordInput" placeholder="输入要添加的停翻词">
+        <button id="addStopWordBtn">
+            <i class="bi bi-plus-lg"></i>
+            添加
+        </button>
+    </div>
+    <div id="stopWordsList" class="stop-words-list">
+        <!-- 停翻词列表将通过JavaScript动态插入 -->
+    </div>
+</section>
+<!-- 添加新翻译 -->
+<section class="add-section">
+    <h2>添加新翻译</h2>
+    <div class="input-group">
+        <input type="text" id="englishInput" placeholder="英文">
+        <input type="text" id="chineseInput" placeholder="中文">
+        <button id="addBtn">
+            <i class="bi bi-plus-lg"></i>
+            添加
+        </button>
+    </div>
+</section>
+<!-- 搜索栏 -->
+<section class="search-section">
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="搜索英文或中文...">
+        <button id="searchBtn" class="search-btn">
+            <i class="bi bi-search"></i>
+            搜索
+        </button>
+    </div>
+</section>
+
+<!-- 数据表格 -->
+<section class="table-section">
+    <table>
+        <thead>
+            <tr>
+                <th>英文</th>
+                <th>中文</th>
+                <th>添加时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="translationTable">
+            <!-- 数据将通过JavaScript动态插入 -->
+        </tbody>
+    </table>
+    <!-- 空状态提示 -->
+    <div id="emptyState" class="empty-state" style="display: none;">
+        <i class="bi bi-inbox"></i>
+        <p>还没有添加任何翻译</p>
+    </div>
+</section>
+
+<!-- 分页 -->
+<div id="pagination" class="pagination"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 添加新翻译
+document.getElementById('addBtn').addEventListener('click', async () => {
+    const english = document.getElementById('englishInput').value.trim();
+    const chinese = document.getElementById('chineseInput').value.trim();
+    
+    if (!english || !chinese) {
+        showToast('请填写英文和中文翻译', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/translations', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ english, chinese })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast('添加成功', 'success');
+            document.getElementById('englishInput').value = '';
+            document.getElementById('chineseInput').value = '';
+            loadTranslations();
+            updateStats();
+        } else {
+            throw new Error(result.error || '添加失败');
+        }
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+});
+
+// 搜索功能
+let searchTimeout;
+document.getElementById('searchInput').addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        loadTranslations(e.target.value.trim());
+    }, 300);
+});
+
+document.getElementById('searchBtn').addEventListener('click', () => {
+    const searchTerm = document.getElementById('searchInput').value.trim();
+    loadTranslations(searchTerm);
+});
+
+// 添加停翻词
+document.getElementById('addStopWordBtn').addEventListener('click', async () => {
+    const word = document.getElementById('stopWordInput').value.trim();
+    
+    if (!word) {
+        showToast('请输入停翻词', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/stop-words', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ word })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast('添加成功', 'success');
+            document.getElementById('stopWordInput').value = '';
+            loadStopWords();
+            updateStats();
+        } else {
+            throw new Error(result.error || '添加失败');
+        }
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+});
+
+// 加载翻译数据
+async function loadTranslations(searchTerm = '', page = 1) {
+    try {
+        const response = await fetch(`/api/translations?search=${searchTerm}&page=${page}`);
+        const data = await response.json();
+        
+        const tbody = document.getElementById('translationTable');
+        const emptyState = document.getElementById('emptyState');
+        
+        if (data.translations.length === 0) {
+            tbody.innerHTML = '';
+            emptyState.style.display = 'block';
+        } else {
+            emptyState.style.display = 'none';
+            
+            tbody.innerHTML = data.translations.map(item => `
+                <tr>
+                    <td>${item.english}</td>
+                    <td>${item.chinese}</td>
+                    <td>${item.created_at}</td>
+                    <td>
+                        <button class="action-btn" onclick="editTranslation(${item.id})" title="编辑">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="action-btn" onclick="deleteTranslation(${item.id})" title="删除">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // 更新分页
+        updatePagination(data.total_pages, page);
+        
+    } catch (error) {
+        showToast('加载数据失败', 'error');
+    }
+}
+
+// 加载停翻词列表
+async function loadStopWords() {
+    try {
+        const response = await fetch('/api/stop-words');
+        const data = await response.json();
+        
+        const stopWordsList = document.getElementById('stopWordsList');
+        
+        if (data.stop_words.length === 0) {
+            stopWordsList.innerHTML = '<div class="empty-state">暂无停翻词</div>';
+        } else {
+            stopWordsList.innerHTML = data.stop_words.map(item => `
+                <div class="stop-word-item">
+                    <span>${item.word}</span>
+                    <button class="action-btn" onclick="deleteStopWord(${item.id})" title="删除">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        showToast('加载停翻词失败', 'error');
+    }
+}
+
+// 编辑翻译
+async function editTranslation(id) {
+    const english = prompt('请输入新的英文翻译');
+    if (english === null) return;
+    
+    const chinese = prompt('请输入新的中文翻译');
+    if (chinese === null) return;
+    
+    if (!english.trim() || !chinese.trim()) {
+        showToast('英文和中文翻译都不能为空', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/translations/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ english, chinese })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast('更新成功', 'success');
+            loadTranslations();
+        } else {
+            throw new Error(result.error || '更新失败');
+        }
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+// 删除翻译
+async function deleteTranslation(id) {
+    if (!confirm('确定要删除这条翻译吗？')) return;
+    
+    try {
+        const response = await fetch(`/api/translations/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            showToast('删除成功', 'success');
+            loadTranslations();
+            updateStats();
+        } else {
+            const result = await response.json();
+            throw new Error(result.error || '删除失败');
+        }
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+// 删除停翻词
+async function deleteStopWord(id) {
+    if (!confirm('确定要删除这个停翻词吗？')) return;
+    
+    try {
+        const response = await fetch(`/api/stop-words/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            showToast('删除成功', 'success');
+            loadStopWords();
+            updateStats();
+        } else {
+            const result = await response.json();
+            throw new Error(result.error || '删除失败');
+        }
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+// 更新统计信息
+async function updateStats() {
+    try {
+        const [translationsResponse, stopWordsResponse] = await Promise.all([
+            fetch('/api/translations/stats'),
+            fetch('/api/stop-words/stats')
+        ]);
+        
+        const [translationsData, stopWordsData] = await Promise.all([
+            translationsResponse.json(),
+            stopWordsResponse.json()
+        ]);
+        
+        if (translationsResponse.ok && stopWordsResponse.ok) {
+            document.getElementById('totalTranslations').textContent = translationsData.total_translations;
+            document.getElementById('totalStopWords').textContent = stopWordsData.total_stop_words;
+        }
+    } catch (error) {
+        console.error('Failed to load stats:', error);
+    }
+}
+
+// 更新分页
+function updatePagination(totalPages, currentPage) {
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = '';
+    
+    if (totalPages <= 1) return;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        const button = document.createElement('button');
+        button.textContent = i;
+        button.className = i === currentPage ? 'active' : '';
+        button.onclick = () => loadTranslations(document.getElementById('searchInput').value.trim(), i);
+        pagination.appendChild(button);
+    }
+}
+
+// 初始加载
+loadTranslations();
+loadStopWords();
+updateStats();
+</script>
+{% endblock %} 

@@ -1,0 +1,86 @@
+.nav-menu {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 200px;
+    background-color: #304156;
+    padding: 20px 0;
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+}
+
+.nav-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.nav-brand {
+    color: #fff;
+    font-size: 18px;
+    font-weight: bold;
+    text-decoration: none;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #445164;
+}
+
+.nav-links {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 0 10px;
+}
+
+.nav-link {
+    color: #bfcbd9;
+    text-decoration: none;
+    padding: 12px 20px;
+    border-radius: 4px;
+    transition: all 0.3s;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-link i {
+    font-size: 16px;
+}
+
+.nav-link:hover {
+    color: #fff;
+    background-color: #263445;
+}
+
+.nav-link.active {
+    color: #fff;
+    background-color: #409EFF;
+}
+
+/* 为主内容区域添加左边距 */
+.container {
+    margin-left: 220px !important;
+    width: calc(100% - 240px) !important;
+}
+
+/* 适配移动设备 */
+@media (max-width: 768px) {
+    .nav-menu {
+        width: 60px;
+    }
+
+    .nav-brand {
+        display: none;
+    }
+
+    .nav-link span {
+        display: none;
+    }
+
+    .container {
+        margin-left: 80px !important;
+        width: calc(100% - 100px) !important;
+    }
+} 

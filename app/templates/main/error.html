@@ -1,0 +1,82 @@
+{% extends "main/base_layout.html" %}
+
+{% block title %}{{ error_title | default("错误") }}{% endblock %}
+
+{% block styles %}
+<style>
+.error-container {
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.error-icon {
+    font-size: 5rem;
+    color: var(--danger-color, #ff5252);
+    margin-bottom: 20px;
+}
+
+.error-title {
+    font-size: 2rem;
+    color: var(--text-color);
+    margin-bottom: 20px;
+}
+
+.error-message {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    margin-bottom: 30px;
+}
+
+.error-details {
+    background: rgba(255, 82, 82, 0.1);
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 30px;
+    text-align: left;
+    color: var(--text-color);
+    font-family: monospace;
+    white-space: pre-wrap;
+    overflow-x: auto;
+}
+
+.back-button {
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.back-button:hover {
+    background: var(--primary-color-dark);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-icon">
+        <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    
+    <h1 class="error-title">{{ error_title | default("出错了") }}</h1>
+    
+    <p class="error-message">{{ error_message | default("发生了一个错误，请稍后再试") }}</p>
+    
+    {% if error_details %}
+    <div class="error-details">
+        {{ error_details }}
+    </div>
+    {% endif %}
+    
+    <a href="{{ back_url | default('/') }}" class="back-button">
+        {{ back_text | default("返回首页") }}
+    </a>
+</div>
+{% endblock %} 

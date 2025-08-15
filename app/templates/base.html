@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- 添加Font Awesome图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* 科技感主题样式 */
+        :root {
+            --primary-color: #00a8ff;
+            --secondary-color: #192a56;
+            --accent-color: #0097e6;
+            --background-color: #1e272e;
+            --text-color: #dcdde1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* 添加背景动画效果 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(45deg, 
+                    rgba(0, 168, 255, 0.1) 25%, 
+                    transparent 25%, 
+                    transparent 75%, 
+                    rgba(0, 168, 255, 0.1) 75%),
+                linear-gradient(45deg, 
+                    rgba(0, 168, 255, 0.1) 25%, 
+                    transparent 25%, 
+                    transparent 75%, 
+                    rgba(0, 168, 255, 0.1) 75%);
+            background-size: 60px 60px;
+            background-position: 0 0, 30px 30px;
+            z-index: -1;
+            animation: backgroundMove 15s linear infinite;
+        }
+
+        @keyframes backgroundMove {
+            from {
+                background-position: 0 0, 30px 30px;
+            }
+            to {
+                background-position: 60px 60px, 90px 90px;
+            }
+        }
+
+        .container {
+            background: rgba(30, 39, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(0, 168, 255, 0.2);
+            box-shadow: 0 0 20px rgba(0, 168, 255, 0.1);
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0, 168, 255, 0.1) 0%, transparent 70%);
+            animation: glowEffect 4s infinite;
+        }
+
+        @keyframes glowEffect {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--primary-color);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(0, 168, 255, 0.3);
+            border-radius: 5px;
+            color: var(--text-color);
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(0, 168, 255, 0.3);
+        }
+
+        .btn {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.2),
+                transparent
+            );
+            transition: 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            background: var(--accent-color);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 168, 255, 0.3);
+        }
+
+        .links {
+            text-align: center;
+            margin-top: 1.5rem;
+        }
+
+        .links a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .links a:hover {
+            color: var(--accent-color);
+            text-shadow: 0 0 8px rgba(0, 168, 255, 0.5);
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: relative;
+            background: var(--background-color);
+            margin: 15% auto;
+            padding: 2rem;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 10px;
+            border: 1px solid var(--primary-color);
+            box-shadow: 0 0 20px rgba(0, 168, 255, 0.2);
+            text-align: center;
+            animation: modalAppear 0.3s ease-out;
+        }
+
+        @keyframes modalAppear {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .close-button {
+            position: absolute;
+            right: 15px;
+            top: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        .close-button:hover {
+            color: var(--primary-color);
+            transform: rotate(90deg);
+        }
+
+        .modal-button {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .modal-button:hover {
+            background: var(--accent-color);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 168, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <!-- 模态框 -->
+    <div id="messageModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal()"><i class="fas fa-times"></i></span>
+            <p id="modalMessage"></p>
+            <button class="modal-button" onclick="closeModal()">确定</button>
+        </div>
+    </div>
+    
+    {% block content %}{% endblock %}
+    
+    <script>
+        function showModal(message) {
+            document.getElementById('modalMessage').textContent = message;
+            document.getElementById('messageModal').style.display = 'block';
+            setTimeout(() => {
+                document.querySelector('.modal-content').style.opacity = '1';
+            }, 10);
+        }
+
+        function closeModal() {
+            document.querySelector('.modal-content').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('messageModal').style.display = 'none';
+            }, 300);
+        }
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    showModal("{{ message }}");
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        window.onclick = function(event) {
+            var modal = document.getElementById('messageModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}注册{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 style="text-align: center; margin-bottom: 2rem;">注册</h1>
+    <form method="POST">
+        <div class="form-group">
+            <label for="username">用户名</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div class="form-group">
+            <label for="password">密码</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <div class="form-group">
+            <button type="submit" class="register-btn">
+                <span class="btn-text">注册</span>
+                <span class="btn-icon">
+                    <i class="fas fa-user-plus"></i>
+                </span>
+            </button>
+        </div>
+    </form>
+    <div class="links">
+        <p>已有账号？<a href="{{ url_for('auth.login') }}">点击登录</a></p>
+    </div>
+</div>
+
+<style>
+.register-btn {
+    width: 100%;
+    padding: 12px 24px;
+    background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
+    border: none;
+    border-radius: 5px;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.register-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 168, 255, 0.3);
+}
+
+.register-btn:active {
+    transform: translateY(1px);
+}
+
+.btn-text {
+    position: relative;
+    z-index: 1;
+}
+
+.btn-icon {
+    position: relative;
+    z-index: 1;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: all 0.3s ease;
+}
+
+.register-btn:hover .btn-icon {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.register-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(45deg, var(--accent-color), var(--primary-color));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.register-btn:hover::before {
+    opacity: 1;
+}
+
+/* 添加动画效果 */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 168, 255, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(0, 168, 255, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 168, 255, 0);
+    }
+}
+
+.register-btn {
+    animation: pulse 2s infinite;
+}
+</style>
+
+<script>
+document.querySelector('form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    
+    // 表单验证
+    if (!username || !password) {
+        showModal('请填写所有字段');
+        return;
+    }
+    
+    if (username.length < 3 || username.length > 20) {
+        showModal('用户名长度必须在3-20个字符之间');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showModal('密码长度必须大于6个字符');
+        return;
+    }
+    
+    // 如果验证通过，提交表单
+    this.submit();
+});
+
+// 添加按钮点击效果
+const registerBtn = document.querySelector('.register-btn');
+registerBtn.addEventListener('click', function(e) {
+    // 创建涟漪效果
+    const ripple = document.createElement('span');
+    ripple.classList.add('ripple');
+    this.appendChild(ripple);
+    
+    const rect = this.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    ripple.style.left = x + 'px';
+    ripple.style.top = y + 'px';
+    
+    setTimeout(() => {
+        ripple.remove();
+    }, 1000);
+});
+</script>
+
+<style>
+/* 添加涟漪效果样式 */
+.register-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.ripple {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: scale(0);
+    animation: ripple-effect 1s linear;
+    pointer-events: none;
+}
+
+@keyframes ripple-effect {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+</style>
+{% endblock %} 

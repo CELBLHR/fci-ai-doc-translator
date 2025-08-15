@@ -1,0 +1,227 @@
+{% extends "main/base_layout.html" %}
+
+{% block title %}系统监控{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.css">
+<style>
+.monitor-container {
+    padding: 20px;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.metric-card {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid rgba(0, 168, 255, 0.2);
+}
+
+.metric-title {
+    color: var(--text-color);
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+}
+
+.chart-container {
+    height: 300px;
+    width: 100%;
+}
+
+.realtime-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    border: 1px solid rgba(0, 168, 255, 0.2);
+    min-width: 200px;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin: 10px 0;
+}
+
+.stat-label {
+    color: var(--text-color);
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+}
+
+.stat-unit {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-left: 2px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="monitor-container">
+    <h1>系统监控</h1>
+    
+    <div class="realtime-stats">
+        <div class="stat-card">
+            <div class="stat-label">CPU使用率</div>
+            <div class="stat-value">
+                <span id="cpuUsage">0</span>
+                <span class="stat-unit">%</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">内存使用率</div>
+            <div class="stat-value">
+                <span id="memoryUsage">0</span>
+                <span class="stat-unit">%</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">GPU内存使用率</div>
+            <div class="stat-value">
+                <span id="gpuMemory">0</span>
+                <span class="stat-unit">%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="metric-card">
+            <div class="metric-title">CPU使用率趋势</div>
+            <div class="chart-container" id="cpuChart"></div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-title">内存使用率趋势</div>
+            <div class="chart-container" id="memoryChart"></div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-title">GPU内存使用趋势</div>
+            <div class="chart-container" id="gpuChart"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script>
+// 初始化图表
+function initChart(elementId, title) {
+    const chart = echarts.init(document.getElementById(elementId));
+    const option = {
+        title: {
+            text: title,
+            show: false
+        },
+        tooltip: {
+            trigger: 'axis',
+            formatter: function(params) {
+                const value = params[0].value;
+                return `${params[0].name}: ${value.toFixed(1)}%`;
+            }
+        },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: [],
+            axisLine: {
+                lineStyle: {
+                    color: '#666'
+                }
+            }
+        },
+        yAxis: {
+            type: 'value',
+            min: 0,
+            max: 100,
+            axisLine: {
+                lineStyle: {
+                    color: '#666'
+                }
+            }
+        },
+        series: [{
+            data: [],
+            type: 'line',
+            smooth: true,
+            areaStyle: {
+                opacity: 0.2
+            }
+        }]
+    };
+    chart.setOption(option);
+    return chart;
+}
+
+// 初始化所有图表
+const cpuChart = initChart('cpuChart', 'CPU Usage');
+const memoryChart = initChart('memoryChart', 'Memory Usage');
+const gpuChart = initChart('gpuChart', 'GPU Memory');
+
+// 更新图表数据
+function updateCharts(data) {
+    const now = new Date().toLocaleTimeString();
+    
+    console.log('Received metrics:', data);  // 调试信息
+    
+    // 更新实时数据
+    document.getElementById('cpuUsage').textContent = data.cpu.toFixed(1);
+    document.getElementById('memoryUsage').textContent = data.memory.toFixed(1);
+    document.getElementById('gpuMemory').textContent = data.gpu_memory.toFixed(1);
+    
+    // 更新图表
+    ['cpu', 'memory', 'gpu'].forEach((metric, index) => {
+        const chart = [cpuChart, memoryChart, gpuChart][index];
+        const option = chart.getOption();
+        
+        option.xAxis[0].data.push(now);
+        const value = metric === 'gpu' ? data.gpu_memory : data[metric];
+        console.log(`${metric} value:`, value);  // 调试信息
+        option.series[0].data.push(value);
+        
+        // 保持最近30个数据点
+        if (option.xAxis[0].data.length > 30) {
+            option.xAxis[0].data.shift();
+            option.series[0].data.shift();
+        }
+        
+        chart.setOption(option);
+    });
+}
+
+// 定期获取数据
+function fetchMetrics() {
+    fetch('/api/metrics')
+        .then(response => response.json())
+        .then(data => {
+            updateCharts(data);
+        })
+        .catch(error => {
+            console.error('Error fetching metrics:', error);
+        });
+}
+
+// 每5秒更新一次数据
+setInterval(fetchMetrics, 5000);
+fetchMetrics(); // 初始加载
+
+// 响应窗口大小变化
+window.addEventListener('resize', () => {
+    [cpuChart, memoryChart, gpuChart].forEach(chart => chart.resize());
+});
+</script>
+{% endblock %} 

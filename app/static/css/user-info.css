@@ -1,0 +1,315 @@
+/* 用户信息卡片样式 */
+.user-info-card {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 320px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e1e5e9;
+    z-index: 1000;
+    transition: all 0.3s ease;
+    transform: translateY(calc(100% - 60px));
+    overflow: hidden;
+}
+
+.user-info-card.expanded {
+    transform: translateY(0);
+}
+
+.user-info-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    cursor: pointer;
+    min-height: 36px;
+}
+
+.user-avatar {
+    margin-right: 12px;
+}
+
+.user-avatar i {
+    font-size: 32px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.user-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-name {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-role {
+    font-size: 12px;
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-info-toggle {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+}
+
+.user-info-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.user-info-toggle i {
+    font-size: 16px;
+    transition: transform 0.3s ease;
+}
+
+.user-info-card.expanded .user-info-toggle i {
+    transform: rotate(180deg);
+}
+
+.user-info-body {
+    padding: 16px;
+    background: white;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.user-info-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #495057;
+}
+
+.user-info-item:last-child {
+    margin-bottom: 0;
+}
+
+.user-info-item i {
+    width: 16px;
+    margin-right: 10px;
+    color: #6c757d;
+    flex-shrink: 0;
+}
+
+.user-info-item span {
+    flex: 1;
+    word-break: break-word;
+}
+
+.user-info-actions {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.user-action-btn {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: 1px solid #dee2e6;
+    color: #495057;
+    background: #f8f9fa;
+}
+
+.user-action-btn:hover {
+    background: #e9ecef;
+    text-decoration: none;
+    color: #495057;
+    transform: translateY(-1px);
+}
+
+.user-action-btn i {
+    margin-right: 8px;
+    width: 14px;
+}
+
+.user-action-btn.logout-btn {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.user-action-btn.logout-btn:hover {
+    background: #c82333;
+    border-color: #bd2130;
+    color: white;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .user-info-card {
+        width: 280px;
+        right: 10px;
+        bottom: 10px;
+    }
+    
+    .user-info-header {
+        padding: 10px 12px;
+    }
+    
+    .user-info-body {
+        padding: 12px;
+    }
+    
+    .user-name {
+        font-size: 13px;
+    }
+    
+    .user-role {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 480px) {
+    .user-info-card {
+        width: calc(100vw - 20px);
+        right: 10px;
+        left: 10px;
+    }
+}
+
+/* 暗色主题支持 */
+@media (prefers-color-scheme: dark) {
+    .user-info-card {
+        background: #2d3748;
+        border-color: #4a5568;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    .user-info-body {
+        background: #2d3748;
+    }
+    
+    .user-info-item {
+        color: #e2e8f0;
+    }
+    
+    .user-info-item i {
+        color: #a0aec0;
+    }
+    
+    .user-action-btn {
+        background: #4a5568;
+        color: #e2e8f0;
+        border-color: #4a5568;
+    }
+    
+    .user-action-btn:hover {
+        background: #2d3748;
+        color: #e2e8f0;
+    }
+    
+    .user-info-actions {
+        border-top-color: #4a5568;
+    }
+}
+
+/* 动画效果 */
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(calc(100% - 60px));
+        opacity: 1;
+    }
+}
+
+.user-info-card {
+    animation: slideUp 0.5s ease-out;
+}
+
+/* 滚动条样式 */
+.user-info-body::-webkit-scrollbar {
+    width: 4px;
+}
+
+.user-info-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 2px;
+}
+
+.user-info-body::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 2px;
+}
+
+.user-info-body::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* 状态指示器 */
+.user-status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #28a745;
+    margin-left: 8px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
+}
+
+/* 特殊用户类型标识 */
+.user-type-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-left: 8px;
+}
+
+.user-type-badge.admin {
+    background: #ffc107;
+    color: #212529;
+}
+
+.user-type-badge.sso {
+    background: #17a2b8;
+    color: white;
+}
+
+.user-type-badge.regular {
+    background: #6c757d;
+    color: white;
+}

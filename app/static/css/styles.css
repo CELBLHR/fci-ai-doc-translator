@@ -1,0 +1,317 @@
+:root {
+    --primary-color: #00a8ff;
+    --secondary-color: #0097e6;
+    --text-color: #f5f6fa;
+    --bg-color: #2f3640;
+    --nav-bg-color: #353b48;
+    --brand-color: #00a8ff;
+    --hover-color: rgba(0, 168, 255, 0.1);
+    --active-color: rgba(0, 168, 255, 0.2);
+    --active-text-color: #00a8ff;
+    --error-color: #e84118;
+    --success-color: #4cd137;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    padding-top: 60px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+h1 {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    color: var(--primary-color);
+}
+
+button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: var(--secondary-color);
+}
+
+button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+input[type="text"],
+input[type="file"] {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid rgba(0, 168, 255, 0.3);
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.2);
+    color: var(--text-color);
+    font-size: 1rem;
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 添加防抖按钮的样式 */
+.btn-disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* 加载中的按钮样式 */
+.btn-loading {
+    position: relative;
+    color: transparent !important;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-top: -8px;
+    margin-left: -8px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-top-color: #fff;
+    animation: btn-spinner 1s linear infinite;
+}
+
+@keyframes btn-spinner {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* 适配暗色主题的按钮加载效果 */
+.btn-outline-primary.btn-loading::after,
+.btn-outline-secondary.btn-loading::after,
+.btn-outline-success.btn-loading::after,
+.btn-outline-danger.btn-loading::after,
+.btn-outline-warning.btn-loading::after,
+.btn-outline-info.btn-loading::after,
+.btn-outline-light.btn-loading::after,
+.btn-outline-dark.btn-loading::after {
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    border-top-color: #333;
+}
+
+/* 适配小按钮的加载效果 */
+.btn-sm.btn-loading::after {
+    width: 12px;
+    height: 12px;
+    margin-top: -6px;
+    margin-left: -6px;
+}
+
+/* 适配大按钮的加载效果 */
+.btn-lg.btn-loading::after {
+    width: 20px;
+    height: 20px;
+    margin-top: -10px;
+    margin-left: -10px;
+}
+
+/* 按钮禁用状态样式 */
+.btn.disabled,
+.btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* 按钮加载状态样式 */
+.btn-loading {
+    position: relative;
+    color: transparent !important;
+}
+
+.btn-loading:after {
+    content: '';
+    position: absolute;
+    width: 1rem;
+    height: 1rem;
+    top: calc(50% - 0.5rem);
+    left: calc(50% - 0.5rem);
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-top-color: white;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 系统监控页面样式 */
+.system-stat-card {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    margin-bottom: 1.5rem;
+    transition: box-shadow 0.3s ease;
+}
+
+.system-stat-card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.stat-card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    padding: 0.75rem 1.25rem;
+    font-weight: 500;
+}
+
+.stat-card-body {
+    padding: 1.25rem;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.stat-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.stat-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.stat-value {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    color: #212529;
+}
+
+/* 状态指示器 */
+.status-indicator {
+    display: inline-block;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.status-healthy {
+    background-color: #28a745;
+}
+
+.status-warning {
+    background-color: #ffc107;
+}
+
+.status-danger {
+    background-color: #dc3545;
+}
+
+/* 进度条样式 */
+.progress {
+    height: 1rem;
+    overflow: hidden;
+    background-color: #e9ecef;
+    border-radius: 0.25rem;
+}
+
+.progress-bar {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    background-color: #007bff;
+    transition: width 0.6s ease;
+}
+
+/* 操作面板样式 */
+.action-panel {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.action-panel-title {
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    color: #495057;
+}
+
+/* 适配深色模式 */
+@media (prefers-color-scheme: dark) {
+    .system-stat-card {
+        background-color: #343a40;
+        border-color: #495057;
+    }
+    
+    .stat-card-header {
+        background-color: #343a40;
+        border-color: #495057;
+        color: #f8f9fa;
+    }
+    
+    .stat-label {
+        color: #adb5bd;
+    }
+    
+    .stat-value {
+        color: #f8f9fa;
+    }
+    
+    .stat-item {
+        border-color: #495057;
+    }
+    
+    .action-panel {
+        background-color: #343a40;
+        border-color: #495057;
+    }
+    
+    .action-panel-title {
+        color: #adb5bd;
+    }
+} 

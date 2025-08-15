@@ -1,0 +1,626 @@
+{% extends "main/base_layout.html" %}
+
+{% block title %}文件管理{% endblock %}
+
+{% block styles %}
+<style>
+/* 重写容器样式 */
+.container {
+    margin-left: 17vw !important;
+    width: 83vw !important;
+    background-color: #f8f9fa;
+    color: rgb(110,111,114);
+    line-height: 1.6;
+    padding: 1.4vw;
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+.file-management-container {
+    background: white;
+    border-radius: 0.8vw;
+    padding: 2.1vw;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.section-header {
+    margin-bottom: 2.1vw;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 1.4vw;
+}
+
+.section-header h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    color: rgb(0,148,217);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.7vw;
+}
+
+.section-header p {
+    color: rgb(110,111,114);
+    margin: 0.7vw 0 0 0;
+    font-size: 1rem;
+}
+
+.files-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1.4vw;
+    font-size: 1rem;
+}
+
+.files-table th, 
+.files-table td {
+    padding: 1.2vw 1vw;
+    text-align: left;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.files-table th {
+    background-color: #fafbfc;
+    font-weight: 600;
+    color: rgb(0,148,217);
+    font-size: 1rem;
+}
+
+.files-table td {
+    color: rgb(110,111,114);
+}
+
+.files-table tr:hover {
+    background-color: rgba(0,148,217,0.05);
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6vw 1.2vw;
+    border-radius: 0.4vw;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    margin-right: 0.5vw;
+    border: none;
+    cursor: pointer;
+}
+
+.download-btn {
+    background-color: rgba(0,148,217,0.1);
+    color: rgb(0,148,217);
+    border: 1px solid rgb(0,148,217);
+}
+
+.download-btn:hover {
+    background-color: rgb(0,148,217);
+    color: white;
+    text-decoration: none;
+}
+
+.delete-btn {
+    background-color: rgba(220,53,69,0.1);
+    color: #dc3545;
+    border: 1px solid #dc3545;
+}
+
+.delete-btn:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+.filters {
+    display: flex;
+    gap: 1.4vw;
+    margin-bottom: 1.4vw;
+    padding: 1.4vw;
+    background: #f8f9fa;
+    border-radius: 0.6vw;
+    border: 1px solid #e9ecef;
+}
+
+.filter-item {
+    display: flex;
+    align-items: center;
+}
+
+.filter-item label {
+    margin-right: 0.6vw;
+    color: rgb(110,111,114);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.filter-item select,
+.filter-item input {
+    padding: 0.6vw 0.8vw;
+    border: 1px solid #dee2e6;
+    border-radius: 0.4vw;
+    background: white;
+    color: rgb(110,111,114);
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.filter-item select:focus,
+.filter-item input:focus {
+    outline: none;
+    border-color: rgb(0,148,217);
+    box-shadow: 0 0 0 3px rgba(0,148,217,0.1);
+}
+
+.filter-item button {
+    padding: 0.4vw;
+    background: none;
+    border: none;
+    color: rgb(110,111,114);
+    cursor: pointer;
+    border-radius: 0.3vw;
+    transition: all 0.2s ease;
+}
+
+.filter-item button:hover {
+    background: rgba(220,53,69,0.1);
+    color: #dc3545;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.4vw;
+    gap: 0.4vw;
+}
+
+.pagination-btn {
+    padding: 0.6vw 1.2vw;
+    border: 1px solid #dee2e6;
+    border-radius: 0.4vw;
+    background-color: white;
+    color: rgb(110,111,114);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.pagination-btn.active {
+    background-color: rgb(0,148,217);
+    color: white;
+    border-color: rgb(0,148,217);
+}
+
+.pagination-btn:hover:not(.active) {
+    background-color: rgba(0,148,217,0.1);
+    border-color: rgb(0,148,217);
+    color: rgb(0,148,217);
+}
+
+.file-size {
+    white-space: nowrap;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2.8vw;
+    color: rgb(110,111,114);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    color: rgba(0,148,217,0.5);
+    margin-bottom: 1.4vw;
+}
+
+.loading-indicator {
+    text-align: center;
+    padding: 1.4vw;
+    color: rgb(110,111,114);
+    font-size: 1rem;
+}
+
+.loading-indicator i {
+    margin-right: 0.5vw;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="file-management-container">
+    <div class="section-header">
+        <h1><i class="bi bi-file-earmark-ppt"></i> PPT文件管理</h1>
+        <p>管理系统中所有用户上传的PPT文件</p>
+    </div>
+    
+    <div class="filters">
+        <div class="filter-item">
+            <label for="userFilter">用户:</label>
+            <select id="userFilter">
+                <option value="all">全部</option>
+                <!-- 用户列表将通过JS动态加载 -->
+            </select>
+        </div>
+        
+        <div class="filter-item">
+            <label for="dateFilter">日期:</label>
+            <input type="date" id="dateFilter">
+            <button id="clearDateFilter" style="margin-left: 5px;"><i class="bi bi-x-circle"></i></button>
+        </div>
+        
+        <div class="filter-item">
+            <label for="searchFilter">搜索:</label>
+            <input type="text" id="searchFilter" placeholder="文件名...">
+        </div>
+    </div>
+    
+    <div id="loadingIndicator" class="loading-indicator">
+        <i class="bi bi-arrow-repeat"></i> 加载中...
+    </div>
+    
+    <div id="filesTableContainer">
+        <table class="files-table">
+            <thead>
+                <tr>
+                    <th>文件名</th>
+                    <th>上传用户</th>
+                    <th>大小</th>
+                    <th>上传时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="filesTableBody">
+                <!-- 文件列表将通过JS动态加载 -->
+            </tbody>
+        </table>
+        
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <i class="bi bi-inbox"></i>
+            <p>没有找到符合条件的文件</p>
+        </div>
+        
+        <div class="pagination" id="pagination">
+            <!-- 分页将通过JS动态加载 -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 全局变量
+let allFiles = [];
+let currentPage = 1;
+let pageSize = 10;
+let totalPages = 1;
+let users = {};
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 加载所有文件
+    loadAllFiles();
+    
+    // 设置筛选器事件
+    document.getElementById('userFilter').addEventListener('change', applyFilters);
+    document.getElementById('dateFilter').addEventListener('change', applyFilters);
+    document.getElementById('searchFilter').addEventListener('input', debounce(applyFilters, 300));
+    document.getElementById('clearDateFilter').addEventListener('click', function() {
+        document.getElementById('dateFilter').value = '';
+        applyFilters();
+    });
+});
+
+// 加载所有文件
+function loadAllFiles() {
+    showLoading(true);
+    
+    fetch('/api/admin/files')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('获取文件列表失败');
+            }
+            return response.json();
+        })
+        .then(data => {
+            allFiles = data.files;
+            
+            // 提取所有用户信息
+            extractUsers();
+            
+            // 应用过滤器并显示结果
+            applyFilters();
+            
+            showLoading(false);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('获取文件列表失败: ' + error.message, 'error');
+            showLoading(false);
+        });
+}
+
+// 提取所有用户信息并填充用户筛选器
+function extractUsers() {
+    const userFilter = document.getElementById('userFilter');
+    const uniqueUsers = {};
+    
+    // 提取所有唯一的用户
+    allFiles.forEach(file => {
+        if (file.user_id && file.username) {
+            uniqueUsers[file.user_id] = file.username;
+        }
+    });
+    
+    // 清空现有选项
+    userFilter.innerHTML = '<option value="all">全部</option>';
+    
+    // 添加用户选项
+    Object.keys(uniqueUsers).forEach(userId => {
+        const option = document.createElement('option');
+        option.value = userId;
+        option.textContent = uniqueUsers[userId];
+        userFilter.appendChild(option);
+    });
+    
+    // 保存用户信息到全局变量
+    users = uniqueUsers;
+}
+
+// 应用筛选条件并重新渲染文件列表
+function applyFilters() {
+    const userFilter = document.getElementById('userFilter').value;
+    const dateFilter = document.getElementById('dateFilter').value;
+    const searchFilter = document.getElementById('searchFilter').value.toLowerCase();
+    
+    // 筛选文件
+    let filteredFiles = allFiles.filter(file => {
+        // 用户筛选
+        if (userFilter !== 'all' && file.user_id != userFilter) {
+            return false;
+        }
+        
+        // 日期筛选
+        if (dateFilter) {
+            const fileDate = new Date(file.upload_time).toISOString().split('T')[0];
+            if (fileDate !== dateFilter) {
+                return false;
+            }
+        }
+        
+        // 搜索筛选
+        if (searchFilter && !file.filename.toLowerCase().includes(searchFilter)) {
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // 计算总页数
+    totalPages = Math.ceil(filteredFiles.length / pageSize);
+    
+    // 确保当前页在有效范围内
+    if (currentPage > totalPages) {
+        currentPage = totalPages || 1;
+    }
+    
+    // 获取当前页的文件
+    const startIndex = (currentPage - 1) * pageSize;
+    const pageFiles = filteredFiles.slice(startIndex, startIndex + pageSize);
+    
+    // 渲染文件列表
+    renderFiles(pageFiles);
+    
+    // 渲染分页
+    renderPagination();
+}
+
+// 渲染文件列表
+function renderFiles(files) {
+    const tbody = document.getElementById('filesTableBody');
+    const emptyState = document.getElementById('emptyState');
+    
+    // 清空表格
+    tbody.innerHTML = '';
+    
+    if (files.length === 0) {
+        // 显示空状态
+        tbody.style.display = 'none';
+        emptyState.style.display = 'block';
+        return;
+    }
+    
+    // 隐藏空状态，显示表格
+    tbody.style.display = '';
+    emptyState.style.display = 'none';
+    
+    // 渲染每个文件行
+    files.forEach(file => {
+        const tr = document.createElement('tr');
+        
+        // 文件名
+        const tdFilename = document.createElement('td');
+        tdFilename.textContent = file.filename;
+        tr.appendChild(tdFilename);
+        
+        // 上传用户
+        const tdUser = document.createElement('td');
+        tdUser.textContent = file.username || '未知用户';
+        tr.appendChild(tdUser);
+        
+        // 文件大小
+        const tdSize = document.createElement('td');
+        tdSize.className = 'file-size';
+        tdSize.textContent = formatFileSize(file.file_size);
+        tr.appendChild(tdSize);
+        
+        // 上传时间
+        const tdTime = document.createElement('td');
+        tdTime.textContent = formatDateTime(file.upload_time);
+        tr.appendChild(tdTime);
+        
+        // 操作按钮
+        const tdActions = document.createElement('td');
+        
+        // 下载按钮
+        const downloadBtn = document.createElement('a');
+        downloadBtn.href = `/download/${file.id}`;
+        downloadBtn.className = 'action-btn download-btn';
+        downloadBtn.innerHTML = '<i class="bi bi-download"></i> 下载';
+        tdActions.appendChild(downloadBtn);
+        
+        // 删除按钮
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'action-btn delete-btn';
+        deleteBtn.innerHTML = '<i class="bi bi-trash"></i> 删除';
+        deleteBtn.onclick = function() {
+            confirmDelete(file.id, file.filename);
+        };
+        tdActions.appendChild(deleteBtn);
+        
+        tr.appendChild(tdActions);
+        
+        tbody.appendChild(tr);
+    });
+}
+
+// 渲染分页
+function renderPagination() {
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = '';
+    
+    if (totalPages <= 1) {
+        return; // 只有一页不需要分页
+    }
+    
+    // 上一页按钮
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'pagination-btn';
+    prevBtn.innerHTML = '<i class="bi bi-chevron-left"></i>';
+    prevBtn.disabled = currentPage === 1;
+    prevBtn.onclick = function() {
+        if (currentPage > 1) {
+            currentPage--;
+            applyFilters();
+        }
+    };
+    pagination.appendChild(prevBtn);
+    
+    // 页码按钮
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+    
+    if (endPage - startPage + 1 < maxPagesToShow) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        const pageBtn = document.createElement('button');
+        pageBtn.className = 'pagination-btn' + (i === currentPage ? ' active' : '');
+        pageBtn.textContent = i;
+        pageBtn.onclick = function() {
+            currentPage = i;
+            applyFilters();
+        };
+        pagination.appendChild(pageBtn);
+    }
+    
+    // 下一页按钮
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'pagination-btn';
+    nextBtn.innerHTML = '<i class="bi bi-chevron-right"></i>';
+    nextBtn.disabled = currentPage === totalPages;
+    nextBtn.onclick = function() {
+        if (currentPage < totalPages) {
+            currentPage++;
+            applyFilters();
+        }
+    };
+    pagination.appendChild(nextBtn);
+}
+
+// 确认删除文件
+function confirmDelete(fileId, filename) {
+    if (confirm(`确定要删除文件 "${filename}" 吗？此操作不可恢复。`)) {
+        deleteFile(fileId);
+    }
+}
+
+// 删除文件
+function deleteFile(fileId) {
+    fetch(`/api/admin/files/${fileId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('删除文件失败');
+        }
+        return response.json();
+    })
+    .then(data => {
+        showToast('文件已成功删除', 'success');
+        
+        // 从列表中移除该文件
+        allFiles = allFiles.filter(file => file.id !== fileId);
+        
+        // 重新应用筛选器
+        applyFilters();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('删除文件失败: ' + error.message, 'error');
+    });
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 格式化日期时间
+function formatDateTime(dateString) {
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
+// 显示/隐藏加载指示器
+function showLoading(show) {
+    document.getElementById('loadingIndicator').style.display = show ? 'block' : 'none';
+    document.getElementById('filesTableContainer').style.display = show ? 'none' : 'block';
+}
+
+// 防抖函数
+function debounce(func, wait) {
+    let timeout;
+    return function() {
+        const context = this;
+        const args = arguments;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), wait);
+    };
+}
+</script>
+{% endblock %} 
