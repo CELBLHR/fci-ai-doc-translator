@@ -643,6 +643,63 @@ def pyuno_controller(presentation_path: str,
             shutil.rmtree(temp_dir)
         return None
     
+    # ===== 第五步：使用UNO接口进行格式转换（PPTX->ODP->PPTX） =====
+    logger.info("=" * 60)
+    logger.info("第5步：使用UNO接口进行格式转换（PPTX->ODP->PPTX）")
+    logger.info("=" * 60)
+    
+    try:
+        # 生成临时ODP文件路径
+        temp_odp_name = f"{original_name}_temp_{timestamp}.odp"
+        temp_odp_path = os.path.join(temp_dir, temp_odp_name)
+        
+        logger.info(f"开始PPTX转ODP转换: {result_path} -> {temp_odp_path}")
+        
+        # 使用UNO接口将翻译后的PPTX转换为ODP
+        converted_odp_path = convert_pptx_to_odp_pyuno(result_path, temp_dir)
+        
+        if not converted_odp_path:
+            logger.error("PPTX转ODP失败，将使用原始翻译结果")
+            final_result_path = result_path
+        else:
+            # 重命名为临时ODP文件
+            if converted_odp_path != temp_odp_path:
+                os.rename(converted_odp_path, temp_odp_path)
+                logger.info(f"重命名临时ODP文件: {temp_odp_path}")
+            
+            logger.info(f"✅ PPTX转ODP成功: {temp_odp_path}")
+            
+            # 使用UNO接口将ODP转换回PPTX
+            logger.info(f"开始ODP转PPTX转换: {temp_odp_path} -> 最终PPTX")
+            
+            # 生成最终输出路径
+            final_pptx_name = f"{original_name}_final_{timestamp}.pptx"
+            final_result_path = os.path.join(original_dir, final_pptx_name)
+            
+            # 使用UNO接口将ODP转换为PPTX
+            final_pptx_path = convert_odp_to_pptx_pyuno(temp_odp_path, original_dir)
+            
+            if not final_pptx_path:
+                logger.error("ODP转PPTX失败，将使用中间翻译结果")
+                final_result_path = result_path
+            else:
+                # 重命名为最终文件
+                if final_pptx_path != final_result_path:
+                    os.rename(final_pptx_path, final_result_path)
+                    logger.info(f"重命名最终PPTX文件: {final_result_path}")
+                
+                logger.info(f"✅ ODP转PPTX成功: {final_result_path}")
+                
+                # 更新result_path为最终文件路径
+                result_path = final_result_path
+        
+        logger.info(f"✅ UNO格式转换完成，最终文件: {final_result_path}")
+        
+    except Exception as e:
+        logger.error(f"UNO格式转换失败: {e}", exc_info=True)
+        logger.warning("格式转换失败，将使用原始翻译结果")
+        final_result_path = result_path
+    
     # ===== 处理完成统计 =====
     logger.info("=" * 60)
     logger.info("处理完成统计")
@@ -669,8 +726,13 @@ def pyuno_controller(presentation_path: str,
         logger.info(f"  - 有内容的文本框段落数: {len(text_boxes_data) if 'text_boxes_data' in locals() else 0}")
         logger.info(f"  - 成功翻译页数: {successful_translations}")
         logger.info(f"  - 翻译文本框段落数: {total_translated_box_paragraphs}")
-        logger.info(f"  - 最终PPTX文件: {result_path}")
-        logger.info(f"  - PPTX文件大小: {os.path.getsize(result_path) / (1024*1024):.2f} MB")
+        logger.info(f"  - 中间翻译PPTX文件: {result_path}")
+        if 'final_result_path' in locals() and final_result_path != result_path:
+            logger.info(f"  - 最终PPTX文件: {final_result_path}")
+            logger.info(f"  - 最终PPTX文件大小: {os.path.getsize(final_result_path) / (1024*1024):.2f} MB")
+        else:
+            logger.info(f"  - 最终PPTX文件: {result_path}")
+            logger.info(f"  - PPTX文件大小: {os.path.getsize(result_path) / (1024*1024):.2f} MB")
         
         if select_page:
             logger.info(f"  - 请求处理页面: {select_page}")
@@ -682,6 +744,9 @@ def pyuno_controller(presentation_path: str,
             if os.path.exists(odp_working_path):
                 os.remove(odp_working_path)
                 logger.info(f"已删除临时ODP文件: {odp_working_path}")
+            if 'temp_odp_path' in locals() and os.path.exists(temp_odp_path):
+                os.remove(temp_odp_path)
+                logger.info(f"已删除临时ODP文件: {temp_odp_path}")
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
                 logger.info(f"已清理临时目录: {temp_dir}")
@@ -694,7 +759,11 @@ def pyuno_controller(presentation_path: str,
         logger.info("🎉 pyuno_controller 处理完成！")
         logger.info("=" * 60)
         
-        return result_path
+        # 返回最终文件路径
+        if 'final_result_path' in locals() and final_result_path != result_path:
+            return final_result_path
+        else:
+            return result_path
         
     except Exception as e:
         logger.error(f"统计信息生成失败: {e}", exc_info=True)
@@ -702,11 +771,17 @@ def pyuno_controller(presentation_path: str,
         try:
             if os.path.exists(odp_working_path):
                 os.remove(odp_working_path)
+            if 'temp_odp_path' in locals() and os.path.exists(temp_odp_path):
+                os.remove(temp_odp_path)
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
         except:
             pass
-        return result_path if 'result_path' in locals() else None
+        # 返回最终文件路径
+        if 'final_result_path' in locals() and final_result_path != result_path:
+            return final_result_path
+        else:
+            return result_path if 'result_path' in locals() else None
 
 def test_pyuno_format_conversion():
     """测试PyUNO格式转换功能"""
