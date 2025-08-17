@@ -151,6 +151,13 @@
         box-shadow: 0 0 0 3px rgba(0,148,217,0.1);
     }
 
+    .form-text {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+        line-height: 1.2;
+    }
+
     /* 右侧主区域 */
     .translation-area {
         display: flex;
@@ -787,6 +794,17 @@
                 <option value="False">保持原始文本格式</option>
             </select>
         </div>
+
+        <div class="form-group">
+            <label for="enable_uno_conversion">激活pptx的字体大小自适应</label>
+            <select id="enable_uno_conversion" class="form-control">
+                <option value="True">启用（推荐）</option>
+                <option value="False">关闭</option>
+            </select>
+            <small class="form-text text-muted" style="font-size: 0.8rem; color: #6c757d; margin-top: 0.25rem;">
+                启用后将使用LibreOffice进行PPTX→ODP→PPTX转换，这一行为可能会导致ppt的版式出现变化，若出现版式变化过大，请关闭此选项。
+            </small>
+        </div>
     </div>
 
     <!-- 右侧主区域 -->
@@ -906,31 +924,46 @@
     let bilingual_translation = "paragraph_up";
     let model = 'qwen';
     let enable_text_splitting = true;
+    let enable_uno_conversion = true;
 
-    // 监听语言选择变化
-    document.getElementById('source-language').addEventListener('change', function(e) {
-        sourceLanguage = e.target.value;
-    });
+    // 事件监听器设置函数
+    function setupEventListeners() {
+        // 监听语言选择变化
+        document.getElementById('source-language').addEventListener('change', function(e) {
+            sourceLanguage = e.target.value;
+            console.log('源语言已更改为:', sourceLanguage);
+        });
 
-    document.getElementById('target-language').addEventListener('change', function(e) {
-        targetLanguage = e.target.value;
-    });
+        document.getElementById('target-language').addEventListener('change', function(e) {
+            targetLanguage = e.target.value;
+            console.log('目标语言已更改为:', targetLanguage);
+        });
 
-    document.getElementById('bilingual_translation').addEventListener('change', function(e) {
-        bilingual_translation = e.target.value;
-    });
+        document.getElementById('bilingual_translation').addEventListener('change', function(e) {
+            bilingual_translation = e.target.value;
+            console.log('双语翻译模式已更改为:', bilingual_translation);
+        });
 
-    document.getElementById('model').addEventListener('change', function(e) {
-        model = e.target.value;
-    });
+        document.getElementById('model').addEventListener('change', function(e) {
+            model = e.target.value;
+            console.log('翻译模型已更改为:', model);
+        });
 
-    document.getElementById('enable_text_splitting').addEventListener('change', function(e) {
-        enable_text_splitting = e.target.value === 'True';
-    });
+        document.getElementById('enable_text_splitting').addEventListener('change', function(e) {
+            enable_text_splitting = e.target.value === 'True';
+            console.log('文本分割设置已更改为:', enable_text_splitting);
+        });
 
-    document.getElementById('annotation-file').addEventListener('change', function(e) {
-        selectedAnnotationFile = e.target.value;
-    });
+        document.getElementById('enable_uno_conversion').addEventListener('change', function(e) {
+            enable_uno_conversion = e.target.value === 'True';
+            console.log('UNO转换设置已更改为:', enable_uno_conversion);
+        });
+
+        document.getElementById('annotation-file').addEventListener('change', function(e) {
+            selectedAnnotationFile = e.target.value;
+            console.log('注释文件已更改为:', selectedAnnotationFile);
+        });
+    }
 
     // 文件拖放处理
     const dropZone = document.getElementById('dropZone');
@@ -1055,6 +1088,17 @@
             return;
         }
 
+        // 调试信息：显示当前设置
+        console.log('开始翻译，当前设置:', {
+            sourceLanguage,
+            targetLanguage,
+            bilingual_translation,
+            model,
+            enable_text_splitting,
+            enable_uno_conversion,
+            selectedPages: Array.from(selectedPages)
+        });
+
         try {
             const formData = new FormData();
             formData.append('file', uploadedFile);
@@ -1063,6 +1107,7 @@
             formData.append('bilingual_translation', bilingual_translation);
             formData.append('model', model);
             formData.append('enable_text_splitting', enable_text_splitting);
+            formData.append('enable_uno_conversion', enable_uno_conversion);
             if (selectedAnnotationFile) {
                 formData.append('annotation_filename', selectedAnnotationFile);
             }
@@ -1342,9 +1387,35 @@
 
     // 页面加载完成后初始化
     document.addEventListener('DOMContentLoaded', () => {
+        console.log('DOM加载完成，开始初始化...');
+        setupEventListeners();  // 设置事件监听器
         loadHistory();
         loadAnnotationFiles();
         checkTaskStatus();
+        console.log('初始化完成，当前设置:', {
+            sourceLanguage,
+            targetLanguage,
+            bilingual_translation,
+            model,
+            enable_text_splitting,
+            enable_uno_conversion
+        });
+        
+        // 添加全局调试函数
+        window.debugSettings = function() {
+            console.log('当前翻译设置:', {
+                sourceLanguage,
+                targetLanguage,
+                bilingual_translation,
+                model,
+                enable_text_splitting,
+                enable_uno_conversion,
+                selectedPages: Array.from(selectedPages),
+                uploadedFile: uploadedFile ? uploadedFile.name : null
+            });
+        };
+        
+        console.log('调试函数已设置，使用 window.debugSettings() 查看当前设置');
     });
 </script>
 {% endblock %}
