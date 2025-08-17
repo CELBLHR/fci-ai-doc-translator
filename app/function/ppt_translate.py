@@ -789,7 +789,7 @@ def is_page_number(text):
     return False
 
 def process_presentation(path_to_presentation, stop_words_list, custom_translations, select_page, source_language,
-                         target_language, bilingual_translation):
+                         target_language, bilingual_translation, enable_uno_conversion=True):
     logging.info(f"开始处理演示文稿: {os.path.basename(path_to_presentation)}")
     logging.info(f"源语言: {source_language}, 目标语言: {target_language}, 双语翻译: {bilingual_translation}")
     logging.info(f"选中页面: {select_page}")

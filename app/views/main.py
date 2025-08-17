@@ -111,6 +111,17 @@ def upload_file():
         select_page = request.form.getlist('select_page')
         model = request.form.get('model', 'qwen')
         enable_text_splitting = request.form.get('enable_text_splitting', 'True').lower() == 'true'
+        enable_uno_conversion = request.form.get('enable_uno_conversion', 'True').lower() == 'true'
+        
+        # 记录接收到的参数
+        logger.info(f"接收到的翻译参数:")
+        logger.info(f"  - 源语言: {user_language}")
+        logger.info(f"  - 目标语言: {target_language}")
+        logger.info(f"  - 双语翻译: {bilingual_translation}")
+        logger.info(f"  - 模型: {model}")
+        logger.info(f"  - 文本分割: {enable_text_splitting}")
+        logger.info(f"  - UNO转换: {enable_uno_conversion}")
+        logger.info(f"  - 选择页面: {select_page}")
 
         # 转换select_page为整数列表
         if select_page and select_page[0]:
@@ -232,6 +243,14 @@ def upload_file():
 
             # 添加翻译任务到队列
             priority = 0  # 默认优先级
+            
+            # 记录传递给任务队列的参数
+            logger.info(f"传递给任务队列的参数:")
+            logger.info(f"  - 文件路径: {file_path}")
+            logger.info(f"  - 模型: {model}")
+            logger.info(f"  - 文本分割: {enable_text_splitting}")
+            logger.info(f"  - UNO转换: {enable_uno_conversion}")
+            
             queue_position = translation_queue.add_task(
                 user_id=current_user.id,
                 user_name=current_user.username,
@@ -244,7 +263,8 @@ def upload_file():
                 bilingual_translation=bilingual_translation,
                 priority=priority,
                 model=model,
-                enable_text_splitting=enable_text_splitting
+                enable_text_splitting=enable_text_splitting,
+                enable_uno_conversion=enable_uno_conversion
             )
 
             return jsonify({
@@ -1386,6 +1406,7 @@ def execute_simple_translation_task(task_id, file_path, filename):
         source_language = "en"
         target_language = "zh"
         bilingual_translation = "1"  # 双语模式
+        enable_uno_conversion = True  # 默认启用UNO转换
 
         # 执行翻译
         result = process_presentation(
@@ -1396,7 +1417,8 @@ def execute_simple_translation_task(task_id, file_path, filename):
             source_language,
             target_language,
             bilingual_translation,
-            progress_callback
+            progress_callback,
+            enable_uno_conversion=enable_uno_conversion
         )
 
         if result:
@@ -1522,6 +1544,7 @@ def ppt_translate_simple():
         source_language = "en"
         target_language = "zh"
         bilingual_translation = "1"  # 双语模式
+        enable_uno_conversion = True  # 默认启用UNO转换
 
         # 执行同步翻译
         result = process_presentation(
@@ -1531,7 +1554,8 @@ def ppt_translate_simple():
             select_page,
             source_language,
             target_language,
-            bilingual_translation
+            bilingual_translation,
+            enable_uno_conversion=enable_uno_conversion
         )
 
         if result:

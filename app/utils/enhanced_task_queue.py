@@ -28,7 +28,8 @@ class TranslationTask:
                 source_language: str = 'en', target_language: str = 'zh-cn',
                 priority: int = 0, annotation_filename: str = None,
                 annotation_json: Dict = None, select_page: List[int] = None,
-                bilingual_translation: str = 'paragraph_up',  **kwargs):
+                bilingual_translation: str = 'paragraph_up', 
+                enable_text_splitting: bool = True, enable_uno_conversion: bool = True, **kwargs):
         """
         初始化翻译任务
 
@@ -61,7 +62,8 @@ class TranslationTask:
         self.select_page = select_page or []
         self.bilingual_translation = bilingual_translation
         self.model = model
-        self.enable_text_splitting = kwargs.get('enable_text_splitting', True)
+        self.enable_text_splitting = enable_text_splitting
+        self.enable_uno_conversion = enable_uno_conversion
 
         # PDF注释相关参数
         self.annotations = kwargs.get('annotations', [])
@@ -168,7 +170,8 @@ class EnhancedTranslationQueue:
                 task_type: str = 'ppt_translate', source_language: str = 'en',
                 target_language: str = 'zh-cn', priority: int = 0,
                 annotation_filename: str = None, annotation_json: Dict = None,
-                select_page: List[int] = None, bilingual_translation: str = "paragraph_up",**kwargs) -> int:
+                select_page: List[int] = None, bilingual_translation: str = "paragraph_up",
+                enable_text_splitting: bool = True, enable_uno_conversion: bool = True, **kwargs) -> int:
         """
         添加任务到队列
 
@@ -224,8 +227,16 @@ class EnhancedTranslationQueue:
                 select_page=select_page,
                 bilingual_translation=bilingual_translation,
                 model=model,
+                enable_text_splitting=enable_text_splitting,
+                enable_uno_conversion=enable_uno_conversion,
                 **kwargs
             )
+            
+            # 记录任务创建信息
+            self.logger.info(f"创建任务 {task_id}，参数:")
+            self.logger.info(f"  - 模型: {model}")
+            self.logger.info(f"  - 文本分割: {enable_text_splitting}")
+            self.logger.info(f"  - UNO转换: {enable_uno_conversion}")
 
             # 存储任务
             self.tasks[task_id] = task
@@ -971,6 +982,11 @@ class EnhancedTranslationQueue:
                 )
             else:
                 # 使用普通处理函数
+                self.logger.info(f"执行PPT翻译任务，参数:")
+                self.logger.info(f"  - 模型: {task.model}")
+                self.logger.info(f"  - 文本分割: {task.enable_text_splitting}")
+                self.logger.info(f"  - UNO转换: {task.enable_uno_conversion}")
+                
                 result = process_presentation(
                     presentation_path=task.file_path,
                     stop_words=stop_words_list,
@@ -981,7 +997,8 @@ class EnhancedTranslationQueue:
                     bilingual_translation=task.bilingual_translation,
                     progress_callback=progress_callback,
                     model=task.model,
-                    enable_text_splitting = task.enable_text_splitting
+                    enable_text_splitting=task.enable_text_splitting,
+                    enable_uno_conversion=task.enable_uno_conversion
                 )
 
             return result

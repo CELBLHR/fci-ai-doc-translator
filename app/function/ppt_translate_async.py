@@ -593,7 +593,8 @@ async def process_presentation_async(presentation_path: str,
                                    bilingual_translation: str,
                                    progress_callback,
                                    model:str,
-                                   enable_text_splitting:bool) -> bool:
+                                   enable_text_splitting:bool,
+                                   enable_uno_conversion:bool) -> bool:
     """
     异步处理演示文稿（基于页面的翻译机制）
     每页调用一次API，按段落匹配翻译结果
@@ -609,6 +610,7 @@ async def process_presentation_async(presentation_path: str,
         model_name: 翻译模型名称
         progress_callback: 进度回调函数，接收两个参数(current_slide, total_slides)
         enable_text_splitting: ocr图片翻译是否采用逐行渲染
+        enable_uno_conversion: 是否启用UNO格式转换
     Returns:
         处理是否成功
     """
@@ -649,7 +651,8 @@ async def process_presentation_async(presentation_path: str,
                         target_language, 
                         bilingual_translation, 
                         progress_callback,
-                        model
+                        model,
+                        enable_uno_conversion=enable_uno_conversion  # 使用传入的参数
                         )
         logger.info(f"调用UNO接口翻译PPT文本框成功，翻译后的PPT文件地址: {uno_pptx_path}")
     except Exception as e:
@@ -1052,6 +1055,7 @@ def process_presentation(presentation_path: str,
                        stop_words: List[str] = None,
                        model:str='qwen',
                        enable_text_splitting: bool = True,
+                       enable_uno_conversion: bool = True,
                        **kwargs) -> bool:
     """
     处理PPT翻译（同步包装函数）
@@ -1100,7 +1104,8 @@ def process_presentation(presentation_path: str,
             bilingual_translation,
             progress_callback,
             model,
-            enable_text_splitting
+            enable_text_splitting,
+            enable_uno_conversion
         )
 
         logger.info(f"演示文稿处理完成: {os.path.basename(presentation_path)}")
