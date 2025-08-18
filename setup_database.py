@@ -158,7 +158,11 @@ def create_tables():
                     `id` INT AUTO_INCREMENT PRIMARY KEY,
                     `english` VARCHAR(500) NOT NULL,
                     `chinese` VARCHAR(500) NOT NULL,
-                    `user_id` INT NOT NULL,
+                    `dutch` VARCHAR(500),
+                    `class1` VARCHAR(500),
+                    `class2` VARCHAR(500),
+                    `user_id` INT,
+                    `is_public` TINYINT(1) DEFAULT 0,
                     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
                     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     INDEX `idx_user_id` (`user_id`),
@@ -289,6 +293,61 @@ def init_basic_data():
 
     except Exception as e:
         logger.error(f"初始化基础数据失败: {str(e)}")
+        return False
+
+def update_table_structure():
+    """检查并更新表结构"""
+    try:
+        connection = pymysql.connect(**DB_CONFIG)
+        
+        with connection.cursor() as cursor:
+            # 检查并添加缺失的列
+            # 检查 translation 表结构
+            cursor.execute("DESCRIBE translation")
+            columns = cursor.fetchall()
+            column_names = [column[0] for column in columns]
+            
+            # 检查 is_public 列
+            if 'is_public' not in column_names:
+                try:
+                    cursor.execute("ALTER TABLE translation ADD COLUMN is_public TINYINT(1) DEFAULT 0")
+                    logger.info("已添加 is_public 列到 translation 表")
+                except Exception as e:
+                    logger.error(f"添加 is_public 列时出错: {e}")
+            else:
+                # 更新所有 NULL 值为 0 (False)
+                try:
+                    cursor.execute("UPDATE translation SET is_public = 0 WHERE is_public IS NULL")
+                    affected_rows = cursor.rowcount
+                    if affected_rows > 0:
+                        logger.info(f"已更新 {affected_rows} 条记录中的 is_public 列 NULL 值为 0")
+                except Exception as e:
+                    logger.error(f"更新 is_public 列中的 NULL 值时出错: {e}")
+                
+                # 检查 is_public 列是否有默认值
+                for column in columns:
+                    if column[0] == 'is_public' and 'DEFAULT' not in str(column[4]):
+                        try:
+                            cursor.execute("ALTER TABLE translation MODIFY COLUMN is_public TINYINT(1) DEFAULT 0")
+                            logger.info("已为 is_public 列设置默认值")
+                        except Exception as e:
+                            logger.error(f"为 is_public 列设置默认值时出错: {e}")
+            
+            # 检查 user_id 列是否允许 NULL
+            for column in columns:
+                if column[0] == 'user_id' and 'YES' not in column:
+                    try:
+                        cursor.execute("ALTER TABLE translation MODIFY COLUMN user_id INT NULL")
+                        logger.info("已修改 user_id 列允许 NULL 值")
+                    except Exception as e:
+                        logger.error(f"修改 user_id 列时出错: {e}")
+            
+        connection.commit()
+        connection.close()
+        return True
+        
+    except Exception as e:
+        logger.error(f"更新表结构失败: {str(e)}")
         return False
 
 def test_database_connection():
@@ -468,7 +527,7 @@ def main():
         return False
 
     success_count = 0
-    total_steps = 6
+    total_steps = 7
 
     print(f"\n开始执行数据库创建流程...")
 
@@ -496,8 +555,16 @@ def main():
     else:
         print("❌ 基础数据初始化失败")
 
-    # 步骤4: 测试数据库连接
-    print(f"\n[4/{total_steps}] 测试数据库连接...")
+    # 步骤4: 更新表结构
+    print(f"\n[4/{total_steps}] 更新表结构...")
+    if update_table_structure():
+        success_count += 1
+        print("✅ 表结构更新成功")
+    else:
+        print("❌ 表结构更新失败")
+
+    # 步骤5: 测试数据库连接
+    print(f"\n[5/{total_steps}] 测试数据库连接...")
     if test_database_connection():
         success_count += 1
         print("✅ 数据库连接测试成功")
