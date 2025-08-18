@@ -29,7 +29,8 @@ class TranslationTask:
                 priority: int = 0, annotation_filename: str = None,
                 annotation_json: Dict = None, select_page: List[int] = None,
                 bilingual_translation: str = 'paragraph_up', 
-                enable_text_splitting: bool = True, enable_uno_conversion: bool = True, **kwargs):
+                enable_text_splitting: bool = True, enable_uno_conversion: bool = True,
+                custom_translations: Dict[str, str] = None, **kwargs):
         """
         初始化翻译任务
 
@@ -47,6 +48,7 @@ class TranslationTask:
             select_page: 选择的页面列表
             bilingual_translation: 是否双语翻译
             translation_model: 翻译模型 (qwen, deepseek, gpt-4o)
+            custom_translations: 自定义翻译词典 {source: target}
             **kwargs: 其他参数
         """
         self.task_id = task_id
@@ -64,6 +66,7 @@ class TranslationTask:
         self.model = model
         self.enable_text_splitting = enable_text_splitting
         self.enable_uno_conversion = enable_uno_conversion
+        self.custom_translations = custom_translations or {}  # 添加自定义翻译词典
 
         # PDF注释相关参数
         self.annotations = kwargs.get('annotations', [])
@@ -104,7 +107,7 @@ class TranslationTask:
 
         # 获取任务专用的日志记录器
         self.logger = logging.getLogger(f"{__name__}.task.{user_id}")
-        self.logger.info(f"创建新任务: 用户={user_name}, 文件={os.path.basename(file_path)}, 模型={model}")
+        self.logger.info(f"创建新任务: 用户={user_name}, 文件={os.path.basename(file_path)}, 模型={model}, 词典条目={len(self.custom_translations)}")
 
 class EnhancedTranslationQueue:
     """增强版翻译任务队列，支持多线程并发处理"""
@@ -171,7 +174,8 @@ class EnhancedTranslationQueue:
                 target_language: str = 'zh-cn', priority: int = 0,
                 annotation_filename: str = None, annotation_json: Dict = None,
                 select_page: List[int] = None, bilingual_translation: str = "paragraph_up",
-                enable_text_splitting: bool = True, enable_uno_conversion: bool = True, **kwargs) -> int:
+                enable_text_splitting: bool = True, enable_uno_conversion: bool = True,
+                custom_translations: Dict[str, str] = None, **kwargs) -> int:
         """
         添加任务到队列
 
@@ -188,6 +192,7 @@ class EnhancedTranslationQueue:
             select_page: 选择的页面列表
             bilingual_translation: 是否双语翻译
             model: 模型类型
+            custom_translations: 自定义翻译词典
             **kwargs: 其他参数
 
         Returns:
@@ -229,6 +234,7 @@ class EnhancedTranslationQueue:
                 model=model,
                 enable_text_splitting=enable_text_splitting,
                 enable_uno_conversion=enable_uno_conversion,
+                custom_translations=custom_translations,  # 传递自定义翻译词典
                 **kwargs
             )
             
@@ -237,6 +243,7 @@ class EnhancedTranslationQueue:
             self.logger.info(f"  - 模型: {model}")
             self.logger.info(f"  - 文本分割: {enable_text_splitting}")
             self.logger.info(f"  - UNO转换: {enable_uno_conversion}")
+            self.logger.info(f"  - 词典条目数: {len(custom_translations) if custom_translations else 0}")
 
             # 存储任务
             self.tasks[task_id] = task
@@ -960,9 +967,20 @@ class EnhancedTranslationQueue:
             # 导入翻译函数
             from ..function.ppt_translate_async import process_presentation, process_presentation_add_annotations
 
-            # 停止词列表和自定义翻译字典（这里可以从数据库获取或使用默认值）
+            # 停止词列表和自定义翻译字典
             stop_words_list = []
-            custom_translations = {}
+            # 使用任务中的自定义翻译词典
+            custom_translations = task.custom_translations or {}
+            
+            # 记录使用的词典信息
+            if custom_translations:
+                self.logger.info(f"使用自定义词典，包含 {len(custom_translations)} 个词汇对")
+                # 记录前几个词汇作为示例
+                sample_items = list(custom_translations.items())[:3]
+                if sample_items:
+                    self.logger.info(f"词典示例: {sample_items}")
+            else:
+                self.logger.info("未使用自定义词典")
 
             # 判断是否有注释数据
             if task.annotation_json:
@@ -986,6 +1004,7 @@ class EnhancedTranslationQueue:
                 self.logger.info(f"  - 模型: {task.model}")
                 self.logger.info(f"  - 文本分割: {task.enable_text_splitting}")
                 self.logger.info(f"  - UNO转换: {task.enable_uno_conversion}")
+                self.logger.info(f"  - 词典条目数: {len(custom_translations)}")
                 
                 result = process_presentation(
                     presentation_path=task.file_path,
@@ -1590,7 +1609,7 @@ class EnhancedTranslationQueue:
                 task.result = None
             
             # 清理任务中可能持有的大型数据
-            for attr in ['annotations', 'annotation_json']:
+            for attr in ['annotations', 'annotation_json', 'custom_translations']:
                 if hasattr(task, attr) and getattr(task, attr):
                     setattr(task, attr, None)
             
