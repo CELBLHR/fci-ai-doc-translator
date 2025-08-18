@@ -106,16 +106,16 @@ def translate(text: str,
     
     elif model == "deepseek":
         logger.info("model参数设置为deepseek,使用后端translate_ppt_page接口")
-        return call_backend_translate_ppt_page(text, "deepseek")
+        return call_backend_translate_ppt_page(text, "deepseek", field, stop_words_str, custom_translations_str, source_language, target_language)
     
     elif model == "gpt4o":
         logger.info("model参数设置为gpt4o,使用后端translate_ppt_page接口")
-        return call_backend_translate_ppt_page(text, "gpt4o")
+        return call_backend_translate_ppt_page(text, "gpt4o", field, stop_words_str, custom_translations_str, source_language, target_language)
     
     else:
         raise ValueError(f"不支持的模型: {model}")
 
-def call_backend_translate_ppt_page(text, model, timeout=120):
+def call_backend_translate_ppt_page(text, model, field, stop_words_str, custom_translations_str, source_language, target_language, timeout=120):
     """
     调用后端的translate_ppt_page接口
     
@@ -132,8 +132,8 @@ def call_backend_translate_ppt_page(text, model, timeout=120):
     
     # 使用api_test.py中的端点ID
     endpoints = {
-        "gpt4o": "1da9015cc155411aa433a24a05350324",
-        "deepseek": "ffac6e70d36749a2890dbe134d181d38"
+        "gpt4o": "dd69b399afaf46a18efe751e0f21f05f",
+        "deepseek": "d145ae592efa4240867c3b1f99c7a5d7"
     }
     
     if model not in endpoints:
@@ -146,7 +146,12 @@ def call_backend_translate_ppt_page(text, model, timeout=120):
     payload = {
         "_streaming": False,
         "is_app_uid": False,
-        "text": text
+        "field": field,
+        "text": text,
+        "stop_words_str": stop_words_str,
+        "custom_translations_str": custom_translations_str,
+        "source_language": source_language,
+        "target_language": target_language
     }
     
     headers = {
@@ -169,12 +174,46 @@ def call_backend_translate_ppt_page(text, model, timeout=120):
             data = result.get("data", "")
             logger.info(f"后端API调用成功，处理返回数据")
             
-            # 如果data是字典且包含output字段，提取output并转换为JSON字符串
-            if isinstance(data, dict) and 'output' in data:
-                output_data = data['output']
-                json_result = json.dumps(output_data, ensure_ascii=False)
-                logger.info(f"提取output字段并转换为JSON字符串，长度: {len(json_result)} 字符")
-                return json_result
+            # 🔧 修复：正确处理后端返回的数据结构
+            if isinstance(data, dict):
+                # 如果data是字典且包含translated_json字段，提取该字段
+                if 'translated_json' in data:
+                    translated_json = data['translated_json']
+                    logger.info(f"提取translated_json字段")
+                    
+                    # 如果translated_json是字符串，直接返回
+                    if isinstance(translated_json, str):
+                        logger.info(f"translated_json是字符串，直接返回")
+                        return translated_json
+                    
+                    # 如果translated_json是列表或其他结构，转换为JSON字符串
+                    else:
+                        json_result = json.dumps(translated_json, ensure_ascii=False)
+                        logger.info(f"translated_json转换为JSON字符串，长度: {len(json_result)} 字符")
+                        return json_result
+                
+                # 如果data是字典且包含output字段，提取output字段
+                elif 'output' in data:
+                    output_data = data['output']
+                    
+                    # 如果output也是字典且包含translated_json
+                    if isinstance(output_data, dict) and 'translated_json' in output_data:
+                        translated_json = output_data['translated_json']
+                        if isinstance(translated_json, str):
+                            return translated_json
+                        else:
+                            return json.dumps(translated_json, ensure_ascii=False)
+                    
+                    # 否则直接处理output
+                    json_result = json.dumps(output_data, ensure_ascii=False)
+                    logger.info(f"提取output字段并转换为JSON字符串，长度: {len(json_result)} 字符")
+                    return json_result
+                
+                # 如果都没有特殊字段，直接转换整个data
+                else:
+                    json_result = json.dumps(data, ensure_ascii=False)
+                    logger.info(f"直接转换data为JSON字符串，长度: {len(json_result)} 字符")
+                    return json_result
             
             # 如果data已经是字符串，直接返回
             elif isinstance(data, str):
