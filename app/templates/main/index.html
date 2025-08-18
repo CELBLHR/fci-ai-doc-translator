@@ -805,6 +805,13 @@
                 启用后将使用LibreOffice进行PPTX→ODP→PPTX转换，这一行为可能会导致ppt的版式出现变化，若出现版式变化过大，请关闭此选项。
             </small>
         </div>
+        <!-- 新增的词汇表部分 -->
+        <div class="form-group">
+            <label>词汇表</label>
+            <button type="button" class="btn btn-secondary" id="vocabularyConfigBtn" onclick="openVocabularyConfig()">
+                未配置
+            </button>
+        </div>
     </div>
 
     <!-- 右侧主区域 -->
@@ -1417,5 +1424,326 @@
         
         console.log('调试函数已设置，使用 window.debugSettings() 查看当前设置');
     });
+    // 新增词汇表配置功能
+    function openVocabularyConfig() {
+        // 创建浮动窗口
+        const modal = document.createElement('div');
+        modal.id = 'vocabularyModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            max-width: 90vw;
+            max-height: 80vh;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+        `;
+        
+        // 添加窗口内容
+        modal.innerHTML = `
+            <div style="padding: 20px; flex: 1; overflow-y: auto;">
+                <h4 style="margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; color: #333;">词汇表配置</h4>
+                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                    <input type="text" id="vocabularySearch" placeholder="搜索词汇..." style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <button id="searchBtn" style="padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">搜索</button>
+                </div>
+                <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+                    <select id="class1Filter" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">所有分类1</option>
+                    </select>
+                    <select id="class2Filter" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">所有分类2</option>
+                    </select>
+                    <button id="clearFilterBtn" style="padding: 8px 15px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">清除筛选</button>
+                </div>
+                <div style="margin-bottom: 15px; display: flex; align-items: center;">
+                    <input type="checkbox" id="selectAllCheckbox" style="margin-right: 10px;">
+                    <label for="selectAllCheckbox" style="color: #333 !important; font-weight: 500;">全选</label>
+                </div>
+                <div id="vocabularyList" style="min-height: 300px; border: 1px solid #ddd; border-radius: 4px; padding: 15px; max-height: 400px; overflow-y: auto;">
+                    <p>加载中...</p>
+                </div>
+            </div>
+            <div style="padding: 15px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-secondary" onclick="closeVocabularyConfig()">取消</button>
+                <button class="btn btn-primary" onclick="saveVocabularyConfig()">确定</button>
+            </div>
+        `;
+        
+        // 添加遮罩层
+        const overlay = document.createElement('div');
+        overlay.id = 'modalOverlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+        `;
+        
+        // 添加到页面
+        document.body.appendChild(overlay);
+        document.body.appendChild(modal);
+        
+        // 加载词汇表数据
+        loadVocabularyData();
+        
+        // 绑定事件
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            const searchTerm = document.getElementById('vocabularySearch').value;
+            loadVocabularyData(searchTerm);
+        });
+        
+        document.getElementById('vocabularySearch').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const searchTerm = document.getElementById('vocabularySearch').value;
+                loadVocabularyData(searchTerm);
+            }
+        });
+        
+        // 分类筛选事件
+        document.getElementById('class1Filter').addEventListener('change', () => {
+            filterVocabularyData();
+        });
+        
+        document.getElementById('class2Filter').addEventListener('change', () => {
+            filterVocabularyData();
+        });
+        
+        // 清除筛选
+        document.getElementById('clearFilterBtn').addEventListener('click', () => {
+            document.getElementById('class1Filter').value = '';
+            document.getElementById('class2Filter').value = '';
+            filterVocabularyData();
+        });
+        
+        // 全选/取消全选功能
+        document.getElementById('selectAllCheckbox').addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+        });
+        
+        // 为每个词汇条目添加事件监听器，更新主全选框状态
+        const vocabularyList = document.getElementById('vocabularyList');
+        const observer = new MutationObserver(() => {
+            const checkboxes = vocabularyList.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', updateSelectAllCheckbox);
+                
+                // 恢复之前选中的状态
+                if (window.selectedVocabulary && window.selectedVocabulary.includes(checkbox.value)) {
+                    checkbox.checked = true;
+                }
+            });
+            
+            // 更新全选框状态
+            updateSelectAllCheckbox();
+        });
+        
+        observer.observe(vocabularyList, { childList: true, subtree: true });
+    }
+    
+    function updateSelectAllCheckbox() {
+        const allCheckboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]:not(#selectAllCheckboxHeader)');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        const allChecked = Array.from(allCheckboxes).every(cb => cb.checked);
+        selectAllCheckbox.checked = allChecked;
+        
+        // 同时更新表头的全选复选框
+        const selectAllHeader = document.getElementById('selectAllCheckboxHeader');
+        if (selectAllHeader) {
+            selectAllHeader.checked = allChecked;
+        }
+    }
+    
+    // 全局存储所有词汇数据
+    let allVocabularyData = [];
+    
+    async function loadVocabularyData(searchTerm = '') {
+        try {
+            // Load all translations (private and public)
+            const response = await fetch(`/api/translations?search=${encodeURIComponent(searchTerm)}&page=1&per_page=1000&visibility=all`);
+            if (!response.ok) {
+                throw new Error('获取词汇表数据失败');
+            }
+            const data = await response.json();
+            
+            // 保存所有数据用于筛选
+            allVocabularyData = data.translations;
+            
+            // 填充分类筛选下拉框
+            populateClassFilters(allVocabularyData);
+            
+            // 显示数据
+            displayVocabularyData(allVocabularyData);
+        } catch (error) {
+            console.error('加载词汇表数据失败:', error);
+            document.getElementById('vocabularyList').innerHTML = '<p>加载数据失败</p>';
+        }
+    }
+    
+    function populateClassFilters(data) {
+        const class1Set = new Set();
+        const class2Set = new Set();
+        
+        data.forEach(item => {
+            if (item.class1) class1Set.add(item.class1);
+            if (item.class2) class2Set.add(item.class2);
+        });
+        
+        const class1Filter = document.getElementById('class1Filter');
+        const class2Filter = document.getElementById('class2Filter');
+        
+        // 保存当前选择
+        const currentClass1 = class1Filter.value;
+        const currentClass2 = class2Filter.value;
+        
+        // 清空选项（保留默认选项）
+        class1Filter.innerHTML = '<option value="">所有分类1</option>';
+        class2Filter.innerHTML = '<option value="">所有分类2</option>';
+        
+        // 添加分类1选项
+        Array.from(class1Set).sort().forEach(class1 => {
+            const option = document.createElement('option');
+            option.value = class1;
+            option.textContent = class1;
+            class1Filter.appendChild(option);
+        });
+        
+        // 添加分类2选项
+        Array.from(class2Set).sort().forEach(class2 => {
+            const option = document.createElement('option');
+            option.value = class2;
+            option.textContent = class2;
+            class2Filter.appendChild(option);
+        });
+        
+        // 恢复之前的选择
+        class1Filter.value = currentClass1;
+        class2Filter.value = currentClass2;
+    }
+    
+    function filterVocabularyData() {
+        const class1Filter = document.getElementById('class1Filter').value;
+        const class2Filter = document.getElementById('class2Filter').value;
+        
+        let filteredData = allVocabularyData;
+        
+        if (class1Filter) {
+            filteredData = filteredData.filter(item => item.class1 === class1Filter);
+        }
+        
+        if (class2Filter) {
+            filteredData = filteredData.filter(item => item.class2 === class2Filter);
+        }
+        
+        displayVocabularyData(filteredData);
+    }
+    
+    function displayVocabularyData(data) {
+        const vocabularyList = document.getElementById('vocabularyList');
+        if (!data || data.length === 0) {
+            vocabularyList.innerHTML = '<p>未找到相关词汇</p>';
+            return;
+        }
+        
+        // 添加表头（包含全选复选框）
+        let html = `
+            <div style="display: flex; align-items: center; padding: 8px 0; border-bottom: 2px solid #333; font-weight: bold; background-color: #f8f9fa;">
+                <div style="width: 30px; padding-left: 10px;">
+                    <input type="checkbox" id="selectAllCheckboxHeader" style="margin-right: 10px;">
+                </div>
+                <div style="flex: 1; display: flex;">
+                    <div style="flex: 1; padding: 0 5px; color: #333;">英文</div>
+                    <div style="flex: 1; padding: 0 5px; color: #333;">中文</div>
+                    <div style="flex: 1; padding: 0 5px; color: #333;">荷兰语</div>
+                    <div style="flex: 1; padding: 0 5px; color: #333;">分类1</div>
+                    <div style="flex: 1; padding: 0 5px; color: #333;">分类2</div>
+                    <div style="flex: 1; padding: 0 5px; color: #333;">类型</div>
+                </div>
+            </div>
+        `;
+        
+        // 添加数据行
+        html += data.map(item => `
+            <div style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee;">
+                <div style="width: 30px; padding-left: 10px;">
+                    <input type="checkbox" id="vocab_${item.id}" value="${item.id}" style="margin-right: 10px;" ${window.selectedVocabulary && window.selectedVocabulary.includes(String(item.id)) ? 'checked' : ''}>
+                </div>
+                <div style="flex: 1; display: flex; font-size: 14px; color: #333;">
+                    <div style="flex: 1; padding: 0 5px;">${item.english}</div>
+                    <div style="flex: 1; padding: 0 5px;">${item.chinese}</div>
+                    <div style="flex: 1; padding: 0 5px;">${item.dutch || ''}</div>
+                    <div style="flex: 1; padding: 0 5px;">${item.class1 || ''}</div>
+                    <div style="flex: 1; padding: 0 5px;">${item.class2 || ''}</div>
+                    <div style="flex: 1; padding: 0 5px;">${item.is_public ? '<span style="color: #007bff;">公共</span>' : '私人'}</div>
+                </div>
+            </div>
+        `).join('');
+        
+        vocabularyList.innerHTML = html;
+        
+        // 为表头全选复选框添加事件监听器
+        const selectAllHeader = document.getElementById('selectAllCheckboxHeader');
+        if (selectAllHeader) {
+            selectAllHeader.addEventListener('change', function() {
+                const checkboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]:not(#selectAllCheckboxHeader)');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                });
+                updateSelectAllCheckbox(); // 更新主界面的全选框
+            });
+        }
+        
+        // 为每个复选框添加事件监听器
+        const checkboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]:not(#selectAllCheckboxHeader)');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSelectAllCheckbox);
+        });
+        
+        // 更新主界面的全选框状态
+        updateSelectAllCheckbox();
+    }
+    
+    function closeVocabularyConfig() {
+        const modal = document.getElementById('vocabularyModal');
+        const overlay = document.getElementById('modalOverlay');
+        if (modal) modal.remove();
+        if (overlay) overlay.remove();
+    }
+    
+    function saveVocabularyConfig() {
+        // 获取选中的词汇（排除表头的全选复选框）
+        const selectedCheckboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]:checked:not(#selectAllCheckboxHeader)');
+        const selectedVocabIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+        
+        // 更新按钮文本和样式
+        const btn = document.getElementById('vocabularyConfigBtn');
+        if (selectedVocabIds.length > 0) {
+            btn.textContent = `已配置 (${selectedVocabIds.length})`;
+            btn.classList.remove('btn-secondary');
+            btn.classList.add('btn-success');
+        } else {
+            btn.textContent = '未配置';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-secondary');
+        }
+        
+        // 保存选中的词汇ID到全局变量，供后续使用
+        window.selectedVocabulary = selectedVocabIds;
+        
+        // 关闭窗口
+        closeVocabularyConfig();
+    }
 </script>
 {% endblock %}

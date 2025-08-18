@@ -732,17 +732,37 @@ def enable_user(id):
 @login_required
 def get_translations():
     page = request.args.get('page', 1, type=int)
-    per_page = 10
+    per_page = request.args.get('per_page', 10, type=int)  # 添加per_page参数支持
     search = request.args.get('search', '')
+    # Add filter for public/private translations
+    visibility = request.args.get('visibility', 'private')  # private, public, all
 
-    # 只查询当前用户的翻译数据
-    query = Translation.query.filter_by(user_id=current_user.id)
+    if visibility == 'private':
+        # 只查询当前用户的私有翻译数据
+        query = Translation.query.filter(
+            Translation.user_id == current_user.id,
+            Translation.is_public == False
+        )
+    elif visibility == 'public':
+        # 只查询公共的翻译数据
+        query = Translation.query.filter_by(is_public=True)
+    else:  # all 或其他值，默认为all
+        # 查询当前用户的所有私有数据和所有公共数据
+        query = Translation.query.filter(
+            db.or_(
+                db.and_(Translation.user_id == current_user.id, Translation.is_public == False),
+                Translation.is_public == True
+            )
+        )
 
     if search:
         query = query.filter(
             db.or_(
                 Translation.english.ilike(f'%{search}%'),
-                Translation.chinese.ilike(f'%{search}%')
+                Translation.chinese.ilike(f'%{search}%'),
+                Translation.dutch.ilike(f'%{search}%'),
+                Translation.class1.ilike(f'%{search}%'),
+                Translation.class2.ilike(f'%{search}%')
             )
         )
 
@@ -750,13 +770,29 @@ def get_translations():
         page=page, per_page=per_page, error_out=False
     )
 
-    return jsonify({
-        'translations': [{
+    translations_data = []
+    for item in pagination.items:
+        translation_dict = {
             'id': item.id,
             'english': item.english,
             'chinese': item.chinese,
-            'created_at': datetime_to_isoformat(item.created_at)
-        } for item in pagination.items],
+            'dutch': item.dutch,
+            'class1': item.class1,
+            'class2': item.class2,
+            'created_at': datetime_to_isoformat(item.created_at),
+            'is_public': item.is_public,
+            'user_id': item.user_id
+        }
+        # Add user info for display
+        if item.user:
+            translation_dict['user'] = {
+                'id': item.user.id,
+                'username': item.user.username
+            }
+        translations_data.append(translation_dict)
+
+    return jsonify({
+        'translations': translations_data,
         'total_pages': pagination.pages,
         'current_page': page,
         'total_items': pagination.total
@@ -769,24 +805,41 @@ def add_translation():
     data = request.get_json()
     english = data.get('english')
     chinese = data.get('chinese')
+    dutch = data.get('dutch')
+    class1 = data.get('class1')
+    class2 = data.get('class2')
+    is_public = data.get('is_public', False)
 
     if not english or not chinese:
         return jsonify({'error': '英文和中文翻译都是必填的'}), 400
 
-    # 检查是否已存在相同的翻译（在当前用户的词库中）
-    existing = Translation.query.filter_by(
-        user_id=current_user.id,
-        english=english
-    ).first()
+    # Build query based on whether it's a public or private translation
+    if is_public and current_user.is_administrator():
+        # For public translations, check against all public translations
+        existing = Translation.query.filter_by(
+            english=english,
+            is_public=True
+        ).first()
+    else:
+        # For private translations, check only against current user's translations
+        is_public = False  # Ensure non-admin users can't add public translations
+        existing = Translation.query.filter_by(
+            user_id=current_user.id,
+            english=english
+        ).first()
 
     if existing:
-        return jsonify({'error': '该英文翻译已存在于你的词库中'}), 400
+        return jsonify({'error': '该英文翻译已存在于词库中'}), 400
 
     try:
         translation = Translation(
             english=english,
             chinese=chinese,
-            user_id=current_user.id
+            dutch=dutch,
+            class1=class1,
+            class2=class2,
+            is_public=is_public,
+            user_id=current_user.id  # Always set user_id, even for public translations
         )
         db.session.add(translation)
         db.session.commit()
@@ -797,51 +850,10 @@ def add_translation():
                 'id': translation.id,
                 'english': translation.english,
                 'chinese': translation.chinese,
-                'created_at': datetime_to_isoformat(translation.created_at)
-            }
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
-@main.route('/api/translations/<int:id>', methods=['PUT'])
-@login_required
-def update_translation(id):
-    translation = Translation.query.get_or_404(id)
-
-    # 验证所有权
-    if translation.user_id != current_user.id:
-        return jsonify({'error': '无权修改此翻译'}), 403
-
-    data = request.get_json()
-    english = data.get('english')
-    chinese = data.get('chinese')
-
-    if not english or not chinese:
-        return jsonify({'error': '英文和中文翻译都是必填的'}), 400
-
-    # 检查是否与其他翻译重复（在当前用户的词库中）
-    existing = Translation.query.filter(
-        Translation.user_id == current_user.id,
-        Translation.english == english,
-        Translation.id != id
-    ).first()
-
-    if existing:
-        return jsonify({'error': '该英文翻译已存在于你的词库中'}), 400
-
-    try:
-        translation.english = english
-        translation.chinese = chinese
-        db.session.commit()
-
-        return jsonify({
-            'message': '更新成功',
-            'translation': {
-                'id': translation.id,
-                'english': translation.english,
-                'chinese': translation.chinese,
+                'dutch': translation.dutch,
+                'class1': translation.class1,
+                'class2': translation.class2,
+                'is_public': translation.is_public,
                 'created_at': datetime_to_isoformat(translation.created_at)
             }
         })
@@ -855,14 +867,96 @@ def update_translation(id):
 def delete_translation(id):
     translation = Translation.query.get_or_404(id)
 
-    # 验证所有权
-    if translation.user_id != current_user.id:
-        return jsonify({'error': '无权删除此翻译'}), 403
+    # 验证所有权 - users can only delete their own private translations
+    # admins can delete public translations
+    if translation.is_public:
+        if not current_user.is_administrator():
+            return jsonify({'error': '无权删除公共词库'}), 403
+    else:
+        if translation.user_id != current_user.id:
+            return jsonify({'error': '无权删除此翻译'}), 403
 
     try:
         db.session.delete(translation)
         db.session.commit()
         return jsonify({'message': '删除成功'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@main.route('/api/translations/<int:id>', methods=['PUT'])
+@login_required
+def update_translation(id):
+    translation = Translation.query.get_or_404(id)
+
+    # 验证所有权 - users can only edit their own private translations
+    # admins can edit public translations
+    if translation.is_public:
+        if not current_user.is_administrator():
+            return jsonify({'error': '无权修改公共词库'}), 403
+    else:
+        if translation.user_id != current_user.id:
+            return jsonify({'error': '无权修改此翻译'}), 403
+
+    data = request.get_json()
+    english = data.get('english')
+    chinese = data.get('chinese')
+    is_public = data.get('is_public', translation.is_public)  # Keep existing value if not provided
+
+    # Only admins can change the public status
+    if 'is_public' in data and data['is_public'] != translation.is_public:
+        if not current_user.is_administrator():
+            return jsonify({'error': '无权修改词条的公共状态'}), 403
+
+    if not english or not chinese:
+        return jsonify({'error': '英文和中文翻译都是必填的'}), 400
+
+    # 检查是否与其他翻译重复
+    if translation.is_public or is_public:
+        # For public translations, check against all public translations
+        existing = Translation.query.filter(
+            Translation.is_public == True,
+            Translation.english == english,
+            Translation.id != id
+        ).first()
+    else:
+        # For private translations, check only against current user's translations
+        existing = Translation.query.filter(
+            Translation.user_id == current_user.id,
+            Translation.english == english,
+            Translation.id != id
+        ).first()
+
+    if existing:
+        return jsonify({'error': '该英文翻译已存在于词库中'}), 400
+
+    try:
+        translation.english = english
+        translation.chinese = chinese
+        translation.dutch = data.get('dutch')
+        translation.class1 = data.get('class1')
+        translation.class2 = data.get('class2')
+        
+        # Only admins can change public status
+        if current_user.is_administrator() and 'is_public' in data:
+            translation.is_public = is_public
+            
+        db.session.commit()
+
+        return jsonify({
+            'message': '更新成功',
+            'translation': {
+                'id': translation.id,
+                'english': translation.english,
+                'chinese': translation.chinese,
+                'dutch': translation.dutch,
+                'class1': translation.class1,
+                'class2': translation.class2,
+                'is_public': translation.is_public,
+                'created_at': datetime_to_isoformat(translation.created_at)
+            }
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
