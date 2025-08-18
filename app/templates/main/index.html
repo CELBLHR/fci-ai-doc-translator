@@ -1119,6 +1119,12 @@
                 formData.append('annotation_filename', selectedAnnotationFile);
             }
             formData.append("select_page", Array.from(selectedPages).join(','));
+            
+            // 添加选中的词汇表ID
+            if (window.selectedVocabulary && window.selectedVocabulary.length > 0) {
+                formData.append('selected_vocabulary', window.selectedVocabulary.join(','));
+                console.log('传递词汇表ID:', window.selectedVocabulary);
+            }
 
             const response = await fetch('/upload', {
                 method: 'POST',
@@ -1722,6 +1728,7 @@
         if (overlay) overlay.remove();
     }
     
+// 更新词汇表配置按钮显示
     function saveVocabularyConfig() {
         // 获取选中的词汇（排除表头的全选复选框）
         const selectedCheckboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]:checked:not(#selectAllCheckboxHeader)');
@@ -1741,6 +1748,8 @@
         
         // 保存选中的词汇ID到全局变量，供后续使用
         window.selectedVocabulary = selectedVocabIds;
+        
+        console.log('保存词汇表配置，选中词汇ID:', selectedVocabIds);
         
         // 关闭窗口
         closeVocabularyConfig();

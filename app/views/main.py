@@ -113,6 +113,17 @@ def upload_file():
         enable_text_splitting = request.form.get('enable_text_splitting', 'True').lower() == 'true'
         enable_uno_conversion = request.form.get('enable_uno_conversion', 'True').lower() == 'true'
         
+        # 获取选中的词汇表ID
+        selected_vocabulary = request.form.get('selected_vocabulary', '')
+        vocabulary_ids = []
+        if selected_vocabulary:
+            try:
+                vocabulary_ids = [int(x.strip()) for x in selected_vocabulary.split(',') if x.strip()]
+                logger.info(f"接收到词汇表ID: {vocabulary_ids}")
+            except ValueError as e:
+                logger.error(f"词汇表ID解析失败: {selected_vocabulary}, 错误: {str(e)}")
+                vocabulary_ids = []
+        
         # 记录接收到的参数
         logger.info(f"接收到的翻译参数:")
         logger.info(f"  - 源语言: {user_language}")
@@ -122,6 +133,7 @@ def upload_file():
         logger.info(f"  - 文本分割: {enable_text_splitting}")
         logger.info(f"  - UNO转换: {enable_uno_conversion}")
         logger.info(f"  - 选择页面: {select_page}")
+        logger.info(f"  - 词汇表数量: {len(vocabulary_ids)}")
 
         # 转换select_page为整数列表
         if select_page and select_page[0]:
@@ -135,12 +147,63 @@ def upload_file():
             logger.info(f"  没有选择页面，将翻译所有页面")
             select_page = []
 
+        # 构建自定义翻译词典
+        custom_translations = {}
+        if vocabulary_ids:
+            try:
+                # 查询词汇表数据（包含权限检查）
+                translations = Translation.query.filter(
+                    Translation.id.in_(vocabulary_ids),
+                    db.or_(
+                        db.and_(Translation.user_id == current_user.id, Translation.is_public == False),
+                        Translation.is_public == True
+                    )
+                ).all()
+                
+                logger.info(f"从数据库查询到 {len(translations)} 个词汇条目")
+                
+                # 根据翻译方向构建词典
+                for trans in translations:
+                    source_text = None
+                    target_text = None
+                    
+                    # 根据语言方向映射源文本和目标文本
+                    if user_language == 'English' and target_language == 'Chinese':
+                        source_text = trans.english
+                        target_text = trans.chinese
+                    elif user_language == 'Chinese' and target_language == 'English':
+                        source_text = trans.chinese
+                        target_text = trans.english
+                    elif user_language == 'English' and target_language == 'Dutch':
+                        source_text = trans.english
+                        target_text = trans.dutch
+                    elif user_language == 'Dutch' and target_language == 'English':
+                        source_text = trans.dutch
+                        target_text = trans.english
+                    elif user_language == 'Chinese' and target_language == 'Dutch':
+                        source_text = trans.chinese
+                        target_text = trans.dutch
+                    elif user_language == 'Dutch' and target_language == 'Chinese':
+                        source_text = trans.dutch
+                        target_text = trans.chinese
+                    
+                    # 添加到词典（确保源文本和目标文本都存在且不为空）
+                    if source_text and target_text and source_text.strip() and target_text.strip():
+                        custom_translations[source_text.strip()] = target_text.strip()
+                
+                logger.info(f"构建自定义词典完成，包含 {len(custom_translations)} 个词汇对")
+                logger.info(f"词典示例: {dict(list(custom_translations.items())[:3])}..." if custom_translations else "词典为空")
+                
+            except Exception as e:
+                logger.error(f"构建自定义词典失败: {str(e)}")
+                custom_translations = {}
+
         # 其他参数处理
         stop_words_input = request.form.get('stop_words', '')
         stop_words = [word.strip() for word in stop_words_input.split('\n') if word.strip()]
 
         custom_translations_input = request.form.get('custom_translations', '')
-        custom_translations = {}
+        # 合并用户输入的翻译和词汇表翻译
         for line in custom_translations_input.split('\n'):
             line = line.strip()
             if not line:
@@ -250,6 +313,7 @@ def upload_file():
             logger.info(f"  - 模型: {model}")
             logger.info(f"  - 文本分割: {enable_text_splitting}")
             logger.info(f"  - UNO转换: {enable_uno_conversion}")
+            logger.info(f"  - 自定义词典条目数: {len(custom_translations)}")
             
             queue_position = translation_queue.add_task(
                 user_id=current_user.id,
@@ -264,7 +328,8 @@ def upload_file():
                 priority=priority,
                 model=model,
                 enable_text_splitting=enable_text_splitting,
-                enable_uno_conversion=enable_uno_conversion
+                enable_uno_conversion=enable_uno_conversion,
+                custom_translations=custom_translations  # 传递自定义词典
             )
 
             return jsonify({
