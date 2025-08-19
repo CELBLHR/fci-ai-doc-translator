@@ -641,6 +641,7 @@ async def process_presentation_async(presentation_path: str,
     2. 翻译
     3. 再打开ppt，并渲染
     '''
+    uno_pptx_path=""
     try:
         from .pynuo_fuc.pyuno_controller import pyuno_controller
         uno_pptx_path= pyuno_controller(presentation_path, 

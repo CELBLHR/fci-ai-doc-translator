@@ -102,6 +102,10 @@ function displayResults(data, pagination) {
                 <button class="download-btn" onclick="downloadFile('${item.截图路径}')">
                     <i class="bi bi-download"></i> 下载文件
                 </button>` : ''}
+                ${item.detail_url ? `
+                <button class="download-btn" onclick="window.location.href = '${item.detail_url}'">
+                    <i class="bi bi-link"></i> 跳转原页面
+                </button>` : ''}
             </div>
         `;
     });

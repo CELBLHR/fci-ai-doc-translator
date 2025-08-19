@@ -95,8 +95,8 @@
     /* 主内容区域 - 调整比例 */
     .main-content {
         display: grid;
-        grid-template-columns: 22vw 1fr; /* 左侧缩小到22%，右侧更宽 */
-        gap: 2.1vw;
+        grid-template-columns: 15vw 1fr; /* 左侧缩小到15%，右侧更宽 */
+        gap: 1.5vw;
         align-items: start;
         width: 100%;
         max-width: none;
@@ -106,7 +106,7 @@
     .config-panel {
         background: white;
         border-radius: 0.8vw;
-        padding: 1.4vw; /* 减少内边距 */
+        padding: 1.0vw; /* 减少内边距 */
         box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         position: sticky;
         top: 1.4vw;
@@ -116,19 +116,19 @@
         font-size: 1.2rem; /* 稍微缩小标题 */
         font-weight: 600;
         color: rgb(0,148,217);
-        margin-bottom: 1.2vw; /* 减少底部间距 */
+        margin-bottom: 1.0vw; /* 减少底部间距 */
         display: flex;
         align-items: center;
         gap: 0.6vw;
     }
 
     .form-group {
-        margin-bottom: 1.2vw; /* 减少表单组间距 */
+        margin-bottom: 0.8vw; /* 减少表单组间距 */
     }
 
     .form-group label {
         display: block;
-        margin-bottom: 0.5vw; /* 减少标签间距 */
+        margin-bottom: 0.3vw; /* 减少标签间距 */
         font-size: 0.9rem; /* 缩小标签字体 */
         font-weight: 500;
         color: rgb(110,111,114);
@@ -136,7 +136,7 @@
 
     .form-control {
         width: 100%;
-        padding: 0.8vw 1vw; /* 减少输入框内边距 */
+        padding: 0.6vw 0.8vw; /* 减少输入框内边距 */
         border: 1px solid #dee2e6;
         border-radius: 0.5vw;
         font-size: 0.9rem; /* 缩小字体 */
@@ -241,6 +241,34 @@
         align-items: center;
         gap: 0.7vw;
     }
+    
+    .refresh-btn-header {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.2vw;
+        margin-left: auto; /* 将按钮推到右侧 */
+        color: rgb(0,148,217);
+        font-size: 1.2rem;
+        transition: transform 0.2s ease;
+    }
+    
+    .refresh-btn-header:hover {
+        transform: rotate(90deg); /* 悬停时旋转按钮 */
+    }
+    
+    .rotating {
+        animation: rotate 1s linear;
+    }
+    
+    @keyframes rotate {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
 
     .history-table {
         width: 100%;
@@ -252,7 +280,7 @@
     /* 表格列宽控制 */
     .history-table th:nth-child(1), /* 文件名 */
     .history-table td:nth-child(1) {
-        width: 35%; /* 文件名列缩窄 */
+        width: 30%; /* 文件名列缩窄 */
     }
 
     .history-table th:nth-child(2), /* 上传时间 */
@@ -272,7 +300,7 @@
 
     .history-table th:nth-child(5), /* 操作 */
     .history-table td:nth-child(5) {
-        width: 12%;
+        width: 17%; /* 增加操作列宽度以容纳两个按钮 */
     }
 
     .history-table th {
@@ -360,6 +388,11 @@
         height: 2vw; /* 固定高度 */
         min-width: 24px;
         min-height: 24px;
+        vertical-align: middle;
+        line-height: 1;
+        box-sizing: border-box;
+        appearance: none;
+        -webkit-appearance: none;
     }
 
     .action-btn.download {
@@ -369,6 +402,17 @@
 
     .action-btn.download:hover {
         background: rgb(0,130,190);
+        transform: scale(1.05);
+    }
+
+    .action-btn.view {
+        background: #28a745; /* 绿色 */
+        color: white;
+        margin-right: 0.4vw; /* 与其它按钮保持一致的右边距 */
+    }
+
+    .action-btn.view:hover {
+        background: #218838; /* 深一点的绿色 */
         transform: scale(1.05);
     }
 
@@ -386,6 +430,7 @@
     /* 操作列容器 */
     .history-table td:nth-child(5) {
         text-align: center; /* 居中对齐按钮 */
+        white-space: nowrap; /* 防止按钮换行 */
     }
 
     /* 进度相关样式 */
@@ -628,8 +673,8 @@
     .admin-tools {
         background: #f8f9fa;
         border-radius: 0.5vw;
-        padding: 1.2vw; /* 减少内边距 */
-        margin-bottom: 1.4vw; /* 减少下方间距 */
+        padding: 1.0vw; /* 减少内边距 */
+        margin-bottom: 1.2vw; /* 减少下方间距 */
     }
 
     .admin-tools h3 {
@@ -641,16 +686,16 @@
     .admin-tools-list {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.6vw; /* 减少按钮间距 */
+        gap: 0.4vw; /* 减少按钮间距 */
     }
 
     .admin-tool-btn {
         background: white;
         border: 1px solid #dee2e6;
         border-radius: 0.4vw;
-        padding: 0.6vw 1vw; /* 减少按钮内边距 */
+        padding: 0.4vw 0.8vw; /* 减少按钮内边距 */
         color: rgb(110,111,114);
-        font-size: 0.8rem; /* 缩小字体 */
+        font-size: 0.7rem; /* 缩小字体 */
         text-decoration: none;
         display: flex;
         align-items: center;
@@ -672,8 +717,8 @@
         }
         
         .main-content {
-            grid-template-columns: 20vw 1fr; /* 在中等屏幕上进一步缩小左侧 */
-            gap: 1.8vw;
+            grid-template-columns: 15vw 1fr; /* 在中等屏幕上进一步缩小左侧 */
+            gap: 1.5vw;
         }
     }
 
@@ -696,6 +741,17 @@
             right: 1.4vw;
             width: 18vw;
             min-width: 200px;
+        }
+        
+        /* 确保历史记录表格在小屏幕上保持固定布局 */
+        .history-table {
+            table-layout: fixed;
+        }
+        
+        /* 在小屏幕上保持操作列宽度 */
+        .history-table th:nth-child(5),
+        .history-table td:nth-child(5) {
+            width: 17%;
         }
     }
 </style>
@@ -874,6 +930,9 @@
             <h3>
                 <i class="bi bi-clock-history"></i>
                 历史记录
+                <button id="refreshHistory" class="refresh-btn-header" title="刷新历史记录">
+                    <i class="bi bi-arrow-repeat"></i>
+                </button>
             </h3>
             
             <table class="history-table">
@@ -1300,19 +1359,19 @@
                     
                     return `
                         <tr>
-                            <td>translated_${record.filename}</td>
+                            <td>${record.filename}</td>
                             <td>${formatDateTime(record.upload_time)}</td>
                             <td>${formatFileSize(record.file_size)}</td>
                             <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                             <td>
-                                ${record.file_exists ? 
-                                    `<a href="/download/${record.id}" class="action-btn download" title="下载">
-                                        <i class="bi bi-download"></i>
-                                    </a>` : ''
-                                }
-                                <button class="action-btn delete" onclick="deleteFile(${record.id})" title="删除">
+                                ${record.status === 'completed' ? `
+                                <a href="#" class="action-btn download" onclick="downloadFile(${record.id})" title="下载">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                ` : ''}
+                                <a href="#" class="action-btn delete" onclick="deleteFile(${record.id})" title="删除">
                                     <i class="bi bi-trash"></i>
-                                </button>
+                                </a>
                             </td>
                         </tr>
                     `;
@@ -1375,6 +1434,34 @@
         });
     }
 
+    // 下载文件
+    function downloadFile(recordId) {
+        window.location.href = `/download/${recordId}`;
+    }
+
+    // 查看详情
+    function viewFile(recordId) {
+        // 对于PPT翻译工具，查看详情即下载文件
+        window.location.href = `/download/${recordId}`;
+    }
+
+    // 刷新进度
+    function refreshProgress(recordId) {
+        fetch(`/task_status/${recordId}`)
+            .then(response => response.json())
+            .then(data => {
+                // 更新进度条
+                const progressBar = document.querySelector(`.refresh-btn[data-record-id="${recordId}"]`).closest('td').querySelector('.progress-bar-fill-history');
+                if (progressBar) {
+                    const progress = data.progress || 0;
+                    progressBar.style.width = progress + '%';
+                }
+            })
+            .catch(error => {
+                console.error('Error refreshing progress:', error);
+            });
+    }
+
     // 加载注释文件列表
     async function loadAnnotationFiles() {
         try {
@@ -1429,6 +1516,31 @@
         };
         
         console.log('调试函数已设置，使用 window.debugSettings() 查看当前设置');
+        
+        // 为刷新按钮添加事件监听器
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.refresh-btn')) {
+                const recordId = e.target.closest('.refresh-btn').dataset.recordId;
+                refreshProgress(recordId);
+            }
+        });
+        
+        // 为历史记录刷新按钮添加事件监听器
+        const refreshHistoryBtn = document.getElementById('refreshHistory');
+        if (refreshHistoryBtn) {
+            refreshHistoryBtn.addEventListener('click', function() {
+                // 添加旋转动画类
+                this.classList.add('rotating');
+                
+                // 加载历史记录
+                loadHistory();
+                
+                // 1秒后移除旋转动画类
+                setTimeout(() => {
+                    this.classList.remove('rotating');
+                }, 1000);
+            });
+        }
     });
     // 新增词汇表配置功能
     function openVocabularyConfig() {

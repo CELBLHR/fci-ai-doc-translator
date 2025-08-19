@@ -168,7 +168,8 @@ def search_ingredient():
                     '完整成分': ingredients,
                     '截图路径': image_path,
                     '图片URL': image_url,
-                    '数据源': data_source_label
+                    '数据源': data_source_label,
+                    'detail_url': product_info.get('detail_url', '')
                 })
         
         # 分页处理
