@@ -641,7 +641,6 @@ async def process_presentation_async(presentation_path: str,
     2. 翻译
     3. 再打开ppt，并渲染
     '''
-    uno_pptx_path=""
     try:
         from .pynuo_fuc.pyuno_controller import pyuno_controller
         uno_pptx_path= pyuno_controller(presentation_path, 
@@ -659,9 +658,9 @@ async def process_presentation_async(presentation_path: str,
     except Exception as e:
         logger.error(f"使用pyuno接口功能时出错: {str(e)}")
     
-    if uno_pptx_path is None:
-        logger.error("使用pyuno接口功能时出错: 转换失败")
-        uno_pptx_path = presentation_path
+    # if uno_pptx_path is None:
+    #     logger.error("使用pyuno接口功能时出错: 转换失败")
+    #     uno_pptx_path = presentation_path
 
 
     try:
