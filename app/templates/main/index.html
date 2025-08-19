@@ -930,9 +930,6 @@
             <h3>
                 <i class="bi bi-clock-history"></i>
                 历史记录
-                <button id="refreshHistory" class="refresh-btn-header" title="刷新历史记录">
-                    <i class="bi bi-arrow-repeat"></i>
-                </button>
             </h3>
             
             <table class="history-table">
@@ -1359,19 +1356,19 @@
                     
                     return `
                         <tr>
-                            <td>${record.filename}</td>
+                            <td>translated_${record.filename}</td>
                             <td>${formatDateTime(record.upload_time)}</td>
                             <td>${formatFileSize(record.file_size)}</td>
                             <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                             <td>
-                                ${record.status === 'completed' ? `
-                                <a href="#" class="action-btn download" onclick="downloadFile(${record.id})" title="下载">
-                                    <i class="bi bi-download"></i>
-                                </a>
-                                ` : ''}
-                                <a href="#" class="action-btn delete" onclick="deleteFile(${record.id})" title="删除">
+                                ${record.file_exists ?
+                                    `<a href="/download/${record.id}" class="action-btn download" title="下载">
+                                        <i class="bi bi-download"></i>
+                                    </a>` : ''
+                                }
+                                <button class="action-btn delete" onclick="deleteFile(${record.id})" title="删除">
                                     <i class="bi bi-trash"></i>
-                                </a>
+                                </button>
                             </td>
                         </tr>
                     `;
@@ -1432,34 +1429,6 @@
         .catch(error => {
             showToast('删除失败: ' + error.message, 'error');
         });
-    }
-
-    // 下载文件
-    function downloadFile(recordId) {
-        window.location.href = `/download/${recordId}`;
-    }
-
-    // 查看详情
-    function viewFile(recordId) {
-        // 对于PPT翻译工具，查看详情即下载文件
-        window.location.href = `/download/${recordId}`;
-    }
-
-    // 刷新进度
-    function refreshProgress(recordId) {
-        fetch(`/task_status/${recordId}`)
-            .then(response => response.json())
-            .then(data => {
-                // 更新进度条
-                const progressBar = document.querySelector(`.refresh-btn[data-record-id="${recordId}"]`).closest('td').querySelector('.progress-bar-fill-history');
-                if (progressBar) {
-                    const progress = data.progress || 0;
-                    progressBar.style.width = progress + '%';
-                }
-            })
-            .catch(error => {
-                console.error('Error refreshing progress:', error);
-            });
     }
 
     // 加载注释文件列表
