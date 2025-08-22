@@ -1473,6 +1473,35 @@ def logs():
     return render_template('main/logs.html')
 
 
+@main.route('/switch_language', methods=['POST'])
+def switch_language():
+    """处理语言切换请求"""
+    try:
+        data = request.get_json()
+        language = data.get('language', 'zh')
+        
+        # 验证语言代码
+        if language not in ['zh', 'en']:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid language code'
+            }), 400
+        
+        # 在session中保存语言设置
+        session['language'] = language
+        
+        return jsonify({
+            'success': True,
+            'message': 'Language switched successfully',
+            'language': language
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 # ==================== 公开API端点（不需要认证） ====================
 # 用于简单前端（html文件夹）的API端点
 

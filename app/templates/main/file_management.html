@@ -1,6 +1,6 @@
 {% extends "main/base_layout.html" %}
 
-{% block title %}文件管理{% endblock %}
+{% block title %}{% if session.get('language') == 'en' %}File Management{% else %}文件管理{% endif %}{% endblock %}
 
 {% block styles %}
 <style>
@@ -235,44 +235,44 @@
 {% block content %}
 <div class="file-management-container">
     <div class="section-header">
-        <h1><i class="bi bi-file-earmark-ppt"></i> PPT文件管理</h1>
-        <p>管理系统中所有用户上传的PPT文件</p>
+        <h1><i class="bi bi-file-earmark-ppt"></i> {% if session.get('language') == 'en' %}PPT File Management{% else %}PPT文件管理{% endif %}</h1>
+        <p>{% if session.get('language') == 'en' %}Manage all PPT files uploaded by users in the system{% else %}管理系统中所有用户上传的PPT文件{% endif %}</p>
     </div>
     
     <div class="filters">
         <div class="filter-item">
-            <label for="userFilter">用户:</label>
+            <label for="userFilter">{% if session.get('language') == 'en' %}User:{% else %}用户:{% endif %}</label>
             <select id="userFilter">
-                <option value="all">全部</option>
+                <option value="all">{% if session.get('language') == 'en' %}All{% else %}全部{% endif %}</option>
                 <!-- 用户列表将通过JS动态加载 -->
             </select>
         </div>
         
         <div class="filter-item">
-            <label for="dateFilter">日期:</label>
+            <label for="dateFilter">{% if session.get('language') == 'en' %}Date:{% else %}日期:{% endif %}</label>
             <input type="date" id="dateFilter">
             <button id="clearDateFilter" style="margin-left: 5px;"><i class="bi bi-x-circle"></i></button>
         </div>
         
         <div class="filter-item">
-            <label for="searchFilter">搜索:</label>
-            <input type="text" id="searchFilter" placeholder="文件名...">
+            <label for="searchFilter">{% if session.get('language') == 'en' %}Search:{% else %}搜索:{% endif %}</label>
+            <input type="text" id="searchFilter" placeholder="{% if session.get('language') == 'en' %}File name...{% else %}文件名...{% endif %}">
         </div>
     </div>
     
     <div id="loadingIndicator" class="loading-indicator">
-        <i class="bi bi-arrow-repeat"></i> 加载中...
+        <i class="bi bi-arrow-repeat"></i> {% if session.get('language') == 'en' %}Loading...{% else %}加载中...{% endif %}
     </div>
     
     <div id="filesTableContainer">
         <table class="files-table">
             <thead>
                 <tr>
-                    <th>文件名</th>
-                    <th>上传用户</th>
-                    <th>大小</th>
-                    <th>上传时间</th>
-                    <th>操作</th>
+                    <th>{% if session.get('language') == 'en' %}File Name{% else %}文件名{% endif %}</th>
+                    <th>{% if session.get('language') == 'en' %}Upload User{% else %}上传用户{% endif %}</th>
+                    <th>{% if session.get('language') == 'en' %}Size{% else %}大小{% endif %}</th>
+                    <th>{% if session.get('language') == 'en' %}Upload Time{% else %}上传时间{% endif %}</th>
+                    <th>{% if session.get('language') == 'en' %}Actions{% else %}操作{% endif %}</th>
                 </tr>
             </thead>
             <tbody id="filesTableBody">
@@ -282,7 +282,7 @@
         
         <div id="emptyState" class="empty-state" style="display: none;">
             <i class="bi bi-inbox"></i>
-            <p>没有找到符合条件的文件</p>
+            <p>{% if session.get('language') == 'en' %}No files found matching the criteria{% else %}没有找到符合条件的文件{% endif %}</p>
         </div>
         
         <div class="pagination" id="pagination">
@@ -300,6 +300,45 @@ let currentPage = 1;
 let pageSize = 10;
 let totalPages = 1;
 let users = {};
+
+// 获取当前语言设置
+const currentLanguage = '{{ session.get("language", "zh") }}';
+
+// 多语言文本
+const translations = {
+    zh: {
+        loadFailed: '获取文件列表失败',
+        unknownUser: '未知用户',
+        download: '下载',
+        delete: '删除',
+        deleteConfirm: '确定要删除文件 "{filename}" 吗？此操作不可恢复。',
+        deleteFailed: '删除文件失败',
+        deleteSuccess: '文件已成功删除'
+    },
+    en: {
+        loadFailed: 'Failed to get file list',
+        unknownUser: 'Unknown User',
+        download: 'Download',
+        delete: 'Delete',
+        deleteConfirm: 'Are you sure you want to delete file "{filename}"? This operation cannot be undone.',
+        deleteFailed: 'Failed to delete file',
+        deleteSuccess: 'File deleted successfully'
+    }
+};
+
+// 获取翻译文本的辅助函数
+function getText(key, params = {}) {
+    let text = translations[currentLanguage] && translations[currentLanguage][key] 
+        ? translations[currentLanguage][key] 
+        : translations.zh[key];
+    
+    // 替换参数
+    Object.keys(params).forEach(param => {
+        text = text.replace(`{${param}}`, params[param]);
+    });
+    
+    return text;
+}
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -323,7 +362,7 @@ function loadAllFiles() {
     fetch('/api/admin/files')
         .then(response => {
             if (!response.ok) {
-                throw new Error('获取文件列表失败');
+                throw new Error(getText('loadFailed'));
             }
             return response.json();
         })
@@ -340,7 +379,7 @@ function loadAllFiles() {
         })
         .catch(error => {
             console.error('Error:', error);
-            showToast('获取文件列表失败: ' + error.message, 'error');
+            showToast(getText('loadFailed') + ': ' + error.message, 'error');
             showLoading(false);
         });
 }
@@ -358,7 +397,7 @@ function extractUsers() {
     });
     
     // 清空现有选项
-    userFilter.innerHTML = '<option value="all">全部</option>';
+    userFilter.innerHTML = `<option value="all">${currentLanguage === 'en' ? 'All' : '全部'}</option>`;
     
     // 添加用户选项
     Object.keys(uniqueUsers).forEach(userId => {
@@ -450,7 +489,7 @@ function renderFiles(files) {
         
         // 上传用户
         const tdUser = document.createElement('td');
-        tdUser.textContent = file.username || '未知用户';
+        tdUser.textContent = file.username || getText('unknownUser');
         tr.appendChild(tdUser);
         
         // 文件大小
@@ -471,13 +510,13 @@ function renderFiles(files) {
         const downloadBtn = document.createElement('a');
         downloadBtn.href = `/download/${file.id}`;
         downloadBtn.className = 'action-btn download-btn';
-        downloadBtn.innerHTML = '<i class="bi bi-download"></i> 下载';
+        downloadBtn.innerHTML = `<i class="bi bi-download"></i> ${getText('download')}`;
         tdActions.appendChild(downloadBtn);
         
         // 删除按钮
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'action-btn delete-btn';
-        deleteBtn.innerHTML = '<i class="bi bi-trash"></i> 删除';
+        deleteBtn.innerHTML = `<i class="bi bi-trash"></i> ${getText('delete')}`;
         deleteBtn.onclick = function() {
             confirmDelete(file.id, file.filename);
         };
@@ -547,7 +586,7 @@ function renderPagination() {
 
 // 确认删除文件
 function confirmDelete(fileId, filename) {
-    if (confirm(`确定要删除文件 "${filename}" 吗？此操作不可恢复。`)) {
+    if (confirm(getText('deleteConfirm', {filename: filename}))) {
         deleteFile(fileId);
     }
 }
@@ -562,12 +601,12 @@ function deleteFile(fileId) {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error('删除文件失败');
+            throw new Error(getText('deleteFailed'));
         }
         return response.json();
     })
     .then(data => {
-        showToast('文件已成功删除', 'success');
+        showToast(getText('deleteSuccess'), 'success');
         
         // 从列表中移除该文件
         allFiles = allFiles.filter(file => file.id !== fileId);
@@ -577,7 +616,7 @@ function deleteFile(fileId) {
     })
     .catch(error => {
         console.error('Error:', error);
-        showToast('删除文件失败: ' + error.message, 'error');
+        showToast(getText('deleteFailed') + ': ' + error.message, 'error');
     });
 }
 
@@ -623,4 +662,4 @@ function debounce(func, wait) {
     };
 }
 </script>
-{% endblock %} 
+{% endblock %}

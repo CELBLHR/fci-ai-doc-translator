@@ -1,6 +1,6 @@
 {% extends "main/base_layout.html" %}
 
-{% block title %}用户管理{% endblock %}
+{% block title %}{% if session.get('language') == 'en' %}User Management{% else %}用户管理{% endif %}{% endblock %}
 
 {% block styles %}
 <style>
@@ -142,6 +142,12 @@
     font-weight: 500;
 }
 
+.disable-btn {
+    background: rgba(255,193,7,0.15);
+    color: #b8860b;
+    border: 1px solid rgba(255,193,7,0.3);
+}
+
 .disable-btn:hover {
     background: #ffc107;
     color: white;
@@ -195,21 +201,21 @@
 {% block content %}
 <div class="user-management-container">
     <div class="user-management-header">
-        <h1><i class="bi bi-people"></i> 用户管理</h1>
+        <h1><i class="bi bi-people"></i> {% if session.get('language') == 'en' %}User Management{% else %}用户管理{% endif %}</h1>
         <div class="status-filter">
-            <button class="status-btn active" data-status="all">全部</button>
-            <button class="status-btn" data-status="approved">已启用</button>
-            <button class="status-btn" data-status="disabled">已禁用</button>
+            <button class="status-btn active" data-status="all">{% if session.get('language') == 'en' %}All{% else %}全部{% endif %}</button>
+            <button class="status-btn" data-status="approved">{% if session.get('language') == 'en' %}Enabled{% else %}已启用{% endif %}</button>
+            <button class="status-btn" data-status="disabled">{% if session.get('language') == 'en' %}Disabled{% else %}已禁用{% endif %}</button>
         </div>
     </div>
 
     <table class="user-management-table">
         <thead>
             <tr>
-                <th>用户名</th>
-                <th>注册时间</th>
-                <th>状态</th>
-                <th>操作</th>
+                <th>{% if session.get('language') == 'en' %}Username{% else %}用户名{% endif %}</th>
+                <th>{% if session.get('language') == 'en' %}Registration Time{% else %}注册时间{% endif %}</th>
+                <th>{% if session.get('language') == 'en' %}Status{% else %}状态{% endif %}</th>
+                <th>{% if session.get('language') == 'en' %}Actions{% else %}操作{% endif %}</th>
             </tr>
         </thead>
         <tbody id="userList">
@@ -227,6 +233,44 @@
 <script>
 let currentStatus = 'all';
 let currentPage = 1;
+
+// 获取当前语言设置
+const currentLanguage = '{{ session.get("language", "zh") }}';
+
+// 多语言文本
+const userTranslations = {
+    zh: {
+        approved: '已启用',
+        disabled: '已禁用',
+        disable: '禁用',
+        enable: '启用',
+        disableConfirm: '确定要禁用该用户吗？',
+        enableConfirm: '确定要启用该用户吗？',
+        userDisabled: '用户已禁用',
+        userEnabled: '用户已启用',
+        operationFailed: '操作失败',
+        loadFailed: '加载失败'
+    },
+    en: {
+        approved: 'Enabled',
+        disabled: 'Disabled',
+        disable: 'Disable',
+        enable: 'Enable',
+        disableConfirm: 'Are you sure you want to disable this user?',
+        enableConfirm: 'Are you sure you want to enable this user?',
+        userDisabled: 'User disabled',
+        userEnabled: 'User enabled',
+        operationFailed: 'Operation failed',
+        loadFailed: 'Load failed'
+    }
+};
+
+// 获取翻译文本的辅助函数
+function getUserText(key) {
+    return userTranslations[currentLanguage] && userTranslations[currentLanguage][key] 
+        ? userTranslations[currentLanguage][key] 
+        : userTranslations.zh[key];
+}
 
 async function loadUsers(status = 'all', page = 1) {
     try {
@@ -249,13 +293,13 @@ async function loadUsers(status = 'all', page = 1) {
                             ${user.status === 'approved' ? `
                                 <button class="action-btn disable-btn" onclick="disableUser(${user.id})">
                                     <i class="bi bi-slash-circle"></i>
-                                    禁用
+                                    ${getUserText('disable')}
                                 </button>
                             ` : ''}
                             ${user.status === 'disabled' ? `
                                 <button class="action-btn enable-btn" onclick="enableUser(${user.id})">
                                     <i class="bi bi-check-circle"></i>
-                                    启用
+                                    ${getUserText('enable')}
                                 </button>
                             ` : ''}
                         </div>
@@ -265,7 +309,7 @@ async function loadUsers(status = 'all', page = 1) {
 
             updatePagination(data.total_pages, page);
         } else {
-            throw new Error(data.error || '加载失败');
+            throw new Error(data.error || getUserText('loadFailed'));
         }
     } catch (error) {
         showToast(error.message, 'error');
@@ -292,14 +336,14 @@ function updatePagination(totalPages, currentPage) {
 
 function getStatusText(status) {
     const statusMap = {
-        'approved': '已启用',
-        'disabled': '已禁用'
+        'approved': getUserText('approved'),
+        'disabled': getUserText('disabled')
     };
     return statusMap[status] || status;
 }
 
 async function disableUser(id) {
-    if (!confirm('确定要禁用该用户吗？')) return;
+    if (!confirm(getUserText('disableConfirm'))) return;
     
     try {
         const response = await fetch(`/api/users/${id}/disable`, {
@@ -309,10 +353,10 @@ async function disableUser(id) {
         const data = await response.json();
         
         if (response.ok) {
-            showToast('用户已禁用', 'success');
+            showToast(getUserText('userDisabled'), 'success');
             loadUsers(currentStatus, currentPage);
         } else {
-            throw new Error(data.error || '操作失败');
+            throw new Error(data.error || getUserText('operationFailed'));
         }
     } catch (error) {
         showToast(error.message, 'error');
@@ -320,7 +364,7 @@ async function disableUser(id) {
 }
 
 async function enableUser(id) {
-    if (!confirm('确定要启用该用户吗？')) return;
+    if (!confirm(getUserText('enableConfirm'))) return;
     
     try {
         const response = await fetch(`/api/users/${id}/enable`, {
@@ -330,10 +374,10 @@ async function enableUser(id) {
         const data = await response.json();
         
         if (response.ok) {
-            showToast('用户已启用', 'success');
+            showToast(getUserText('userEnabled'), 'success');
             loadUsers(currentStatus, currentPage);
         } else {
-            throw new Error(data.error || '操作失败');
+            throw new Error(data.error || getUserText('operationFailed'));
         }
     } catch (error) {
         showToast(error.message, 'error');
@@ -352,10 +396,6 @@ document.querySelectorAll('.status-btn').forEach(btn => {
 
 loadUsers();
 </script>
-{% endblock %} {
-    background: rgba(255,193,7,0.15);
-    color: #b8860b;
-    border: 1px solid rgba(255,193,7,0.3);
-}
+{% endblock %}
 
 .disable-btn
