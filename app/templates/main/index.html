@@ -1613,13 +1613,14 @@
                     <button id="searchBtn" style="padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">${currentLanguage === 'en' ? 'Search' : '搜索'}</button>
                 </div>
                 <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
-                    <select id="class1Filter" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        <option value="">${currentLanguage === 'en' ? 'All Category 1' : '所有分类1'}</option>
+                    <input type="text" id="vocabularySearch" placeholder="${currentLanguage === 'en' ? 'Search vocabulary...' : '搜索词汇...'}" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <select id="categoryFilter" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">${currentLanguage === 'en' ? 'Select Category' : '选择分类'}</option>
                     </select>
-                    <select id="class2Filter" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        <option value="">${currentLanguage === 'en' ? 'All Category 2' : '所有分类2'}</option>
-                    </select>
-                    <button id="clearFilterBtn" style="padding: 8px 15px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">${currentLanguage === 'en' ? 'Clear Filter' : '清除筛选'}</button>
+                    <button id="addCategoryBtn" style="padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">${currentLanguage === 'en' ? 'Add' : '添加'}</button>
+                </div>
+                <div id="selectedCategoryTags" style="margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 5px;">
+                    <!-- 分类标签将在这里动态显示 -->
                 </div>
                 <div style="margin-bottom: 15px; display: flex; align-items: center;">
                     <input type="checkbox" id="selectAllCheckbox" style="margin-right: 10px;">
@@ -1669,12 +1670,12 @@
         });
         
         // 分类筛选事件
-        document.getElementById('class1Filter').addEventListener('change', () => {
-            filterVocabularyData();
-        });
+        document.getElementById('addCategoryBtn').addEventListener('click', addCategoryFilter);
         
-        document.getElementById('class2Filter').addEventListener('change', () => {
-            filterVocabularyData();
+        document.getElementById('categoryFilter').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addCategoryFilter();
+            }
         });
         
         // 清除筛选
@@ -1727,6 +1728,8 @@
     
     // 全局存储所有词汇数据
     let allVocabularyData = [];
+    // 存储当前选中的分类
+    let selectedCategories = [];
     
     async function loadVocabularyData(searchTerm = '') {
         try {
@@ -1741,7 +1744,7 @@
             allVocabularyData = data.translations;
             
             // 填充分类筛选下拉框
-            populateClassFilters(allVocabularyData);
+            populateCategoryFilters(allVocabularyData);
             
             // 显示数据
             displayVocabularyData(allVocabularyData);
@@ -1751,45 +1754,103 @@
         }
     }
     
-    function populateClassFilters(data) {
-        const class1Set = new Set();
-        const class2Set = new Set();
+    // 填充分类筛选下拉框
+    function populateCategoryFilters(data) {
+        const categorySet = new Set();
         
         data.forEach(item => {
-            if (item.class1) class1Set.add(item.class1);
-            if (item.class2) class2Set.add(item.class2);
+            if (item.category) {
+                // 分割分类字符串（使用分号分隔）
+                const categories = item.category.split(';').map(cat => cat.trim()).filter(cat => cat);
+                categories.forEach(cat => categorySet.add(cat));
+            }
         });
         
-        const class1Filter = document.getElementById('class1Filter');
-        const class2Filter = document.getElementById('class2Filter');
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (categoryFilter) {
+            // 清空选项
+            categoryFilter.innerHTML = `<option value="">${currentLanguage === 'en' ? 'Select Category' : '选择分类'}</option>`;
+            
+            // 添加分类选项
+            Array.from(categorySet).sort().forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                categoryFilter.appendChild(option);
+            });
+        }
+    }
+    
+    // 添加分类到筛选条件
+    function addCategoryFilter() {
+        const categoryFilter = document.getElementById('categoryFilter');
+        const selectedCategory = categoryFilter.value;
         
-        // 保存当前选择
-        const currentClass1 = class1Filter.value;
-        const currentClass2 = class2Filter.value;
+        if (selectedCategory && !selectedCategories.includes(selectedCategory)) {
+            selectedCategories.push(selectedCategory);
+            updateCategoryTags();
+            applyFilters();
+        }
         
-        // 清空选项（保留默认选项）
-        class1Filter.innerHTML = `<option value="">${currentLanguage === 'en' ? 'All Category 1' : '所有分类1'}</option>`;
-        class2Filter.innerHTML = `<option value="">${currentLanguage === 'en' ? 'All Category 2' : '所有分类2'}</option>`;
+        // 重置选择框
+        categoryFilter.selectedIndex = 0;
+    }
+    
+    // 移除分类筛选条件
+    function removeCategoryFilter(category) {
+        selectedCategories = selectedCategories.filter(cat => cat !== category);
+        updateCategoryTags();
+        applyFilters();
+    }
+    
+    // 清除所有分类筛选条件
+    function clearCategoryFilters() {
+        selectedCategories = [];
+        updateCategoryTags();
+        applyFilters();
+    }
+    
+    // 更新分类标签显示
+    function updateCategoryTags() {
+        const tagsContainer = document.getElementById('selectedCategoryTags');
+        if (!tagsContainer) return;
         
-        // 添加分类1选项
-        Array.from(class1Set).sort().forEach(class1 => {
-            const option = document.createElement('option');
-            option.value = class1;
-            option.textContent = class1;
-            class1Filter.appendChild(option);
+        if (selectedCategories.length === 0) {
+            tagsContainer.innerHTML = '';
+            return;
+        }
+        
+        let html = '';
+        selectedCategories.forEach(category => {
+            html += `
+                <span style="display: inline-flex; align-items: center; background: #007bff; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                    ${category}
+                    <button type="button" onclick="removeCategoryFilter('${category}')" style="margin-left: 5px; background: none; border: none; color: white; cursor: pointer; font-weight: bold;">×</button>
+                </span>
+            `;
         });
         
-        // 添加分类2选项
-        Array.from(class2Set).sort().forEach(class2 => {
-            const option = document.createElement('option');
-            option.value = class2;
-            option.textContent = class2;
-            class2Filter.appendChild(option);
-        });
+        // 添加清除按钮
+        html += `<button type="button" onclick="clearCategoryFilters()" style="background: #6c757d; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">${currentLanguage === 'en' ? 'Clear Filters' : '清除筛选'}</button>`;
         
-        // 恢复之前的选择
-        class1Filter.value = currentClass1;
-        class2Filter.value = currentClass2;
+        tagsContainer.innerHTML = html;
+    }
+    
+    // 应用所有筛选条件
+    function applyFilters() {
+        let filteredData = [...allVocabularyData];
+        
+        // 应用分类筛选（并集模式）
+        if (selectedCategories.length > 0) {
+            filteredData = filteredData.filter(item => {
+                if (!item.category) return false;
+                
+                const itemCategories = item.category.split(';').map(cat => cat.trim()).filter(cat => cat);
+                return selectedCategories.some(selectedCat => itemCategories.includes(selectedCat));
+            });
+        }
+        
+        displayVocabularyData(filteredData);
     }
     
     function filterVocabularyData() {
@@ -1826,8 +1887,7 @@
                     <div style="flex: 1; padding: 0 5px; color: #333;">${currentLanguage === 'en' ? 'English' : '英文'}</div>
                     <div style="flex: 1; padding: 0 5px; color: #333;">${currentLanguage === 'en' ? 'Chinese' : '中文'}</div>
                     <div style="flex: 1; padding: 0 5px; color: #333;">${currentLanguage === 'en' ? 'Dutch' : '荷兰语'}</div>
-                    <div style="flex: 1; padding: 0 5px; color: #333;">${currentLanguage === 'en' ? 'Category 1' : '分类1'}</div>
-                    <div style="flex: 1; padding: 0 5px; color: #333;">${currentLanguage === 'en' ? 'Category 2' : '分类2'}</div>
+                    <div style="flex: 1; padding: 0 5px; color: #333;">${currentLanguage === 'en' ? 'Category' : '分类'}</div>
                     <div style="flex: 1; padding: 0 5px; color: #333;">${currentLanguage === 'en' ? 'Type' : '类型'}</div>
                 </div>
             </div>
@@ -1843,8 +1903,7 @@
                     <div style="flex: 1; padding: 0 5px;">${item.english}</div>
                     <div style="flex: 1; padding: 0 5px;">${item.chinese}</div>
                     <div style="flex: 1; padding: 0 5px;">${item.dutch || ''}</div>
-                    <div style="flex: 1; padding: 0 5px;">${item.class1 || ''}</div>
-                    <div style="flex: 1; padding: 0 5px;">${item.class2 || ''}</div>
+                    <div style="flex: 1; padding: 0 5px;">${item.category || ''}</div>
                     <div style="flex: 1; padding: 0 5px;">${item.is_public ? `<span style="color: #007bff;">${currentLanguage === 'en' ? 'Public' : '公共'}</span>` : (currentLanguage === 'en' ? 'Private' : '私人')}</div>
                 </div>
             </div>
