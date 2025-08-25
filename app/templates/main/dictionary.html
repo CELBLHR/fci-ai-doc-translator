@@ -401,8 +401,7 @@ const CURRENT_USER_ID = {{ current_user.id }};
         <input type="text" id="englishInput" placeholder="英文">
         <input type="text" id="chineseInput" placeholder="中文">
         <input type="text" id="dutchInput" placeholder="荷兰语">
-        <input type="text" id="class1Input" placeholder="分类1">
-        <input type="text" id="class2Input" placeholder="分类2">
+        <input type="text" id="categoryInput" placeholder="分类（多个分类用分号分隔）">
         <button id="addBtn">
             <i class="bi bi-plus-lg"></i>
             添加
@@ -444,8 +443,7 @@ const CURRENT_USER_ID = {{ current_user.id }};
                     <th>英文</th>
                     <th>中文</th>
                     <th>荷兰语</th>
-                    <th>分类1</th>
-                    <th>分类2</th>
+                    <th>分类</th>
                     <th>创建时间</th>
                     <th>类型</th>
                     <th>创建者</th>
@@ -539,8 +537,7 @@ async function addTranslation() {
     const english = document.getElementById('englishInput').value.trim();
     const chinese = document.getElementById('chineseInput').value.trim();
     const dutch = document.getElementById('dutchInput').value.trim();
-    const class1 = document.getElementById('class1Input').value.trim();
-    const class2 = document.getElementById('class2Input').value.trim();
+    const category = document.getElementById('categoryInput').value.trim();
     const isPublic = document.getElementById('isPublicCheckbox')?.checked || false;
     
     if (!english || !chinese) {
@@ -558,8 +555,7 @@ async function addTranslation() {
                 english, 
                 chinese, 
                 dutch, 
-                class1, 
-                class2,
+                category,
                 is_public: isPublic
             })
         });
@@ -571,8 +567,7 @@ async function addTranslation() {
             document.getElementById('englishInput').value = '';
             document.getElementById('chineseInput').value = '';
             document.getElementById('dutchInput').value = '';
-            document.getElementById('class1Input').value = '';
-            document.getElementById('class2Input').value = '';
+            document.getElementById('categoryInput').value = '';
             if (document.getElementById('isPublicCheckbox')) {
                 document.getElementById('isPublicCheckbox').checked = false;
             }
@@ -650,8 +645,7 @@ async function loadTranslations(searchTerm = '', page = 1) {
                     <td>${item.english}</td>
                     <td>${item.chinese}</td>
                     <td>${item.dutch || ''}</td>
-                    <td>${item.class1 || ''}</td>
-                    <td>${item.class2 || ''}</td>
+                    <td>${item.category || ''}</td>
                     <td>${new Date(item.created_at).toLocaleString()}</td>
                     <td>${item.is_public ? '<span style="color: #007bff;">公共</span>' : '私人'}</td>
                     <td>${item.is_public && item.user ? item.user.username : (item.user_id == CURRENT_USER_ID ? '我' : '')}</td>
@@ -721,8 +715,7 @@ async function editTranslation(id) {
     if (newChinese === null) return; // 用户取消
     
     const newDutch = prompt('荷兰语:', translation.dutch || '');
-    const newClass1 = prompt('分类1:', translation.class1 || '');
-    const newClass2 = prompt('分类2:', translation.class2 || '');
+    const newCategory = prompt('分类:', translation.category || '');
     
     if (!newEnglish || !newChinese) {
         showToast('英文和中文为必填项', 'error');
@@ -739,8 +732,7 @@ async function editTranslation(id) {
                 english: newEnglish,
                 chinese: newChinese,
                 dutch: newDutch,
-                class1: newClass1,
-                class2: newClass2
+                category: newCategory
             })
         });
         

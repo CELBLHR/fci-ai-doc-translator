@@ -826,8 +826,7 @@ def get_translations():
                 Translation.english.ilike(f'%{search}%'),
                 Translation.chinese.ilike(f'%{search}%'),
                 Translation.dutch.ilike(f'%{search}%'),
-                Translation.class1.ilike(f'%{search}%'),
-                Translation.class2.ilike(f'%{search}%')
+                Translation.category.ilike(f'%{search}%')
             )
         )
 
@@ -842,8 +841,7 @@ def get_translations():
             'english': item.english,
             'chinese': item.chinese,
             'dutch': item.dutch,
-            'class1': item.class1,
-            'class2': item.class2,
+            'category': item.category,
             'created_at': datetime_to_isoformat(item.created_at),
             'is_public': item.is_public,
             'user_id': item.user_id
@@ -871,8 +869,7 @@ def add_translation():
     english = data.get('english')
     chinese = data.get('chinese')
     dutch = data.get('dutch')
-    class1 = data.get('class1')
-    class2 = data.get('class2')
+    category = data.get('category')  # Single category field
     is_public = data.get('is_public', False)
 
     if not english or not chinese:
@@ -901,8 +898,7 @@ def add_translation():
             english=english,
             chinese=chinese,
             dutch=dutch,
-            class1=class1,
-            class2=class2,
+            category=category,
             is_public=is_public,
             user_id=current_user.id  # Always set user_id, even for public translations
         )
@@ -916,8 +912,7 @@ def add_translation():
                 'english': translation.english,
                 'chinese': translation.chinese,
                 'dutch': translation.dutch,
-                'class1': translation.class1,
-                'class2': translation.class2,
+                'category': translation.category,
                 'is_public': translation.is_public,
                 'created_at': datetime_to_isoformat(translation.created_at)
             }
@@ -1000,13 +995,30 @@ def update_translation(id):
         translation.english = english
         translation.chinese = chinese
         translation.dutch = data.get('dutch')
-        translation.class1 = data.get('class1')
-        translation.class2 = data.get('class2')
+        translation.category = data.get('category')
         
         # Only admins can change public status
         if current_user.is_administrator() and 'is_public' in data:
             translation.is_public = is_public
             
+        db.session.commit()
+
+        return jsonify({
+            'message': '更新成功',
+            'translation': {
+                'id': translation.id,
+                'english': translation.english,
+                'chinese': translation.chinese,
+                'dutch': translation.dutch,
+                'category': translation.category,
+                'is_public': translation.is_public,
+                'created_at': datetime_to_isoformat(translation.created_at)
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
         db.session.commit()
 
         return jsonify({
