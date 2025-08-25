@@ -351,7 +351,7 @@ def handle_bilingual_modes_pptx(paragraph, fragments, bilingual_translation):
         bilingual_translation: 翻译模式
     """
     try:
-        if bilingual_translation == "replace":
+        if bilingual_translation == "translation_only":
             # 完全替换：只显示译文
             for fragment in fragments:
                 translated_text = fragment.get('translated_text', '')
@@ -404,105 +404,6 @@ def handle_bilingual_modes_pptx(paragraph, fragments, bilingual_translation):
                     run.text = original_text
                     apply_fragment_format_pptx(run, fragment)
         
-        elif bilingual_translation == "append":
-            # 追加模式：原文 + 译文（在同一行，用空格分隔）
-            for fragment in fragments:
-                original_text = fragment.get('text', '')
-                translated_text = fragment.get('translated_text', '')
-                
-                if original_text:
-                    run = paragraph.add_run()
-                    run.text = original_text
-                    apply_fragment_format_pptx(run, fragment)
-                
-                if translated_text:
-                    if original_text:  # 如果有原文，添加空格分隔
-                        space_run = paragraph.add_run()
-                        space_run.text = " "
-                    
-                    translated_run = paragraph.add_run()
-                    translated_run.text = translated_text
-                    apply_fragment_format_pptx(translated_run, fragment)
-        
-        elif bilingual_translation == "append_soft":
-            # 追加模式（软换行版）：原文 + 软换行 + 译文
-            # 首先添加所有原文片段
-            for fragment in fragments:
-                original_text = fragment.get('text', '')
-                if original_text:
-                    run = paragraph.add_run()
-                    run.text = original_text
-                    apply_fragment_format_pptx(run, fragment)
-            
-            # 添加软换行
-            if any(f.get('translated_text', '') for f in fragments):
-                insert_soft_line_break(paragraph)
-            
-            # 然后添加所有译文片段
-            for fragment in fragments:
-                translated_text = fragment.get('translated_text', '')
-                if translated_text:
-                    run = paragraph.add_run()
-                    run.text = translated_text
-                    apply_fragment_format_pptx(run, fragment)
-        
-        elif bilingual_translation == "bilingual":
-            # 双语并列：逐片段交替显示（在同一行）
-            for fragment in fragments:
-                original_text = fragment.get('text', '')
-                translated_text = fragment.get('translated_text', '')
-                
-                if original_text and translated_text:
-                    # 原文
-                    original_run = paragraph.add_run()
-                    original_run.text = original_text
-                    apply_fragment_format_pptx(original_run, fragment)
-                    
-                    # 分隔符
-                    separator_run = paragraph.add_run()
-                    separator_run.text = " / "
-                    
-                    # 译文
-                    translated_run = paragraph.add_run()
-                    translated_run.text = translated_text
-                    apply_fragment_format_pptx(translated_run, fragment)
-                    
-                elif original_text:
-                    # 只有原文
-                    run = paragraph.add_run()
-                    run.text = original_text
-                    apply_fragment_format_pptx(run, fragment)
-                    
-                elif translated_text:
-                    # 只有译文
-                    run = paragraph.add_run()
-                    run.text = translated_text
-                    apply_fragment_format_pptx(run, fragment)
-        
-        elif bilingual_translation == "bilingual_soft":
-            # 双语并列（软换行版）：原文 + 软换行 + 译文
-            # 首先添加所有原文片段
-            for fragment in fragments:
-                original_text = fragment.get('text', '')
-                if original_text:
-                    run = paragraph.add_run()
-                    run.text = original_text
-                    apply_fragment_format_pptx(run, fragment)
-            
-            # 添加软换行和分隔标识
-            if any(f.get('translated_text', '') for f in fragments):
-                insert_soft_line_break(paragraph)
-                # 可选：添加缩进或标识符
-                indent_run = paragraph.add_run()
-                indent_run.text = "  "  # 两个空格作为译文缩进
-            
-            # 然后添加所有译文片段
-            for fragment in fragments:
-                translated_text = fragment.get('translated_text', '')
-                if translated_text:
-                    run = paragraph.add_run()
-                    run.text = translated_text
-                    apply_fragment_format_pptx(run, fragment)
         else:
             # 默认：只显示原文
             for fragment in fragments:

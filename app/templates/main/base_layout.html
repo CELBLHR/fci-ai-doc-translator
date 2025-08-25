@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{% if session.get('language') == 'en' %}en{% else %}zh-CN{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
-    <title>{% block title %}{% endblock %} - 翻译管理系统</title>
+    <title>{% block title %}{% endblock %} - {% if session.get('language') == 'en' %}Translation Management System{% else %}翻译管理系统{% endif %}</title>
     <!-- 基础样式 -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/nav.css') }}">
@@ -57,17 +57,28 @@
             display: flex;
             flex-direction: column;
             height: 100%;
+            overflow: hidden; /* 防止内容溢出 */
         }
 
         .nav-brand {
             display: flex;
             align-items: center;
-            padding: 1.4vw;
+            padding: 1vw 1.4vw; /* 减少上下padding */
             text-decoration: none;
             color: rgb(0,148,217);
             font-size: 1.2rem;
             font-weight: 600;
             border-bottom: 1px solid #f1f3f4;
+            flex-shrink: 0; /* 防止压缩 */
+        }
+
+        /* Logo图片样式 */
+        .brand-logo {
+            width: calc(100% - 1.6vw); /* 宽度占满容器，减去一点边距 */
+            max-width: calc(280px - 32px); /* 最大宽度对应侧边栏最大宽度减去边距 */
+            height: auto; /* 高度自适应保持比例 */
+            object-fit: contain; /* 保持图片比例，不变形 */
+            margin: 0.2vw 0.8vw; /* 上下和左右边距 */
         }
 
         .nav-brand i {
@@ -85,6 +96,8 @@
             display: flex;
             flex-direction: column;
             padding: 0.7vw 0;
+            overflow-y: auto; /* 当内容过多时显示滚动条 */
+            min-height: 0; /* 允许flex item收缩 */
         }
 
         .nav-link {
@@ -118,6 +131,43 @@
             color: rgb(0,148,217);
             border-left-color: rgb(0,148,217);
             font-weight: 600;
+        }
+
+        /* 语言切换按钮样式 */
+        .language-switcher {
+            padding: 1vw 1.4vw;
+            border-top: 1px solid #f1f3f4;
+            flex-shrink: 0; /* 防止被压缩 */
+            background: white; /* 确保背景色一致 */
+        }
+
+        .language-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 0.6vw;
+            background: rgba(0,148,217,0.1);
+            border: 1px solid rgba(0,148,217,0.2);
+            border-radius: 6px;
+            color: rgb(0,148,217);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .language-btn:hover {
+            background: rgba(0,148,217,0.15);
+            border-color: rgba(0,148,217,0.3);
+            text-decoration: none;
+            color: rgb(0,130,190);
+        }
+
+        .language-btn i {
+            margin-right: 0.5vw;
+            font-size: 1rem;
         }
 
         /* 主内容区域 - 自适应侧边栏宽度 */
@@ -352,62 +402,76 @@
         <div class="nav-container">
             <a href="{{ url_for('main.index') }}" class="nav-brand">
                 <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Logo" class="brand-logo">
-                <span style="display: none;">翻译管理系统</span>
+                <span style="display: none;">{% if session.get('language') == 'en' %}Translation Management System{% else %}翻译管理系统{% endif %}</span>
             </a>
             <div class="nav-links">
                 <a href="{{ url_for('main.index') }}" class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}">
                     <i class="bi bi-translate"></i>
-                    PPT翻译
+                    {% if session.get('language') == 'en' %}PPT Translation{% else %}PPT翻译{% endif %}
                 </a>
                 <a href="{{ url_for('main.dictionary') }}" class="nav-link {% if request.endpoint == 'main.dictionary' %}active{% endif %}">
                     <i class="bi bi-book"></i>
-                    词库管理
+                    {% if session.get('language') == 'en' %}Dictionary{% else %}词库管理{% endif %}
                 </a>
                 {# PDF注释链接暂时注释掉，因为路由可能有问题
                 <a href="{{ url_for('main.pdf_annotate') }}" class="nav-link {% if request.endpoint == 'main.pdf_annotate' %}active{% endif %}">
                     <i class="bi bi-file-pdf"></i>
-                    PDF注释
+                    {% if session.get('language') == 'en' %}PDF Annotation{% else %}PDF注释{% endif %}
                 </a>
                 #}
                 <a href="{{ url_for('main.ingredient') }}" class="nav-link {% if request.endpoint == 'main.ingredient' %}active{% endif %}">
                     <i class="bi bi-search"></i>
-                    成分搜索
+                    {% if session.get('language') == 'en' %}Ingredient Search{% else %}成分搜索{% endif %}
                 </a>
                 {% if current_user.is_authenticated %}
                     {% if current_user.is_administrator() %}
-                        <a href="{{ url_for('main.registration_approval') }}" class="nav-link"><i class="bi bi-person-check"></i> 注册审批</a>
-                    <a href="{{ url_for('main.user_management') }}" class="nav-link"><i class="bi bi-people"></i> 用户管理</a>
+                        <a href="{{ url_for('main.registration_approval') }}" class="nav-link">
+                            <i class="bi bi-person-check"></i> 
+                            {% if session.get('language') == 'en' %}Registration Approval{% else %}注册审批{% endif %}
+                        </a>
+                        <a href="{{ url_for('main.user_management') }}" class="nav-link">
+                            <i class="bi bi-people"></i> 
+                            {% if session.get('language') == 'en' %}User Management{% else %}用户管理{% endif %}
+                        </a>
 
                         <!-- 文件管理页面 -->
                         <a href="{{ url_for('main.file_management') }}" class="nav-link {% if request.endpoint == 'main.file_management' %}active{% endif %}">
                             <i class="bi bi-file-earmark-ppt"></i>
-                            文件管理
+                            {% if session.get('language') == 'en' %}File Management{% else %}文件管理{% endif %}
                         </a>
 
                         <!-- 系统监控页面 -->
 {#                        <a href="{{ url_for('main.system_monitoring') }}" class="nav-link {% if request.endpoint == 'main.system_monitoring' %}active{% endif %}">#}
 {#                            <i class="bi bi-speedometer2"></i>#}
-{#                            系统监控#}
+{#                            {% if session.get('language') == 'en' %}System Monitor{% else %}系统监控{% endif %}#}
 {#                        </a>#}
 {#                        <a href="{{ url_for('db_management.db_stats_page') }}" class="nav-link {% if request.endpoint == 'db_management.db_stats_page' %}active{% endif %}">#}
 {#                            <i class="bi bi-database"></i>#}
-{#                            数据库连接池#}
+{#                            {% if session.get('language') == 'en' %}Database Pool{% else %}数据库连接池{% endif %}#}
 {#                        </a>#}
                         <a href="{{ url_for('main.logs') }}" class="nav-link {% if request.endpoint == 'main.logs' %}active{% endif %}">
                             <i class="bi bi-journal-text"></i>
-                            日志管理
+                            {% if session.get('language') == 'en' %}Log Management{% else %}日志管理{% endif %}
                         </a>
                     {% endif %}
                     <a href="{{ url_for('auth.logout') }}" class="nav-link">
                         <i class="bi bi-box-arrow-right"></i>
-                        退出
+                        {% if session.get('language') == 'en' %}Logout{% else %}退出{% endif %}
                     </a>
                 {% else %}
                     <a href="{{ url_for('auth.login') }}" class="nav-link">
                         <i class="bi bi-box-arrow-in-right"></i>
-                        登录
+                        {% if session.get('language') == 'en' %}Login{% else %}登录{% endif %}
                     </a>
                 {% endif %}
+            </div>
+            
+            <!-- 语言切换按钮 -->
+            <div class="language-switcher">
+                <button class="language-btn" onclick="switchLanguage()">
+                    <i class="bi bi-translate"></i>
+                    {% if session.get('language') == 'en' %}中文{% else %}English{% endif %}
+                </button>
             </div>
         </div>
     </nav>
@@ -425,7 +489,7 @@
             </div>
             <div class="user-details">
                 <div class="user-name">{{ current_user.get_display_name() }}</div>
-                <div class="user-role">{{ current_user.role.name if current_user.role else '用户' }}</div>
+                <div class="user-role">{{ current_user.role.name if current_user.role else (('User' if session.get('language') == 'en' else '用户')) }}</div>
             </div>
             <button class="user-info-toggle" onclick="toggleUserInfo()">
                 <i class="bi bi-chevron-up"></i>
@@ -434,34 +498,34 @@
         <div class="user-info-body">
             <div class="user-info-item">
                 <i class="bi bi-person"></i>
-                <span>用户名: {{ current_user.username }}</span>
+                <span>{% if session.get('language') == 'en' %}Username{% else %}用户名{% endif %}: {{ current_user.username }}</span>
             </div>
             {% if current_user.email %}
             <div class="user-info-item">
                 <i class="bi bi-envelope"></i>
-                <span>邮箱: {{ current_user.email }}</span>
+                <span>{% if session.get('language') == 'en' %}Email{% else %}邮箱{% endif %}: {{ current_user.email }}</span>
             </div>
             {% endif %}
             {% if current_user.is_sso_user() %}
             <div class="user-info-item">
                 <i class="bi bi-shield-check"></i>
-                <span>SSO用户 ({{ current_user.sso_provider }})</span>
+                <span>{% if session.get('language') == 'en' %}SSO User{% else %}SSO用户{% endif %} ({{ current_user.sso_provider }})</span>
             </div>
             {% endif %}
             {% if current_user.last_login %}
             <div class="user-info-item">
                 <i class="bi bi-clock"></i>
-                <span>上次登录: {{ current_user.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span>{% if session.get('language') == 'en' %}Last Login{% else %}上次登录{% endif %}: {{ current_user.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
             </div>
             {% endif %}
             <div class="user-info-actions">
                 {% if current_user.can_change_password() %}
                 <a href="#" class="user-action-btn" onclick="changePassword()">
-                    <i class="bi bi-key"></i> 修改密码
+                    <i class="bi bi-key"></i> {% if session.get('language') == 'en' %}Change Password{% else %}修改密码{% endif %}
                 </a>
                 {% endif %}
                 <a href="{{ url_for('auth.logout') }}" class="user-action-btn logout-btn">
-                    <i class="bi bi-box-arrow-right"></i> 退出登录
+                    <i class="bi bi-box-arrow-right"></i> {% if session.get('language') == 'en' %}Logout{% else %}退出登录{% endif %}
                 </a>
             </div>
         </div>
@@ -482,6 +546,37 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
+
+    // 语言切换功能
+    function switchLanguage() {
+        const currentLang = '{{ session.get("language", "zh") }}';
+        const newLang = currentLang === 'en' ? 'zh' : 'en';
+        
+        // 发送请求到后端切换语言
+        fetch('/switch_language', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+            },
+            body: JSON.stringify({
+                language: newLang
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 重新加载页面以应用新语言
+                window.location.reload();
+            } else {
+                showToast(data.message || '{% if session.get("language") == "en" %}Language switch failed{% else %}语言切换失败{% endif %}', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Language switch error:', error);
+            showToast('{% if session.get("language") == "en" %}Language switch failed{% else %}语言切换失败{% endif %}', 'error');
+        });
+    }
     </script>
 
     <!-- 防抖动工具函数 -->

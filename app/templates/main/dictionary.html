@@ -1,6 +1,6 @@
 {% extends "main/base_layout.html" %}
 
-{% block title %}词库管理，ymk版本{% endblock %}
+{% block title %}{% if session.get('language') == 'en' %}Dictionary Management{% else %}词库管理{% endif %}{% endblock %}
 
 {% block styles %}
 <style>
@@ -361,69 +361,197 @@ tr:hover {
 {% endblock %}
 
 {% block content %}
-<h1><i class="bi bi-book"></i> 我的词库</h1>
+<h1><i class="bi bi-book"></i> {% if session.get('language') == 'en' %}My Dictionary{% else %}我的词库{% endif %}</h1>
 
 <script>
 // 在JavaScript中定义当前用户ID，避免在模板字符串中使用Jinja2语法
 const CURRENT_USER_ID = {{ current_user.id }};
+
+// 获取当前语言设置
+const currentLanguage = '{{ session.get("language", "zh") }}';
+
+// 多语言文本
+const translations = {
+    zh: {
+        totalTranslations: '词条总数',
+        totalStopWords: '停翻词数量',
+        stopWordsManagement: '停翻词管理',
+        addNewTranslation: '添加新翻译',
+        addStopWordPlaceholder: '输入要添加的停翻词',
+        add: '添加',
+        englishPlaceholder: '英文',
+        chinesePlaceholder: '中文',
+        dutchPlaceholder: '荷兰语',
+        categoryPlaceholder: '分类（多个分类用分号分隔）',
+        setPublicEntry: '设为公共词条（所有用户可见）',
+        searchPlaceholder: '搜索英文、中文、荷兰语、分类等...',
+        search: '搜索',
+        myEntries: '我的词条',
+        publicEntries: '公共词条',
+        allEntries: '所有词条',
+        english: '英文',
+        chinese: '中文',
+        dutch: '荷兰语',
+        category: '分类',
+        createTime: '创建时间',
+        type: '类型',
+        creator: '创建者',
+        actions: '操作',
+        noData: '暂无数据',
+        noStopWords: '暂无停翻词',
+        publicType: '公共',
+        privateType: '私人',
+        me: '我',
+        // JavaScript消息
+        englishChineseRequired: '英文和中文为必填项',
+        pleaseEnterStopWord: '请输入停翻词',
+        addSuccess: '添加成功',
+        addFailed: '添加失败',
+        getStatsFailedTranslation: '获取统计信息失败',
+        getStatsFailedStopWords: '获取停翻词统计失败',
+        loadDataFailed: '加载数据失败',
+        loadStopWordsFailed: '加载停翻词失败',
+        translationNotFound: '未找到该翻译',
+        englishPrompt: '英文:',
+        chinesePrompt: '中文:',
+        dutchPrompt: '荷兰语:',
+        categoryPrompt: '分类:',
+        userCancel: '用户取消',
+        updateSuccess: '更新成功',
+        updateFailed: '更新失败',
+        deleteTranslationConfirm: '确定要删除这个翻译吗？',
+        deleteStopWordConfirm: '确定要删除这个停翻词吗？',
+        deleteSuccess: '删除成功',
+        deleteFailed: '删除失败',
+        serverReturnedNonJSON: '服务器返回了非JSON响应'
+    },
+    en: {
+        totalTranslations: 'Total Entries',
+        totalStopWords: 'Stop Words Count',
+        stopWordsManagement: 'Stop Words Management',
+        addNewTranslation: 'Add New Translation',
+        addStopWordPlaceholder: 'Enter stop word to add',
+        add: 'Add',
+        englishPlaceholder: 'English',
+        chinesePlaceholder: 'Chinese',
+        dutchPlaceholder: 'Dutch',
+        categoryPlaceholder: 'Category (separate multiple categories with semicolon)',
+        setPublicEntry: 'Set as public entry (visible to all users)',
+        searchPlaceholder: 'Search English, Chinese, Dutch, category, etc...',
+        search: 'Search',
+        myEntries: 'My Entries',
+        publicEntries: 'Public Entries',
+        allEntries: 'All Entries',
+        english: 'English',
+        chinese: 'Chinese',
+        dutch: 'Dutch',
+        category: 'Category',
+        createTime: 'Created Time',
+        type: 'Type',
+        creator: 'Creator',
+        actions: 'Actions',
+        noData: 'No data available',
+        noStopWords: 'No stop words',
+        publicType: 'Public',
+        privateType: 'Private',
+        me: 'Me',
+        // JavaScript消息
+        englishChineseRequired: 'English and Chinese are required fields',
+        pleaseEnterStopWord: 'Please enter a stop word',
+        addSuccess: 'Added successfully',
+        addFailed: 'Failed to add',
+        getStatsFailedTranslation: 'Failed to get statistics',
+        getStatsFailedStopWords: 'Failed to get stop words statistics',
+        loadDataFailed: 'Failed to load data',
+        loadStopWordsFailed: 'Failed to load stop words',
+        translationNotFound: 'Translation not found',
+        englishPrompt: 'English:',
+        chinesePrompt: 'Chinese:',
+        dutchPrompt: 'Dutch:',
+        categoryPrompt: 'Category:',
+        userCancel: 'User cancelled',
+        updateSuccess: 'Updated successfully',
+        updateFailed: 'Failed to update',
+        deleteTranslationConfirm: 'Are you sure you want to delete this translation?',
+        deleteStopWordConfirm: 'Are you sure you want to delete this stop word?',
+        deleteSuccess: 'Deleted successfully',
+        deleteFailed: 'Failed to delete',
+        serverReturnedNonJSON: 'Server returned non-JSON response'
+    }
+};
+
+// 获取翻译文本的辅助函数
+function getText(key, params = {}) {
+    let text = translations[currentLanguage] && translations[currentLanguage][key] 
+        ? translations[currentLanguage][key] 
+        : translations.zh[key];
+    
+    // 替换参数
+    Object.keys(params).forEach(param => {
+        text = text.replace(`{${param}}`, params[param]);
+    });
+    
+    return text;
+}
 </script>
 
 <!-- 统计信息 -->
 <section class="stats-section">
     <div class="stats-item">
         <div class="stats-value" id="totalTranslations">0</div>
-        <div class="stats-label">词条总数</div>
+        <div class="stats-label">{% if session.get('language') == 'en' %}Total Entries{% else %}词条总数{% endif %}</div>
     </div>
     <div class="stats-item">
         <div class="stats-value" id="totalStopWords">0</div>
-        <div class="stats-label">停翻词数量</div>
+        <div class="stats-label">{% if session.get('language') == 'en' %}Stop Words Count{% else %}停翻词数量{% endif %}</div>
     </div>
 </section>
 
 <!-- 添加停翻词 -->
 <section class="stop-words-section">
-    <h2>停翻词管理</h2>
+    <h2>{% if session.get('language') == 'en' %}Stop Words Management{% else %}停翻词管理{% endif %}</h2>
     <div class="stop-words-input-group">
-        <input type="text" id="stopWordInput" placeholder="输入要添加的停翻词">
+        <input type="text" id="stopWordInput" placeholder="{% if session.get('language') == 'en' %}Enter stop word to add{% else %}输入要添加的停翻词{% endif %}">
         <button id="addStopWordBtn">
             <i class="bi bi-plus-lg"></i>
-            添加
+            {% if session.get('language') == 'en' %}Add{% else %}添加{% endif %}
         </button>
     </div>
     <div id="stopWordsList" class="stop-words-list">
         <!-- 停翻词列表将通过JavaScript动态插入 -->
     </div>
 </section>
+
 <!-- 添加新翻译 -->
 <section class="add-section">
-    <h2>添加新翻译</h2>
+    <h2>{% if session.get('language') == 'en' %}Add New Translation{% else %}添加新翻译{% endif %}</h2>
     <div class="input-group">
-        <input type="text" id="englishInput" placeholder="英文">
-        <input type="text" id="chineseInput" placeholder="中文">
-        <input type="text" id="dutchInput" placeholder="荷兰语">
-        <input type="text" id="class1Input" placeholder="分类1">
-        <input type="text" id="class2Input" placeholder="分类2">
+        <input type="text" id="englishInput" placeholder="{% if session.get('language') == 'en' %}English{% else %}英文{% endif %}">
+        <input type="text" id="chineseInput" placeholder="{% if session.get('language') == 'en' %}Chinese{% else %}中文{% endif %}">
+        <input type="text" id="dutchInput" placeholder="{% if session.get('language') == 'en' %}Dutch{% else %}荷兰语{% endif %}">
+        <input type="text" id="categoryInput" placeholder="{% if session.get('language') == 'en' %}Category (separate multiple categories with semicolon){% else %}分类（多个分类用分号分隔）{% endif %}">
         <button id="addBtn">
             <i class="bi bi-plus-lg"></i>
-            添加
+            {% if session.get('language') == 'en' %}Add{% else %}添加{% endif %}
         </button>
     </div>
     {% if current_user.is_administrator() %}
     <div class="input-group">
         <label>
             <input type="checkbox" id="isPublicCheckbox"> 
-            设为公共词条（所有用户可见）
+            {% if session.get('language') == 'en' %}Set as public entry (visible to all users){% else %}设为公共词条（所有用户可见）{% endif %}
         </label>
     </div>
     {% endif %}
 </section>
+
 <!-- 搜索栏 -->
 <section class="search-section">
     <div class="search-container">
-        <input type="text" id="searchInput" placeholder="搜索英文、中文、荷兰语、分类等...">
+        <input type="text" id="searchInput" placeholder="{% if session.get('language') == 'en' %}Search English, Chinese, Dutch, category, etc...{% else %}搜索英文、中文、荷兰语、分类等...{% endif %}">
         <button id="searchBtn">
             <i class="bi bi-search"></i>
-            搜索
+            {% if session.get('language') == 'en' %}Search{% else %}搜索{% endif %}
         </button>
     </div>
 </section>
@@ -432,24 +560,23 @@ const CURRENT_USER_ID = {{ current_user.id }};
 <section class="table-section">
     <div class="table-controls">
         <div class="view-toggle">
-            <button class="active" data-view="private">我的词条</button>
-            <button data-view="public">公共词条</button>
-            <button data-view="all">所有词条</button>
+            <button class="active" data-view="private">{% if session.get('language') == 'en' %}My Entries{% else %}我的词条{% endif %}</button>
+            <button data-view="public">{% if session.get('language') == 'en' %}Public Entries{% else %}公共词条{% endif %}</button>
+            <button data-view="all">{% if session.get('language') == 'en' %}All Entries{% else %}所有词条{% endif %}</button>
         </div>
     </div>
     <div class="table-wrapper">
         <table>
             <thead>
                 <tr>
-                    <th>英文</th>
-                    <th>中文</th>
-                    <th>荷兰语</th>
-                    <th>分类1</th>
-                    <th>分类2</th>
-                    <th>创建时间</th>
-                    <th>类型</th>
-                    <th>创建者</th>
-                    <th>操作</th>
+                    <th>{% if session.get('language') == 'en' %}English{% else %}英文{% endif %}</th>
+                    <th>{% if session.get('language') == 'en' %}Chinese{% else %}中文{% endif %}</th>
+                    <th>{% if session.get('language') == 'en' %}Dutch{% else %}荷兰语{% endif %}</th>
+                    <th>{% if session.get('language') == 'en' %}Category{% else %}分类{% endif %}</th>
+                    <th>{% if session.get('language') == 'en' %}Created Time{% else %}创建时间{% endif %}</th>
+                    <th>{% if session.get('language') == 'en' %}Type{% else %}类型{% endif %}</th>
+                    <th>{% if session.get('language') == 'en' %}Creator{% else %}创建者{% endif %}</th>
+                    <th>{% if session.get('language') == 'en' %}Actions{% else %}操作{% endif %}</th>
                 </tr>
             </thead>
             <tbody id="translationTable">
@@ -459,7 +586,7 @@ const CURRENT_USER_ID = {{ current_user.id }};
     </div>
     <div id="emptyState" class="empty-state" style="display: none;">
         <i class="bi bi-book"></i>
-        <p>暂无数据</p>
+        <p>{% if session.get('language') == 'en' %}No data available{% else %}暂无数据{% endif %}</p>
     </div>
     <div class="pagination" id="pagination">
         <!-- 分页将通过JavaScript动态插入 -->
@@ -521,7 +648,7 @@ async function updateStats() {
         
         document.getElementById('totalTranslations').textContent = data.total_translations || 0;
     } catch (error) {
-        console.error('获取统计信息失败:', error);
+        console.error(getText('getStatsFailedTranslation'), error);
     }
     
     try {
@@ -530,7 +657,7 @@ async function updateStats() {
         
         document.getElementById('totalStopWords').textContent = data.total_stop_words || 0;
     } catch (error) {
-        console.error('获取停翻词统计失败:', error);
+        console.error(getText('getStatsFailedStopWords'), error);
     }
 }
 
@@ -539,12 +666,11 @@ async function addTranslation() {
     const english = document.getElementById('englishInput').value.trim();
     const chinese = document.getElementById('chineseInput').value.trim();
     const dutch = document.getElementById('dutchInput').value.trim();
-    const class1 = document.getElementById('class1Input').value.trim();
-    const class2 = document.getElementById('class2Input').value.trim();
+    const category = document.getElementById('categoryInput').value.trim();
     const isPublic = document.getElementById('isPublicCheckbox')?.checked || false;
     
     if (!english || !chinese) {
-        showToast('英文和中文为必填项', 'error');
+        showToast(getText('englishChineseRequired'), 'error');
         return;
     }
     
@@ -558,8 +684,7 @@ async function addTranslation() {
                 english, 
                 chinese, 
                 dutch, 
-                class1, 
-                class2,
+                category,
                 is_public: isPublic
             })
         });
@@ -567,19 +692,18 @@ async function addTranslation() {
         const result = await response.json();
         
         if (response.ok) {
-            showToast('添加成功', 'success');
+            showToast(getText('addSuccess'), 'success');
             document.getElementById('englishInput').value = '';
             document.getElementById('chineseInput').value = '';
             document.getElementById('dutchInput').value = '';
-            document.getElementById('class1Input').value = '';
-            document.getElementById('class2Input').value = '';
+            document.getElementById('categoryInput').value = '';
             if (document.getElementById('isPublicCheckbox')) {
                 document.getElementById('isPublicCheckbox').checked = false;
             }
             loadTranslations(currentSearch, currentPage);
             updateStats();
         } else {
-            throw new Error(result.error || '添加失败');
+            throw new Error(result.error || getText('addFailed'));
         }
     } catch (error) {
         showToast(error.message, 'error');
@@ -591,7 +715,7 @@ async function addStopWord() {
     const word = document.getElementById('stopWordInput').value.trim();
     
     if (!word) {
-        showToast('请输入停翻词', 'error');
+        showToast(getText('pleaseEnterStopWord'), 'error');
         return;
     }
     
@@ -607,12 +731,12 @@ async function addStopWord() {
         const result = await response.json();
         
         if (response.ok) {
-            showToast('添加成功', 'success');
+            showToast(getText('addSuccess'), 'success');
             document.getElementById('stopWordInput').value = '';
             loadStopWords();
             updateStats();
         } else {
-            throw new Error(result.error || '添加失败');
+            throw new Error(result.error || getText('addFailed'));
         }
     } catch (error) {
         showToast(error.message, 'error');
@@ -631,7 +755,7 @@ async function loadTranslations(searchTerm = '', page = 1) {
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
-            throw new Error('服务器返回了非JSON响应: ' + text.substring(0, 100));
+            throw new Error(getText('serverReturnedNonJSON') + ': ' + text.substring(0, 100));
         }
         
         const data = await response.json();
@@ -650,16 +774,15 @@ async function loadTranslations(searchTerm = '', page = 1) {
                     <td>${item.english}</td>
                     <td>${item.chinese}</td>
                     <td>${item.dutch || ''}</td>
-                    <td>${item.class1 || ''}</td>
-                    <td>${item.class2 || ''}</td>
-                    <td>${new Date(item.created_at).toLocaleString()}</td>
-                    <td>${item.is_public ? '<span style="color: #007bff;">公共</span>' : '私人'}</td>
-                    <td>${item.is_public && item.user ? item.user.username : (item.user_id == CURRENT_USER_ID ? '我' : '')}</td>
+                    <td>${item.category || ''}</td>
+                    <td>${new Date(item.created_at).toLocaleString(currentLanguage === 'en' ? 'en-US' : 'zh-CN')}</td>
+                    <td>${item.is_public ? '<span style="color: #007bff;">' + getText('publicType') + '</span>' : getText('privateType')}</td>
+                    <td>${item.is_public && item.user ? item.user.username : (item.user_id == CURRENT_USER_ID ? getText('me') : '')}</td>
                     <td>
-                        <button class="action-btn" onclick="editTranslation(${item.id})" title="编辑">
+                        <button class="action-btn" onclick="editTranslation(${item.id})" title="${currentLanguage === 'en' ? 'Edit' : '编辑'}">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="action-btn" onclick="deleteTranslation(${item.id})" title="删除">
+                        <button class="action-btn" onclick="deleteTranslation(${item.id})" title="${currentLanguage === 'en' ? 'Delete' : '删除'}">
                             <i class="bi bi-trash"></i>
                         </button>
                     </td>
@@ -671,8 +794,8 @@ async function loadTranslations(searchTerm = '', page = 1) {
         updatePagination(data.total_pages, page);
         
     } catch (error) {
-        console.error('加载数据失败:', error);
-        showToast('加载数据失败: ' + error.message, 'error');
+        console.error(getText('loadDataFailed'), error);
+        showToast(getText('loadDataFailed') + ': ' + error.message, 'error');
     }
 }
 
@@ -685,19 +808,19 @@ async function loadStopWords() {
         const stopWordsList = document.getElementById('stopWordsList');
         
         if (data.stop_words.length === 0) {
-            stopWordsList.innerHTML = '<div class="empty-state">暂无停翻词</div>';
+            stopWordsList.innerHTML = '<div class="empty-state">' + getText('noStopWords') + '</div>';
         } else {
             stopWordsList.innerHTML = data.stop_words.map(item => `
                 <div class="stop-word-item">
                     <span>${item.word}</span>
-                    <button class="action-btn" onclick="deleteStopWord(${item.id})" title="删除">
+                    <button class="action-btn" onclick="deleteStopWord(${item.id})" title="${currentLanguage === 'en' ? 'Delete' : '删除'}">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
             `).join('');
         }
     } catch (error) {
-        showToast('加载停翻词失败', 'error');
+        showToast(getText('loadStopWordsFailed'), 'error');
     }
 }
 
@@ -709,23 +832,22 @@ async function editTranslation(id) {
     
     const translation = data.translations.find(t => t.id === id);
     if (!translation) {
-        showToast('未找到该翻译', 'error');
+        showToast(getText('translationNotFound'), 'error');
         return;
     }
     
     // 显示编辑对话框
-    const newEnglish = prompt('英文:', translation.english);
+    const newEnglish = prompt(getText('englishPrompt'), translation.english);
     if (newEnglish === null) return; // 用户取消
     
-    const newChinese = prompt('中文:', translation.chinese);
+    const newChinese = prompt(getText('chinesePrompt'), translation.chinese);
     if (newChinese === null) return; // 用户取消
     
-    const newDutch = prompt('荷兰语:', translation.dutch || '');
-    const newClass1 = prompt('分类1:', translation.class1 || '');
-    const newClass2 = prompt('分类2:', translation.class2 || '');
+    const newDutch = prompt(getText('dutchPrompt'), translation.dutch || '');
+    const newCategory = prompt(getText('categoryPrompt'), translation.category || '');
     
     if (!newEnglish || !newChinese) {
-        showToast('英文和中文为必填项', 'error');
+        showToast(getText('englishChineseRequired'), 'error');
         return;
     }
     
@@ -739,19 +861,18 @@ async function editTranslation(id) {
                 english: newEnglish,
                 chinese: newChinese,
                 dutch: newDutch,
-                class1: newClass1,
-                class2: newClass2
+                category: newCategory
             })
         });
         
         const result = await updateResponse.json();
         
         if (updateResponse.ok) {
-            showToast('更新成功', 'success');
+            showToast(getText('updateSuccess'), 'success');
             loadTranslations(currentSearch, currentPage);
             updateStats();
         } else {
-            throw new Error(result.error || '更新失败');
+            throw new Error(result.error || getText('updateFailed'));
         }
     } catch (error) {
         showToast(error.message, 'error');
@@ -760,7 +881,7 @@ async function editTranslation(id) {
 
 // 删除翻译
 async function deleteTranslation(id) {
-    if (!confirm('确定要删除这个翻译吗？')) {
+    if (!confirm(getText('deleteTranslationConfirm'))) {
         return;
     }
     
@@ -772,11 +893,11 @@ async function deleteTranslation(id) {
         const result = await response.json();
         
         if (response.ok) {
-            showToast('删除成功', 'success');
+            showToast(getText('deleteSuccess'), 'success');
             loadTranslations(currentSearch, currentPage);
             updateStats();
         } else {
-            throw new Error(result.error || '删除失败');
+            throw new Error(result.error || getText('deleteFailed'));
         }
     } catch (error) {
         showToast(error.message, 'error');
@@ -785,7 +906,7 @@ async function deleteTranslation(id) {
 
 // 删除停翻词
 async function deleteStopWord(id) {
-    if (!confirm('确定要删除这个停翻词吗？')) {
+    if (!confirm(getText('deleteStopWordConfirm'))) {
         return;
     }
     
@@ -797,11 +918,11 @@ async function deleteStopWord(id) {
         const result = await response.json();
         
         if (response.ok) {
-            showToast('删除成功', 'success');
+            showToast(getText('deleteSuccess'), 'success');
             loadStopWords();
             updateStats();
         } else {
-            throw new Error(result.error || '删除失败');
+            throw new Error(result.error || getText('deleteFailed'));
         }
     } catch (error) {
         showToast(error.message, 'error');

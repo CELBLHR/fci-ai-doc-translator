@@ -1,6 +1,6 @@
 {% extends "main/base_layout.html" %}
 
-{% block title %}注册审批{% endblock %}
+{% block title %}{% if session.get('language') == 'en' %}Registration Approval{% else %}注册审批{% endif %}{% endblock %}
 
 {% block styles %}
 <style>
@@ -212,24 +212,24 @@
 {% block content %}
 <div class="approval-container">
     <div class="approval-header">
-        <h1><i class="bi bi-person-check"></i> 注册审批</h1>
+        <h1><i class="bi bi-person-check"></i> {% if session.get('language') == 'en' %}Registration Approval{% else %}注册审批{% endif %}</h1>
         <div class="status-filter">
-            <button class="status-btn active" data-status="all">全部</button>
-            <button class="status-btn" data-status="pending">待审批</button>
-            <button class="status-btn" data-status="approved">已通过</button>
-            <button class="status-btn" data-status="rejected">已拒绝</button>
+            <button class="status-btn active" data-status="all">{% if session.get('language') == 'en' %}All{% else %}全部{% endif %}</button>
+            <button class="status-btn" data-status="pending">{% if session.get('language') == 'en' %}Pending{% else %}待审批{% endif %}</button>
+            <button class="status-btn" data-status="approved">{% if session.get('language') == 'en' %}Approved{% else %}已通过{% endif %}</button>
+            <button class="status-btn" data-status="rejected">{% if session.get('language') == 'en' %}Rejected{% else %}已拒绝{% endif %}</button>
         </div>
     </div>
 
     <table class="approval-table">
         <thead>
             <tr>
-                <th>用户名</th>
-                <th>注册时间</th>
-                <th>状态</th>
-                <th>审批人</th>
-                <th>审批时间</th>
-                <th>操作</th>
+                <th>{% if session.get('language') == 'en' %}Username{% else %}用户名{% endif %}</th>
+                <th>{% if session.get('language') == 'en' %}Registration Time{% else %}注册时间{% endif %}</th>
+                <th>{% if session.get('language') == 'en' %}Status{% else %}状态{% endif %}</th>
+                <th>{% if session.get('language') == 'en' %}Approver{% else %}审批人{% endif %}</th>
+                <th>{% if session.get('language') == 'en' %}Approval Time{% else %}审批时间{% endif %}</th>
+                <th>{% if session.get('language') == 'en' %}Actions{% else %}操作{% endif %}</th>
             </tr>
         </thead>
         <tbody id="approvalList">
@@ -247,6 +247,48 @@
 <script>
 let currentStatus = 'all';
 let currentPage = 1;
+
+// 获取当前语言设置
+const currentLanguage = '{{ session.get("language", "zh") }}';
+
+// 多语言文本
+const approvalTranslations = {
+    zh: {
+        pending: '待审批',
+        approved: '已通过',
+        rejected: '已拒绝',
+        approve: '通过',
+        reject: '拒绝',
+        approveConfirm: '确定要通过这个注册申请吗？',
+        rejectConfirm: '确定要拒绝这个注册申请吗？',
+        approvalSuccess: '审批成功',
+        approvalFailed: '审批失败',
+        rejectionSuccess: '已拒绝申请',
+        operationFailed: '操作失败',
+        loadFailed: '加载失败'
+    },
+    en: {
+        pending: 'Pending',
+        approved: 'Approved',
+        rejected: 'Rejected',
+        approve: 'Approve',
+        reject: 'Reject',
+        approveConfirm: 'Are you sure you want to approve this registration?',
+        rejectConfirm: 'Are you sure you want to reject this registration?',
+        approvalSuccess: 'Approval successful',
+        approvalFailed: 'Approval failed',
+        rejectionSuccess: 'Application rejected',
+        operationFailed: 'Operation failed',
+        loadFailed: 'Load failed'
+    }
+};
+
+// 获取翻译文本的辅助函数
+function getApprovalText(key) {
+    return approvalTranslations[currentLanguage] && approvalTranslations[currentLanguage][key] 
+        ? approvalTranslations[currentLanguage][key] 
+        : approvalTranslations.zh[key];
+}
 
 // 加载注册申请列表
 async function loadRegistrations(status = 'all', page = 1) {
@@ -272,11 +314,11 @@ async function loadRegistrations(status = 'all', page = 1) {
                             ${reg.status === 'pending' ? `
                                 <button class="action-btn approve-btn" onclick="approveRegistration(${reg.id})">
                                     <i class="bi bi-check-lg"></i>
-                                    通过
+                                    ${getApprovalText('approve')}
                                 </button>
                                 <button class="action-btn reject-btn" onclick="rejectRegistration(${reg.id})">
                                     <i class="bi bi-x-lg"></i>
-                                    拒绝
+                                    ${getApprovalText('reject')}
                                 </button>
                             ` : '-'}
                         </div>
@@ -287,7 +329,7 @@ async function loadRegistrations(status = 'all', page = 1) {
             // 更新分页
             updatePagination(data.total_pages, page);
         } else {
-            throw new Error(data.error || '加载失败');
+            throw new Error(data.error || getApprovalText('loadFailed'));
         }
     } catch (error) {
         showToast(error.message, 'error');
@@ -316,16 +358,16 @@ function updatePagination(totalPages, currentPage) {
 // 获取状态文本
 function getStatusText(status) {
     const statusMap = {
-        'pending': '待审批',
-        'approved': '已通过',
-        'rejected': '已拒绝'
+        'pending': getApprovalText('pending'),
+        'approved': getApprovalText('approved'),
+        'rejected': getApprovalText('rejected')
     };
     return statusMap[status] || status;
 }
 
 // 通过注册申请
 async function approveRegistration(id) {
-    if (!confirm('确定要通过这个注册申请吗？')) return;
+    if (!confirm(getApprovalText('approveConfirm'))) return;
     
     try {
         const response = await fetch(`/api/registrations/${id}/approve`, {
@@ -335,10 +377,10 @@ async function approveRegistration(id) {
         const data = await response.json();
         
         if (response.ok) {
-            showToast('审批成功', 'success');
+            showToast(getApprovalText('approvalSuccess'), 'success');
             loadRegistrations(currentStatus, currentPage);
         } else {
-            throw new Error(data.error || '审批失败');
+            throw new Error(data.error || getApprovalText('approvalFailed'));
         }
     } catch (error) {
         showToast(error.message, 'error');
@@ -347,7 +389,7 @@ async function approveRegistration(id) {
 
 // 拒绝注册申请
 async function rejectRegistration(id) {
-    if (!confirm('确定要拒绝这个注册申请吗？')) return;
+    if (!confirm(getApprovalText('rejectConfirm'))) return;
     
     try {
         const response = await fetch(`/api/registrations/${id}/reject`, {
@@ -357,10 +399,10 @@ async function rejectRegistration(id) {
         const data = await response.json();
         
         if (response.ok) {
-            showToast('已拒绝申请', 'success');
+            showToast(getApprovalText('rejectionSuccess'), 'success');
             loadRegistrations(currentStatus, currentPage);
         } else {
-            throw new Error(data.error || '操作失败');
+            throw new Error(data.error || getApprovalText('operationFailed'));
         }
     } catch (error) {
         showToast(error.message, 'error');
@@ -381,4 +423,4 @@ document.querySelectorAll('.status-btn').forEach(btn => {
 // 初始加载
 loadRegistrations();
 </script>
-{% endblock %} 
+{% endblock %}

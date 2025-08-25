@@ -148,105 +148,105 @@ def trigger_ppt_render_with_libreoffice(ppt_path: str) -> bool:
             return False
 
         # 步骤2: 使用LibreOffice渲染并重新导出PPTX
-        logger.info("使用LibreOffice通过.odp中转转换并重新保存PPTX以触发文本框渲染...")
+        # logger.info("使用LibreOffice通过.odp中转转换并重新保存PPTX以触发文本框渲染...")
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_dir = os.path.abspath(temp_dir)
-            ppt_path_abs = os.path.abspath(ppt_path)
-            ppt_filename = os.path.basename(ppt_path)
-            ppt_name = os.path.splitext(ppt_filename)[0]
+        # with tempfile.TemporaryDirectory() as temp_dir:
+        #     temp_dir = os.path.abspath(temp_dir)
+        #     ppt_path_abs = os.path.abspath(ppt_path)
+        #     ppt_filename = os.path.basename(ppt_path)
+        #     ppt_name = os.path.splitext(ppt_filename)[0]
 
-            # 步骤2.1: 先转换为ODP格式
-            if platform.system() == "Windows":
-                cmd_to_odp = [
-                    libreoffice_cmd,
-                    "--headless", "--convert-to", "odp",
-                    "--outdir", temp_dir,
-                    ppt_path_abs
-                ]
-                creation_flags = subprocess.CREATE_NO_WINDOW
-            else:
-                cmd_to_odp = [
-                    libreoffice_cmd,
-                    "--headless", "--convert-to", "odp",
-                    "--outdir", temp_dir,
-                    ppt_path_abs
-                ]
-                creation_flags = 0
+        #     # 步骤2.1: 先转换为ODP格式
+        #     if platform.system() == "Windows":
+        #         cmd_to_odp = [
+        #             libreoffice_cmd,
+        #             "--headless", "--convert-to", "odp",
+        #             "--outdir", temp_dir,
+        #             ppt_path_abs
+        #         ]
+        #         creation_flags = subprocess.CREATE_NO_WINDOW
+        #     else:
+        #         cmd_to_odp = [
+        #             libreoffice_cmd,
+        #             "--headless", "--convert-to", "odp",
+        #             "--outdir", temp_dir,
+        #             ppt_path_abs
+        #         ]
+        #         creation_flags = 0
 
-            logger.debug(f"执行ODP转换命令: {' '.join(cmd_to_odp)}")
+        #     logger.debug(f"执行ODP转换命令: {' '.join(cmd_to_odp)}")
 
-            result_odp = subprocess.run(
-                cmd_to_odp,
-                capture_output=True,
-                text=True,
-                timeout=120,
-                creationflags=creation_flags
-            )
+        #     result_odp = subprocess.run(
+        #         cmd_to_odp,
+        #         capture_output=True,
+        #         text=True,
+        #         timeout=120,
+        #         creationflags=creation_flags
+        #     )
 
-            if result_odp.returncode != 0:
-                logger.error(f"转换为ODP失败: {result_odp.stderr}")
-                return False
+        #     if result_odp.returncode != 0:
+        #         logger.error(f"转换为ODP失败: {result_odp.stderr}")
+        #         return False
 
-            # 检查ODP文件是否生成
-            odp_file = os.path.join(temp_dir, f"{ppt_name}.odp")
-            if not os.path.exists(odp_file):
-                logger.error("未能生成ODP文件")
-                return False
+        #     # 检查ODP文件是否生成
+        #     odp_file = os.path.join(temp_dir, f"{ppt_name}.odp")
+        #     if not os.path.exists(odp_file):
+        #         logger.error("未能生成ODP文件")
+        #         return False
 
-            logger.info(f"成功转换为ODP格式: {odp_file}")
+        #     logger.info(f"成功转换为ODP格式: {odp_file}")
 
-            # 步骤2.2: 从ODP转换回PPTX格式
-            if platform.system() == "Windows":
-                cmd_to_pptx = [
-                    libreoffice_cmd,
-                    "--headless", "--convert-to", "pptx:Impress MS PowerPoint 2007 XML",
-                    "--outdir", temp_dir,
-                    odp_file
-                ]
-            else:
-                cmd_to_pptx = [
-                    libreoffice_cmd,
-                    "--headless", "--convert-to", "pptx:Impress MS PowerPoint 2007 XML",
-                    "--outdir", temp_dir,
-                    odp_file
-                ]
+        #     # 步骤2.2: 从ODP转换回PPTX格式
+        #     if platform.system() == "Windows":
+        #         cmd_to_pptx = [
+        #             libreoffice_cmd,
+        #             "--headless", "--convert-to", "pptx:Impress MS PowerPoint 2007 XML",
+        #             "--outdir", temp_dir,
+        #             odp_file
+        #         ]
+        #     else:
+        #         cmd_to_pptx = [
+        #             libreoffice_cmd,
+        #             "--headless", "--convert-to", "pptx:Impress MS PowerPoint 2007 XML",
+        #             "--outdir", temp_dir,
+        #             odp_file
+        #         ]
 
-            logger.debug(f"执行PPTX转换命令: {' '.join(cmd_to_pptx)}")
+        #     logger.debug(f"执行PPTX转换命令: {' '.join(cmd_to_pptx)}")
 
-            result_pptx = subprocess.run(
-                cmd_to_pptx,
-                capture_output=True,
-                text=True,
-                timeout=120,
-                creationflags=creation_flags
-            )
+        #     result_pptx = subprocess.run(
+        #         cmd_to_pptx,
+        #         capture_output=True,
+        #         text=True,
+        #         timeout=120,
+        #         creationflags=creation_flags
+        #     )
 
-            logger.debug(f"PPTX转换命令返回码: {result_pptx.returncode}")
-            if result_pptx.stdout:
-                logger.debug(f"标准输出: {result_pptx.stdout}")
-            if result_pptx.stderr:
-                logger.debug(f"标准错误: {result_pptx.stderr}")
+        #     logger.debug(f"PPTX转换命令返回码: {result_pptx.returncode}")
+        #     if result_pptx.stdout:
+        #         logger.debug(f"标准输出: {result_pptx.stdout}")
+        #     if result_pptx.stderr:
+        #         logger.debug(f"标准错误: {result_pptx.stderr}")
 
-            if result_pptx.returncode == 0:
-                # 查找生成的PPTX文件
-                pptx_file = os.path.join(temp_dir, f"{ppt_name}.pptx")
-                # print(pptx_file)
-                if os.path.exists(pptx_file):
-                    try:
-                        shutil.copyfile(pptx_file, ppt_path)
-                        logger.info(f" 渲染后的PPTX已复制并覆盖原文件: {ppt_path}")
-                        return True
-                    except Exception as copy_err:
-                        logger.error(f" 无法覆盖源文件: {copy_err}")
-                        return False
-                else:
-                    logger.warning("LibreOffice成功执行但未找到输出PPTX文件")
-                    logger.debug(f"临时目录内容: {os.listdir(temp_dir)}")
-                    return False
-            else:
-                logger.error("LibreOffice转换失败")
-                return False
+        #     if result_pptx.returncode == 0:
+        #         # 查找生成的PPTX文件
+        #         pptx_file = os.path.join(temp_dir, f"{ppt_name}.pptx")
+        #         # print(pptx_file)
+        #         if os.path.exists(pptx_file):
+        #             try:
+        #                 shutil.copyfile(pptx_file, ppt_path)
+        #                 logger.info(f" 渲染后的PPTX已复制并覆盖原文件: {ppt_path}")
+        #                 return True
+        #             except Exception as copy_err:
+        #                 logger.error(f" 无法覆盖源文件: {copy_err}")
+        #                 return False
+        #         else:
+        #             logger.warning("LibreOffice成功执行但未找到输出PPTX文件")
+        #             logger.debug(f"临时目录内容: {os.listdir(temp_dir)}")
+        #             return False
+        #     else:
+        #         logger.error("LibreOffice转换失败")
+        #         return False
 
     except subprocess.TimeoutExpired:
         logger.error("LibreOffice转换超时")

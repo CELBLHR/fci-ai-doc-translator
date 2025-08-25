@@ -414,7 +414,7 @@ class PageBasedTranslator:
                             elif str(bilingual_translation) == "paragraph_down":
                                 # 双语模式：原文再下 + 译文在上
                                 new_text = translation + "\n" + para_info.text
-                            else:
+                            elif str(bilingual_translation) == "translation_only":
                                 # 仅翻译模式
                                 new_text = translation
 
