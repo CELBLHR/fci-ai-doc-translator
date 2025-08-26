@@ -2241,7 +2241,7 @@ def allowed_excel_file(filename):
 def download_template():
     """下载批量上传翻译模板文件"""
     try:
-        template_path = 'uploads/批量上传词汇(模板).xlsx'
+        template_path = './批量上传词汇(模板).xlsx'
 
         if not os.path.exists(template_path):
             # 如果模板文件不存在，创建它
