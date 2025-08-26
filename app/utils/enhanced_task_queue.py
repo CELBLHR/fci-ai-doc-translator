@@ -29,7 +29,7 @@ class TranslationTask:
                 priority: int = 0, annotation_filename: str = None,
                 annotation_json: Dict = None, select_page: List[int] = None,
                 bilingual_translation: str = 'paragraph_up', 
-                enable_text_splitting: bool = True, enable_uno_conversion: bool = True,
+                enable_text_splitting: str = "False", enable_uno_conversion: bool = True,
                 custom_translations: Dict[str, str] = None, **kwargs):
         """
         初始化翻译任务
@@ -174,7 +174,7 @@ class EnhancedTranslationQueue:
                 target_language: str = 'zh-cn', priority: int = 0,
                 annotation_filename: str = None, annotation_json: Dict = None,
                 select_page: List[int] = None, bilingual_translation: str = "paragraph_up",
-                enable_text_splitting: bool = True, enable_uno_conversion: bool = True,
+                enable_text_splitting: str = "False", enable_uno_conversion: bool = True,
                 custom_translations: Dict[str, str] = None, **kwargs) -> int:
         """
         添加任务到队列

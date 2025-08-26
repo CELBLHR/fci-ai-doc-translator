@@ -839,10 +839,11 @@
         </div>
 
         <div class="form-group">
-            <label for="enable_text_splitting">{% if session.get('language') == 'en' %}OCR Text Line Splitting{% else %}图片识别结果文本行分割{% endif %}</label>
+            <label for="enable_text_splitting">{% if session.get('language') == 'en' %}OCR Text Configuration{% else %}图片识别配置{% endif %}</label>
             <select id="enable_text_splitting" class="form-control">
-                <option value="True">{% if session.get('language') == 'en' %}Enable text line splitting (Recommended){% else %}启用文本行分割（推荐）{% endif %}</option>
-                <option value="False">{% if session.get('language') == 'en' %}Keep original text format{% else %}保持原始文本格式{% endif %}</option>
+                <option value="False">{% if session.get('language') == 'en' %}Disable OCR{% else %}不启用ocr识别{% endif %}</option>
+                <option value="True_spliting">{% if session.get('language') == 'en' %}Enable text line splitting (Recommended){% else %}启用文本行分割（推荐）{% endif %}</option>
+                <option value="True_no_spliting">{% if session.get('language') == 'en' %}Enable OCR without text line splitting{% else %}启用ocr识别，不进行文本行分割{% endif %}</option>
             </select>
         </div>
 
@@ -988,7 +989,7 @@
     let targetLanguage = 'Chinese';
     let bilingual_translation = "translation_only";
     let model = 'qwen';
-    let enable_text_splitting = true;
+    let enable_text_splitting = "False";
     let enable_uno_conversion = true;
 
     // 获取当前语言设置
@@ -1075,7 +1076,7 @@
         });
 
         document.getElementById('enable_text_splitting').addEventListener('change', function(e) {
-            enable_text_splitting = e.target.value === 'True';
+            enable_text_splitting = e.target.value; // 直接使用字符串值: "False" 或 "True_spliting"
             console.log('文本分割设置已更改为:', enable_text_splitting);
         });
 

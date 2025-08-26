@@ -112,7 +112,7 @@ def upload_file():
         bilingual_translation = request.form.get('bilingual_translation', 'paragraph_up')
         select_page = request.form.getlist('select_page')
         model = request.form.get('model', 'qwen')
-        enable_text_splitting = request.form.get('enable_text_splitting', 'True').lower() == 'true'
+        enable_text_splitting = request.form.get('enable_text_splitting', 'False')  # 字符串: "False" 或 "True_spliting"
         enable_uno_conversion = request.form.get('enable_uno_conversion', 'True').lower() == 'true'
         
         # 获取选中的词汇表ID
@@ -345,7 +345,12 @@ def process_queue(app, stop_words_list, custom_translations,source_language, tar
         with app.app_context():
             # try:
                     # 执行翻译
-                    process_presentation(task['file_path'], stop_words_list, custom_translations,task['select_page'],source_language, target_language,bilingual_translation, model=task.get('model', 'qwen'), enable_text_splitting=task.get('enable_text_splitting', True))
+                    process_presentation(
+                        task['file_path'], stop_words_list, custom_translations,
+                        task['select_page'], source_language, target_language, bilingual_translation,
+                        model=task.get('model', 'qwen'),
+                        enable_text_splitting=task.get('enable_text_splitting', 'False')
+                    )
     
                     set_textbox_autofit(task['file_path'])
     

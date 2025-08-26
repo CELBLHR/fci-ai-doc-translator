@@ -671,7 +671,7 @@ def ocr_controller(presentation_path: str,
                   enable_translation: bool = True,
                   target_language: str = "中文",
                   source_language: str = "英文",
-                  enable_text_splitting: bool = True) -> str:
+                  enable_text_splitting: str = "False") -> str:
     """
     OCR主控制器：提取图片、OCR识别、文本行分割、翻译、写回PPT
     
@@ -729,7 +729,7 @@ def ocr_controller(presentation_path: str,
         process_folder_with_mapping(folder_path, json_path, API_KEY)
 
         # 3. 文本行分割处理（可选）
-        if enable_text_splitting:
+        if enable_text_splitting == "True_spliting":
             logger.info("\n" + "=" * 50)
             logger.info("✂️ 第三步：文本行分割处理")
             logger.info("=" * 50)
@@ -748,7 +748,7 @@ def ocr_controller(presentation_path: str,
             logger.info("✅ 保持原始文本格式")
 
         # 4. 翻译OCR识别结果
-        step_num = 4 if enable_text_splitting else 3
+        step_num = 4 if enable_text_splitting != "False" else 3
         if enable_translation:
             logger.info("\n" + "=" * 50)
             logger.info(f"🌐 第{step_num}步：翻译识别结果 ({source_language} → {target_language})")
@@ -777,7 +777,7 @@ def ocr_controller(presentation_path: str,
                 enable_translation = False
 
         # 5. 读取更新后的映射文件
-        step_num = 5 if enable_translation else (4 if enable_text_splitting else 3)
+        step_num = 5 if enable_translation else (4 if enable_text_splitting != "False" else 3)
         logger.info(f"\n" + "=" * 50)
         logger.info(f"📖 第{step_num}步：读取处理结果")
         logger.info("=" * 50)
@@ -809,7 +809,7 @@ def ocr_controller(presentation_path: str,
             logger.info(f"📊 共翻译了 {translation_count} 张图片的文本")
 
         # 6. 将OCR结果和翻译添加到PPT右侧
-        step_num = 6 if enable_translation else (5 if enable_text_splitting else 4)
+        step_num = 6 if enable_translation else (5 if enable_text_splitting != "False" else 4)
         logger.info(f"\n" + "=" * 50)
         content_desc = "OCR识别结果和翻译" if enable_translation else "OCR识别结果"
         logger.info(f"🎨 第{step_num}步：在PPT右侧添加{content_desc}")

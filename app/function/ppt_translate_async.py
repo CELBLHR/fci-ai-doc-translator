@@ -593,7 +593,7 @@ async def process_presentation_async(presentation_path: str,
                                    bilingual_translation: str,
                                    progress_callback,
                                    model:str,
-                                   enable_text_splitting:bool,
+                                   enable_text_splitting:str,
                                    enable_uno_conversion:bool) -> bool:
     """
     异步处理演示文稿（基于页面的翻译机制）
@@ -755,15 +755,21 @@ async def process_presentation_async(presentation_path: str,
         2. 翻译
         3. 再打开ppt，并渲染
         '''
-        try:
-            from.image_ocr.ocr_controller import ocr_controller
-            ocr_ppt_path= ocr_controller(uno_pptx_path,
-                                        selected_pages=select_page,
-                                        output_path=None,
-                                        enable_text_splitting=enable_text_splitting)
-        except Exception as e:
-            logger.error(f"使用ocr接口功能时出错: {str(e)}")
+        ocr_ppt_path = uno_pptx_path
+        if enable_text_splitting == "False":
+            logger.info(f"检测到ocr参数:{enable_text_splitting}，不使用ocr接口功能")
             ocr_ppt_path = uno_pptx_path
+        else:
+            logger.info(f"检测到ocr参数:{enable_text_splitting}，开始使用ocr接口功能")
+            try:
+                from.image_ocr.ocr_controller import ocr_controller
+                ocr_ppt_path= ocr_controller(uno_pptx_path,
+                                            selected_pages=select_page,
+                                            output_path=None,
+                                            enable_text_splitting=enable_text_splitting)
+            except Exception as e:
+                logger.error(f"使用ocr接口功能时出错: {str(e)}")
+                ocr_ppt_path = uno_pptx_path
         # ocr_ppt_path = uno_pptx_path
 
         # === 新增：将翻译后PPT重命名为原始PPT名，覆盖原文件 ===
@@ -1054,7 +1060,7 @@ def process_presentation(presentation_path: str,
                        # 兼容性参数
                        stop_words: List[str] = None,
                        model:str='qwen',
-                       enable_text_splitting: bool = True,
+                       enable_text_splitting: str = "False",
                        enable_uno_conversion: bool = True,
                        **kwargs) -> bool:
     """
