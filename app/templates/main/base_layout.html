@@ -133,40 +133,33 @@
             font-weight: 600;
         }
 
-        /* 语言切换按钮样式 */
-        .language-switcher {
-            padding: 1vw 1.4vw;
-            border-top: 1px solid #f1f3f4;
-            flex-shrink: 0; /* 防止被压缩 */
-            background: white; /* 确保背景色一致 */
-        }
-
-        .language-btn {
-            display: flex;
+        /* 顶部右侧悬浮语言切换按钮样式 */
+        .floating-language-btn {
+            position: fixed;
+            top: 1.0vw;
+            right: 1.0vw;
+            z-index: 1100;
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
-            width: 100%;
-            padding: 0.6vw;
+            gap: 0.4vw;
+            padding: 0.5vw 0.8vw;
             background: rgba(0,148,217,0.1);
             border: 1px solid rgba(0,148,217,0.2);
-            border-radius: 6px;
+            border-radius: 20px;
             color: rgb(0,148,217);
             font-size: 0.9rem;
-            font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
-            text-decoration: none;
+            backdrop-filter: blur(4px);
         }
 
-        .language-btn:hover {
+        .floating-language-btn:hover {
             background: rgba(0,148,217,0.15);
             border-color: rgba(0,148,217,0.3);
-            text-decoration: none;
             color: rgb(0,130,190);
         }
 
-        .language-btn i {
-            margin-right: 0.5vw;
+        .floating-language-btn i {
             font-size: 1rem;
         }
 
@@ -466,19 +459,19 @@
                 {% endif %}
             </div>
             
-            <!-- 语言切换按钮 -->
-            <div class="language-switcher">
-                <button class="language-btn" onclick="switchLanguage()">
-                    <i class="bi bi-translate"></i>
-                    {% if session.get('language') == 'en' %}中文{% else %}English{% endif %}
-                </button>
-            </div>
+            <!-- 移除侧边栏语言切换按钮（改为右上角悬浮按钮） -->
         </div>
     </nav>
 
     <div class="container">
         {% block content %}{% endblock %}
     </div>
+
+    <!-- 右上角悬浮语言切换按钮 -->
+    <button class="floating-language-btn" onclick="switchLanguage()" title="{% if session.get('language') == 'en' %}Switch to Chinese{% else %}切换为英文{% endif %}">
+        <i class="bi bi-translate"></i>
+        {% if session.get('language') == 'en' %}中文{% else %}English{% endif %}
+    </button>
 
     <!-- 用户信息卡片 -->
     {% if current_user.is_authenticated %}
