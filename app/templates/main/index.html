@@ -839,7 +839,7 @@
         </div>
 
         <div class="form-group">
-            <label for="enable_text_splitting">{% if session.get('language') == 'en' %}OCR Text Line Splitting{% else %}OCR文本行分割{% endif %}</label>
+            <label for="enable_text_splitting">{% if session.get('language') == 'en' %}OCR Text Line Splitting{% else %}图片识别结果文本行分割{% endif %}</label>
             <select id="enable_text_splitting" class="form-control">
                 <option value="True">{% if session.get('language') == 'en' %}Enable text line splitting (Recommended){% else %}启用文本行分割（推荐）{% endif %}</option>
                 <option value="False">{% if session.get('language') == 'en' %}Keep original text format{% else %}保持原始文本格式{% endif %}</option>
