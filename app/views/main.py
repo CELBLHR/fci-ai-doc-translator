@@ -27,6 +27,8 @@ from ..function.ppt_translate_async import process_presentation as process_prese
 from ..function.ppt_translate_async import process_presentation_add_annotations as process_presentation_add_annotations_async
 from ..utils.enhanced_task_queue import EnhancedTranslationQueue, TranslationTask, translation_queue
 from ..utils.thread_pool_executor import thread_pool, TaskType
+import openpyxl
+from io import BytesIO
 import logging
 import threading
 from datetime import datetime
@@ -216,8 +218,6 @@ def upload_file():
         # 获取上传的文件
         file = request.files.get('file')
 
-        # 获取注释文件名（从表单参数，不是文件上传）
-        annotation_filename = request.form.get('annotation_filename', '')
 
         if not file:
             return jsonify({'code': 400, 'msg': '请选择文件上传'}), 400
@@ -260,36 +260,10 @@ def upload_file():
         stored_filename = get_unique_filename(new_filename)
         file_path = os.path.join(user_upload_dir, stored_filename)
 
-        annotation_json = None
-
         try:
             # 保存PPT文件
             file.save(file_path)
 
-            # 处理注释文件（如果选择了注释文件）
-            if annotation_filename:
-                logger.info(f"用户选择了注释文件: {annotation_filename}")
-                # 注释文件应该在用户的注释目录中
-                annotations_dir = os.path.join(
-                    current_app.config['UPLOAD_FOLDER'],
-                    f"{current_user.username}_annotations"
-                )
-                annotation_path = os.path.join(annotations_dir, annotation_filename)
-
-                if os.path.exists(annotation_path):
-                    try:
-                        with open(annotation_path, 'r', encoding='utf-8') as f:
-                            annotation_json = json.load(f)
-                        logger.info(f"成功加载注释文件: {annotation_path}")
-                    except Exception as e:
-                        logger.error(f"解析注释文件失败: {str(e)}")
-                        # 清理已上传的文件
-                        os.remove(file_path)
-                        return jsonify({'code': 400, 'msg': f'解析注释文件失败: {str(e)}'}), 400
-                else:
-                    logger.error(f"注释文件不存在: {annotation_path}")
-                    os.remove(file_path)
-                    return jsonify({'code': 400, 'msg': f'注释文件不存在: {annotation_filename}'}), 400
 
             # 创建上传记录，使用新的文件名
             record = UploadRecord(
@@ -319,8 +293,6 @@ def upload_file():
                 user_id=current_user.id,
                 user_name=current_user.username,
                 file_path=file_path,
-                annotation_filename=annotation_filename if annotation_filename else None,
-                annotation_json=annotation_json,  # 直接传递注释数据
                 select_page=select_page,
                 source_language=user_language,
                 target_language=target_language,
@@ -343,8 +315,6 @@ def upload_file():
             # 清理已上传的文件
             if os.path.exists(file_path):
                 os.remove(file_path)
-            if annotation_filename and os.path.exists(annotation_path):
-                os.remove(annotation_path)
 
             # 回滚数据库事务
             db.session.rollback()
@@ -374,50 +344,35 @@ def process_queue(app, stop_words_list, custom_translations,source_language, tar
         # 创建应用上下文
         with app.app_context():
             # try:
-                # 处理注释文件（如果有）
-                annotations = None
-                # TODO: 从任务中获取注释文件信息
-                annotations_dir = os.path.join(
-                    current_app.config['UPLOAD_FOLDER'],
-                    f"{task['user_name']}_annotations"
-                )
-                if task['annotation_filename']:
-                    annotations_file_path = os.path.join(annotations_dir, task['annotation_filename'])
-                    annotations = load_data(annotations_file_path)
-                # 执行翻译
-                if annotations:
-                    process_presentation_add_annotations(task['file_path'], annotations, stop_words_list,
-                                                         custom_translations,source_language, target_language,bilingual_translation)
-
-                else:
+                    # 执行翻译
                     process_presentation(task['file_path'], stop_words_list, custom_translations,task['select_page'],source_language, target_language,bilingual_translation, model=task.get('model', 'qwen'), enable_text_splitting=task.get('enable_text_splitting', True))
-
-                set_textbox_autofit(task['file_path'])
-
-                translation_queue.complete_current_task(success=True)
-
-                # 更新数据库记录状态
-                record = UploadRecord.query.filter_by(
-                    user_id=task['user_id'],
-                    file_path=os.path.dirname(task['file_path']),
-                    stored_filename=os.path.basename(task['file_path'])
-                ).first()
-
-                if record:
-                    record.status = 'completed'
-                    db.session.commit()
-
-            # except Exception as e:
-            #     print(f"Translation error: {str(e)}")
-            #     translation_queue.complete_current_task(success=False, error=str(e))
-
-                # 更新数据库记录状态
-                if 'record' in locals() and record:
-                    record.status = 'failed'
-                    try:
+    
+                    set_textbox_autofit(task['file_path'])
+    
+                    translation_queue.complete_current_task(success=True)
+    
+                    # 更新数据库记录状态
+                    record = UploadRecord.query.filter_by(
+                        user_id=task['user_id'],
+                        file_path=os.path.dirname(task['file_path']),
+                        stored_filename=os.path.basename(task['file_path'])
+                    ).first()
+    
+                    if record:
+                        record.status = 'completed'
                         db.session.commit()
-                    except:
-                        db.session.rollback()
+    
+                # except Exception as e:
+                #     print(f"Translation error: {str(e)}")
+                #     translation_queue.complete_current_task(success=False, error=str(e))
+    
+                    # 更新数据库记录状态
+                    if 'record' in locals() and record:
+                        record.status = 'failed'
+                        try:
+                            db.session.commit()
+                        except:
+                            db.session.rollback()
             # finally:
             #     # 确保会话被正确清理
             #     db.session.remove()
@@ -2272,4 +2227,330 @@ def admin_delete_file(record_id):
 @main.route('/zxcvbnm')
 def secret_login():
     """秘密登录页面，用于直接访问账号密码登录"""
-    return render_template('auth/login.html')
+# 批量上传翻译功能
+EXCEL_ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
+
+def allowed_excel_file(filename):
+    if '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in EXCEL_ALLOWED_EXTENSIONS
+
+@main.route('/api/translations/download_template')
+@login_required
+def download_template():
+    """下载批量上传翻译模板文件"""
+    try:
+        template_path = 'uploads/批量上传词汇(模板).xlsx'
+
+        if not os.path.exists(template_path):
+            # 如果模板文件不存在，创建它
+            create_template_file(template_path)
+
+        return send_file(
+            template_path,
+            as_attachment=True,
+            download_name='批量上传词汇模板.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    except Exception as e:
+        logger.error(f"下载模板文件失败: {str(e)}")
+        return jsonify({'error': f'下载模板文件失败: {str(e)}'}), 500
+
+def create_template_file(file_path):
+    """创建模板 Excel 文件"""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+
+    # 设置表头
+    headers = ['english', 'chinese', 'dutch', 'category', 'is_public']
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.font = openpyxl.styles.Font(bold=True)
+        cell.fill = openpyxl.styles.PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+
+    # 添加示例数据
+    sample_data = [
+        ['hello', '你好', 'Hallo', '日常；问候', 1],
+        ['sorry', '抱歉', 'Pardon', '日常；问候', 0]
+    ]
+
+    for row_num, row_data in enumerate(sample_data, 2):
+        for col_num, value in enumerate(row_data, 1):
+            ws.cell(row=row_num, column=col_num, value=value)
+
+    # 设置列宽度
+    column_widths = [20, 20, 20, 30, 10]
+    for i, width in enumerate(column_widths, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = width
+
+    # 保存文件
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    wb.save(file_path)
+
+@main.route('/api/translations/batch_upload', methods=['POST'])
+@login_required
+def batch_upload_translations():
+    """批量上传翻译文件并处理"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': '没有文件'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': '没有选择文件'}), 400
+
+        if not allowed_excel_file(file.filename):
+            return jsonify({'error': '只支持 Excel 文件 (.xlsx, .xls)'}), 400
+
+        # 获取文件扩展名并验证
+        if '.' not in file.filename:
+            return jsonify({'error': '文件名必须包含扩展名'}), 400
+
+        file_ext = file.filename.rsplit('.', 1)[1].lower()
+        if file_ext not in EXCEL_ALLOWED_EXTENSIONS:
+            return jsonify({'error': f'不支持的文件格式: .{file_ext}。只支持: {", ".join(EXCEL_ALLOWED_EXTENSIONS)}'}), 400
+
+        # 保存上传的文件
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        user_upload_dir = os.path.join(upload_folder, f"user_{current_user.id}")
+        os.makedirs(user_upload_dir, exist_ok=True)
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = secure_filename(file.filename)
+        # 确保文件名包含正确的扩展名
+        if not filename.lower().endswith(f'.{file_ext}'):
+            filename = f"{filename}.{file_ext}"
+
+        file_path = os.path.join(user_upload_dir, f"batch_upload_{timestamp}_{filename}")
+        file_path = os.path.abspath(file_path)  # 转换为绝对路径
+        logger.info(f"文件将保存到: {file_path}")
+        logger.info(f"文件扩展名: {file_ext}")
+
+        file.save(file_path)
+        logger.info("文件保存成功")
+
+        # 验证文件是否为有效的 Excel 文件
+        try:
+            import zipfile
+            if file_ext == 'xlsx':
+                # 检查是否为有效的 ZIP 文件（xlsx 实际上是 ZIP 格式）
+                with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                    zip_ref.testzip()
+                logger.info("文件是有效的 xlsx 格式")
+            elif file_ext == 'xls':
+                # 对于 xls 文件，检查文件头
+                with open(file_path, 'rb') as f:
+                    header = f.read(8)
+                    # Excel 97-2003 的文件头
+                    if not header.startswith(b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'):
+                        raise ValueError("不是有效的 xls 文件")
+                logger.info("文件是有效的 xls 格式")
+        except Exception as e:
+            logger.error(f"文件格式验证失败: {str(e)}")
+            os.remove(file_path)  # 删除无效文件
+            return jsonify({'error': f'文件格式无效: {str(e)}'}), 400
+
+        # 解析 Excel 文件
+        translations_data, errors = parse_excel_file(file_path)
+
+        if errors:
+            # 删除临时文件
+            os.remove(file_path)
+            return jsonify({
+                'error': '文件解析失败',
+                'details': errors[:10]  # 只返回前10个错误
+            }), 400
+
+        if not translations_data:
+            # 删除临时文件
+            os.remove(file_path)
+            return jsonify({'error': '文件中没有有效的翻译数据'}), 400
+
+        # 批量插入数据库
+        success_count, error_count, error_details = batch_insert_translations(translations_data, current_user.id)
+
+        # 删除临时文件
+        os.remove(file_path)
+
+        result = {
+            'message': f'批量上传完成。成功: {success_count}, 失败: {error_count}',
+            'success_count': success_count,
+            'error_count': error_count
+        }
+
+        if error_details:
+            result['errors'] = error_details[:10]  # 只返回前10个错误详情
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"批量上传翻译失败: {str(e)}")
+        logger.error(f"错误类型: {type(e).__name__}")
+        import traceback
+        logger.error(f"完整错误信息:\n{traceback.format_exc()}")
+        return jsonify({
+            'error': f'批量上传失败: {str(e)}',
+            'error_type': type(e).__name__,
+            'file_path': file_path if 'file_path' in locals() else None
+        }), 500
+
+def parse_excel_file(file_path):
+    """解析 Excel 文件，返回翻译数据和错误信息"""
+    translations = []
+    errors = []
+
+    try:
+        logger.info(f"开始解析 Excel 文件: {file_path}")
+
+        # 检查文件是否存在
+        if not os.path.exists(file_path):
+            errors.append(f"文件不存在: {file_path}")
+            return [], errors
+
+        # 检查文件大小
+        file_size = os.path.getsize(file_path)
+        logger.info(f"文件大小: {file_size} bytes")
+
+        if file_size == 0:
+            errors.append("文件为空")
+            return [], errors
+
+        logger.info("尝试加载 Excel 文件...")
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+        logger.info("Excel 文件加载成功")
+
+        ws = wb.active
+        logger.info("获取活动工作表成功")
+
+        logger.info(f"工作表名称: {ws.title}")
+        logger.info(f"最大行数: {ws.max_row}, 最大列数: {ws.max_column}")
+
+        # 检查表头
+        expected_headers = ['english', 'chinese', 'dutch', 'category', 'is_public']
+        actual_headers = []
+
+        for col in range(1, len(expected_headers) + 1):
+            cell_value = ws.cell(row=1, column=col).value
+            if cell_value:
+                actual_headers.append(str(cell_value).strip().lower())
+            else:
+                actual_headers.append('')
+
+        logger.info(f"期望表头: {expected_headers}")
+        logger.info(f"实际表头: {actual_headers}")
+
+        if actual_headers != expected_headers:
+            errors.append(f"表头不匹配。期望: {expected_headers}, 实际: {actual_headers}")
+            return [], errors
+
+        # 解析数据行
+        for row_num in range(2, ws.max_row + 1):
+            try:
+                row_data = {}
+                has_data = False
+
+                for col_num, header in enumerate(expected_headers, 1):
+                    cell_value = ws.cell(row=row_num, column=col_num).value
+                    if cell_value is not None:
+                        if isinstance(cell_value, str):
+                            cell_value = cell_value.strip()
+                        row_data[header] = cell_value
+                        if header in ['english', 'chinese'] and cell_value:
+                            has_data = True
+                    else:
+                        row_data[header] = None
+
+                # 检查必填字段
+                if not row_data.get('english') or not row_data.get('chinese'):
+                    if has_data:  # 如果有其他数据但必填字段为空
+                        errors.append(f"第{row_num}行: 英文和中文为必填字段")
+                    continue
+
+                # 处理 is_public 字段
+                if row_data.get('is_public') is not None:
+                    if isinstance(row_data['is_public'], str):
+                        row_data['is_public'] = row_data['is_public'].lower() in ('1', 'true', 'yes', '是')
+                    elif isinstance(row_data['is_public'], (int, float)):
+                        row_data['is_public'] = bool(row_data['is_public'])
+                    else:
+                        row_data['is_public'] = False
+                else:
+                    row_data['is_public'] = False
+
+                # 普通用户不能添加公共翻译
+                if row_data['is_public'] and not current_user.is_administrator():
+                    row_data['is_public'] = False
+
+                translations.append(row_data)
+
+            except Exception as e:
+                errors.append(f"第{row_num}行解析失败: {str(e)}")
+                continue
+
+    except Exception as e:
+        logger.error(f"Excel 文件解析异常: {str(e)}")
+        logger.error(f"异常类型: {type(e).__name__}")
+        import traceback
+        logger.error(f"完整堆栈跟踪:\n{traceback.format_exc()}")
+        errors.append(f"文件解析失败: {str(e)}")
+
+    return translations, errors
+
+def batch_insert_translations(translations_data, user_id):
+    """批量插入翻译数据到数据库"""
+    success_count = 0
+    error_count = 0
+    error_details = []
+
+    for item in translations_data:
+        try:
+            # 检查是否已存在相同的翻译
+            existing = None
+            if item.get('is_public') and current_user.is_administrator():
+                # 管理员检查公共翻译
+                existing = Translation.query.filter_by(
+                    english=item['english'],
+                    is_public=True
+                ).first()
+            else:
+                # 普通用户检查自己的私有翻译
+                existing = Translation.query.filter_by(
+                    user_id=user_id,
+                    english=item['english']
+                ).first()
+
+            if existing:
+                error_count += 1
+                error_details.append(f"英文 '{item['english']}' 已存在")
+                continue
+
+            # 创建新的翻译记录
+            translation = Translation(
+                english=item['english'],
+                chinese=item['chinese'],
+                dutch=item.get('dutch'),
+                category=item.get('category'),
+                is_public=item['is_public'],
+                user_id=user_id
+            )
+
+            db.session.add(translation)
+            success_count += 1
+
+        except Exception as e:
+            error_count += 1
+            error_details.append(f"插入 '{item.get('english', 'N/A')}' 失败: {str(e)}")
+            continue
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        error_details.append(f"数据库提交失败: {str(e)}")
+        success_count = 0
+        error_count = len(translations_data)
+
+    return success_count, error_count, error_details

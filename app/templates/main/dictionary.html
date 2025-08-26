@@ -522,6 +522,32 @@ function getText(key, params = {}) {
     </div>
 </section>
 
+<!-- 批量上传翻译 -->
+<section class="add-section">
+    <h2>{% if session.get('language') == 'en' %}Batch Upload Translations{% else %}批量上传翻译{% endif %}</h2>
+    <div class="input-group">
+        <button id="downloadTemplateBtn" class="action-btn">
+            <i class="bi bi-download"></i>
+            {% if session.get('language') == 'en' %}Download Template{% else %}下载模板{% endif %}
+        </button>
+        <input type="file" id="batchUploadFile" accept=".xlsx,.xls" style="display: none;">
+        <button id="selectFileBtn" class="action-btn">
+            <i class="bi bi-upload"></i>
+            {% if session.get('language') == 'en' %}Select File{% else %}选择文件{% endif %}
+        </button>
+        <button id="uploadBatchBtn" class="action-btn" disabled>
+            <i class="bi bi-cloud-upload"></i>
+            {% if session.get('language') == 'en' %}Upload{% else %}上传{% endif %}
+        </button>
+    </div>
+    <div id="selectedFileName" style="margin-top: 0.7vw; color: #666; font-size: 0.9rem;"></div>
+    <div id="uploadProgress" style="display: none; margin-top: 1vw;">
+        <div style="width: 100%; height: 1.4vw; background: #e9ecef; border-radius: 0.7vw; overflow: hidden;">
+            <div id="progressBar" style="height: 100%; background: rgb(0,148,217); width: 0%; transition: width 0.3s ease;"></div>
+        </div>
+        <div id="progressText" style="text-align: center; margin-top: 0.4vw; font-size: 0.9rem; color: #666;"></div>
+    </div>
+</section>
 <!-- 添加新翻译 -->
 <section class="add-section">
     <h2>{% if session.get('language') == 'en' %}Add New Translation{% else %}添加新翻译{% endif %}</h2>
@@ -614,6 +640,12 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPage = 1;
         loadTranslations(document.getElementById('searchInput').value.trim());
     });
+
+    // 绑定批量上传事件
+    document.getElementById('downloadTemplateBtn').addEventListener('click', downloadTemplate);
+    document.getElementById('selectFileBtn').addEventListener('click', selectFile);
+    document.getElementById('uploadBatchBtn').addEventListener('click', uploadBatch);
+    document.getElementById('batchUploadFile').addEventListener('change', handleFileSelect);
     
     // 回车搜索
     document.getElementById('searchInput').addEventListener('keypress', function(e) {
@@ -683,6 +715,8 @@ async function addTranslation() {
             body: JSON.stringify({ 
                 english, 
                 chinese, 
+                dutch,
+
                 dutch, 
                 category,
                 is_public: isPublic
@@ -979,24 +1013,24 @@ function showToast(message, type) {
         transform: translateX(100%);
         transition: transform 0.3s ease;
     `;
-    
+
     // 根据类型设置样式
     if (type === 'success') {
         toast.style.backgroundColor = '#28a745';
     } else {
         toast.style.backgroundColor = '#dc3545';
     }
-    
+
     toast.textContent = message;
-    
+
     // 添加到页面
     document.body.appendChild(toast);
-    
+
     // 显示动画
     setTimeout(() => {
         toast.style.transform = 'translateX(0)';
     }, 100);
-    
+
     // 3秒后移除
     setTimeout(() => {
         toast.style.transform = 'translateX(100%)';
@@ -1004,6 +1038,154 @@ function showToast(message, type) {
             document.body.removeChild(toast);
         }, 300);
     }, 3000);
+}
+
+// 批量上传相关功能
+// 下载模板文件
+async function downloadTemplate() {
+    try {
+        const response = await fetch('/api/translations/download_template');
+        if (!response.ok) {
+            throw new Error(getText('serverReturnedNonJSON'));
+        }
+
+        // 创建下载链接
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '批量上传词汇模板.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        showToast(getText('addSuccess'), 'success');
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+// 选择文件
+function selectFile() {
+    document.getElementById('batchUploadFile').click();
+}
+
+// 处理文件选择
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    const fileNameDiv = document.getElementById('selectedFileName');
+    const uploadBtn = document.getElementById('uploadBatchBtn');
+
+    if (file) {
+        // 验证文件类型
+        const allowedExtensions = ['xlsx', 'xls'];
+        const fileName = file.name.toLowerCase();
+        const fileExtension = fileName.split('.').pop();
+
+        if (!allowedExtensions.includes(fileExtension)) {
+            showToast(`不支持的文件类型: .${fileExtension}。请使用 Excel 文件 (.xlsx 或 .xls)`, 'error');
+            event.target.value = ''; // 清空文件选择
+            fileNameDiv.textContent = '';
+            uploadBtn.disabled = true;
+            return;
+        }
+
+        // 检查文件大小 (限制为 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            showToast(`文件过大: ${(file.size / 1024 / 1024).toFixed(2)}MB。最大支持 10MB`, 'error');
+            event.target.value = ''; // 清空文件选择
+            fileNameDiv.textContent = '';
+            uploadBtn.disabled = true;
+            return;
+        }
+
+        fileNameDiv.textContent = `已选择: ${file.name} (${(file.size / 1024).toFixed(1)}KB)`;
+        uploadBtn.disabled = false;
+    } else {
+        fileNameDiv.textContent = '';
+        uploadBtn.disabled = true;
+    }
+}
+
+// 上传批量文件
+async function uploadBatch() {
+    const fileInput = document.getElementById('batchUploadFile');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        showToast(getText('pleaseEnterStopWord'), 'error'); // 复用提示信息
+        return;
+    }
+
+    const progressDiv = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+
+    // 显示进度条
+    progressDiv.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressText.textContent = '正在上传文件...';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/translations/batch_upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        // 更新进度
+        progressBar.style.width = '50%';
+        progressText.textContent = '正在处理数据...';
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // 完成进度
+            progressBar.style.width = '100%';
+            progressText.textContent = '上传完成';
+
+            // 显示结果
+            let message = result.message;
+            if (result.error_count > 0 && result.errors) {
+                message += '\n\n错误详情:\n' + result.errors.slice(0, 3).join('\n');
+            }
+            showToast(message, result.error_count > 0 ? 'warning' : 'success');
+
+            // 刷新翻译列表和统计信息
+            loadTranslations(currentSearch, currentPage);
+            updateStats();
+
+            // 重置表单
+            fileInput.value = '';
+            document.getElementById('selectedFileName').textContent = '';
+            document.getElementById('uploadBatchBtn').disabled = true;
+
+        } else {
+            throw new Error(result.error || '上传失败');
+        }
+
+    } catch (error) {
+        progressText.textContent = '上传失败';
+
+        let errorMessage = error.message;
+        if (error.message.includes('文件解析失败')) {
+            // 如果是文件解析失败，尝试获取详细信息
+            if (result && result.details) {
+                errorMessage += '\n\n详细错误:\n' + result.details.join('\n');
+            }
+        }
+
+        showToast(errorMessage, 'error');
+    } finally {
+        // 隐藏进度条
+        setTimeout(() => {
+            progressDiv.style.display = 'none';
+        }, 2000);
+    }
 }
 </script>
 {% endblock %}

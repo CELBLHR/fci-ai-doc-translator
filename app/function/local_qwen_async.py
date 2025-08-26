@@ -40,7 +40,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # 模型配置
-MODEL_NAME = "qwen2.5-72b-instruct"
+MODEL_NAME = "qwen3-235b-a22b-instruct-2507"
 API_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 API_KEY = os.environ.get("QWEN_API_KEY")
 
