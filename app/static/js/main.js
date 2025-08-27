@@ -53,7 +53,13 @@ function showCompletionPopup(message) {
         
         // 添加确认按钮
         var confirmButton = document.createElement('button');
-        confirmButton.textContent = '确定';
+        // 根据语言显示按钮文本（默认中文）
+        try {
+            var lang = (typeof currentLanguage !== 'undefined' && currentLanguage) ? currentLanguage : (document.documentElement.lang || 'zh');
+            confirmButton.textContent = (lang === 'en') ? 'Noted' : '确定';
+        } catch (e) {
+            confirmButton.textContent = '确定';
+        }
         
         // 点击确认按钮的处理函数
         confirmButton.onclick = function() {
