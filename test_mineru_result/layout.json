@@ -1,0 +1,583 @@
+{
+    "pdf_info": [
+        {
+            "preproc_blocks": [
+                {
+                    "type": "text",
+                    "bbox": [
+                        116,
+                        219,
+                        368,
+                        412
+                    ],
+                    "lines": [
+                        {
+                            "bbox": [
+                                119,
+                                319,
+                                358,
+                                335
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        119,
+                                        319,
+                                        358,
+                                        335
+                                    ],
+                                    "score": 0.508,
+                                    "content": " 6: ■776777■777PDF7□",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 0
+                        },
+                        {
+                            "bbox": [
+                                123,
+                                339,
+                                358,
+                                354
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        123,
+                                        339,
+                                        358,
+                                        354
+                                    ],
+                                    "score": 0.534,
+                                    "content": "7:777777777777PDF777",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 1
+                        },
+                        {
+                            "bbox": [
+                                117,
+                                359,
+                                358,
+                                375
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        117,
+                                        359,
+                                        358,
+                                        375
+                                    ],
+                                    "score": 0.59,
+                                    "content": "8:7877■PD7",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 2
+                        },
+                        {
+                            "bbox": [
+                                119,
+                                379,
+                                358,
+                                393
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        119,
+                                        379,
+                                        358,
+                                        393
+                                    ],
+                                    "score": 0.544,
+                                    "content": "□■9:■■79■■■■■7■7■PD7□□",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 3
+                        },
+                        {
+                            "bbox": [
+                                118,
+                                400,
+                                370,
+                                414
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        118,
+                                        400,
+                                        370,
+                                        414
+                                    ],
+                                    "score": 0.532,
+                                    "content": "■□□10:■□10■■■■■■■■□□PDF■□",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 4
+                        }
+                    ],
+                    "index": 2
+                },
+                {
+                    "type": "text",
+                    "bbox": [
+                        98,
+                        438,
+                        282,
+                        514
+                    ],
+                    "lines": [
+                        {
+                            "bbox": [
+                                99,
+                                438,
+                                224,
+                                455
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        99,
+                                        438,
+                                        161,
+                                        455
+                                    ],
+                                    "score": 0.748,
+                                    "content": "：",
+                                    "type": "text"
+                                },
+                                {
+                                    "bbox": [
+                                        161,
+                                        438,
+                                        224,
+                                        453
+                                    ],
+                                    "score": 0.74,
+                                    "content": "\\textcircled { \\sc} 4 5 \\% \\times 8 ^ { \\star } ( )",
+                                    "type": "inline_equation"
+                                }
+                            ],
+                            "index": 5
+                        },
+                        {
+                            "bbox": [
+                                105,
+                                458,
+                                204,
+                                474
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        105,
+                                        458,
+                                        204,
+                                        474
+                                    ],
+                                    "score": 0.94,
+                                    "content": ": 123456789",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 6
+                        },
+                        {
+                            "bbox": [
+                                97,
+                                478,
+                                281,
+                                496
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        97,
+                                        478,
+                                        281,
+                                        496
+                                    ],
+                                    "score": 0.946,
+                                    "content": "■■■1: https://www.example.com",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 7
+                        },
+                        {
+                            "bbox": [
+                                97,
+                                498,
+                                248,
+                                516
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        97,
+                                        498,
+                                        162,
+                                        516
+                                    ],
+                                    "score": 0.99,
+                                    "content": ": test",
+                                    "type": "text"
+                                },
+                                {
+                                    "bbox": [
+                                        163,
+                                        499,
+                                        173,
+                                        511
+                                    ],
+                                    "score": 0.59,
+                                    "content": "@",
+                                    "type": "inline_equation"
+                                },
+                                {
+                                    "bbox": [
+                                        174,
+                                        498,
+                                        248,
+                                        516
+                                    ],
+                                    "score": 1.0,
+                                    "content": "example.com",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 8
+                        }
+                    ],
+                    "index": 6.5
+                }
+            ],
+            "page_idx": 0,
+            "page_size": [
+                612,
+                792
+            ],
+            "discarded_blocks": [
+                {
+                    "type": "discarded",
+                    "bbox": [
+                        99,
+                        86,
+                        205,
+                        102
+                    ],
+                    "lines": [
+                        {
+                            "bbox": [
+                                97,
+                                84,
+                                173,
+                                103
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        97,
+                                        84,
+                                        173,
+                                        103
+                                    ],
+                                    "score": 0.995,
+                                    "content": "PDF",
+                                    "type": "text"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "discarded",
+                    "bbox": [
+                        98,
+                        138,
+                        337,
+                        191
+                    ],
+                    "lines": []
+                }
+            ],
+            "para_blocks": [
+                {
+                    "type": "text",
+                    "bbox": [
+                        116,
+                        219,
+                        368,
+                        412
+                    ],
+                    "lines": [
+                        {
+                            "bbox": [
+                                119,
+                                319,
+                                358,
+                                335
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        119,
+                                        319,
+                                        358,
+                                        335
+                                    ],
+                                    "score": 0.508,
+                                    "content": " 6: ■776777■777PDF7□",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 0
+                        },
+                        {
+                            "bbox": [
+                                123,
+                                339,
+                                358,
+                                354
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        123,
+                                        339,
+                                        358,
+                                        354
+                                    ],
+                                    "score": 0.534,
+                                    "content": "7:777777777777PDF777",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 1
+                        },
+                        {
+                            "bbox": [
+                                117,
+                                359,
+                                358,
+                                375
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        117,
+                                        359,
+                                        358,
+                                        375
+                                    ],
+                                    "score": 0.59,
+                                    "content": "8:7877■PD7",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 2
+                        },
+                        {
+                            "bbox": [
+                                119,
+                                379,
+                                358,
+                                393
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        119,
+                                        379,
+                                        358,
+                                        393
+                                    ],
+                                    "score": 0.544,
+                                    "content": "□■9:■■79■■■■■7■7■PD7□□",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 3
+                        },
+                        {
+                            "bbox": [
+                                118,
+                                400,
+                                370,
+                                414
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        118,
+                                        400,
+                                        370,
+                                        414
+                                    ],
+                                    "score": 0.532,
+                                    "content": "■□□10:■□10■■■■■■■■□□PDF■□",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 4
+                        },
+                        {
+                            "bbox": [
+                                99,
+                                438,
+                                224,
+                                455
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        99,
+                                        438,
+                                        161,
+                                        455
+                                    ],
+                                    "score": 0.748,
+                                    "content": "：",
+                                    "type": "text"
+                                },
+                                {
+                                    "bbox": [
+                                        161,
+                                        438,
+                                        224,
+                                        453
+                                    ],
+                                    "score": 0.74,
+                                    "content": "\\textcircled { \\sc} 4 5 \\% \\times 8 ^ { \\star } ( )",
+                                    "type": "inline_equation"
+                                }
+                            ],
+                            "index": 5
+                        },
+                        {
+                            "bbox": [
+                                105,
+                                458,
+                                204,
+                                474
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        105,
+                                        458,
+                                        204,
+                                        474
+                                    ],
+                                    "score": 0.94,
+                                    "content": ": 123456789",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 6
+                        },
+                        {
+                            "bbox": [
+                                97,
+                                478,
+                                281,
+                                496
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        97,
+                                        478,
+                                        281,
+                                        496
+                                    ],
+                                    "score": 0.946,
+                                    "content": "■■■1: https://www.example.com",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 7
+                        },
+                        {
+                            "bbox": [
+                                97,
+                                498,
+                                248,
+                                516
+                            ],
+                            "spans": [
+                                {
+                                    "bbox": [
+                                        97,
+                                        498,
+                                        162,
+                                        516
+                                    ],
+                                    "score": 0.99,
+                                    "content": ": test",
+                                    "type": "text"
+                                },
+                                {
+                                    "bbox": [
+                                        163,
+                                        499,
+                                        173,
+                                        511
+                                    ],
+                                    "score": 0.59,
+                                    "content": "@",
+                                    "type": "inline_equation"
+                                },
+                                {
+                                    "bbox": [
+                                        174,
+                                        498,
+                                        248,
+                                        516
+                                    ],
+                                    "score": 1.0,
+                                    "content": "example.com",
+                                    "type": "text"
+                                }
+                            ],
+                            "index": 8
+                        }
+                    ],
+                    "index": 2,
+                    "bbox_fs": [
+                        117,
+                        319,
+                        370,
+                        414
+                    ]
+                },
+                {
+                    "type": "text",
+                    "bbox": [
+                        98,
+                        438,
+                        282,
+                        514
+                    ],
+                    "lines": [],
+                    "index": 6.5,
+                    "bbox_fs": [
+                        97,
+                        438,
+                        281,
+                        516
+                    ],
+                    "lines_deleted": true
+                }
+            ]
+        }
+    ],
+    "_backend": "pipeline",
+    "_version_name": "2.1.8"
+}

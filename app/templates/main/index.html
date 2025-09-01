@@ -821,11 +821,11 @@
 
 
         <div class="form-group">
-            <label for="bilingual_translation">{% if session.get('language') == 'en' %}Keep Source Language{% else %}是否保留源语言{% endif %}</label>
+            <label for="bilingual_translation">{% if session.get('language') == 'en' %}Language display{% else %}语言展示方式{% endif %}</label>
             <select id="bilingual_translation" class="form-control">
-                <option value="translation_only">{% if session.get('language') == 'en' %}Translation Only{% else %}只保留翻译文本{% endif %}</option>
-                <option value="paragraph_up">{% if session.get('language') == 'en' %}Keep source above translation{% else %}保留源语言在译文上方{% endif %}</option>
-                <option value="paragraph_down">{% if session.get('language') == 'en' %}Keep source below translation{% else %}保留源语言在译文下方{% endif %}</option>
+                <option value="translation_only">{% if session.get('language') == 'en' %}Keep translated content only{% else %}只保留翻译内容{% endif %}</option>
+                <option value="paragraph_up">{% if session.get('language') == 'en' %}Keep both source and translated content(source on top){% else %}保留源语言和翻译内容（源语言在上）{% endif %}</option>
+                <option value="paragraph_down">{% if session.get('language') == 'en' %}Keep both source and translated content(translation on top){% else %}保留源语言和翻译内容（译文在上）{% endif %}</option>
             </select>
         </div>
 
@@ -1676,15 +1676,14 @@
     }
     
     function updateSelectAllCheckbox() {
-        const allCheckboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]:not(#selectAllCheckboxHeader)');
+        const allCheckboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]');
         const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-        const allChecked = Array.from(allCheckboxes).every(cb => cb.checked);
+        const allChecked = allCheckboxes.length > 0 && Array.from(allCheckboxes).every(cb => cb.checked);
         selectAllCheckbox.checked = allChecked;
         
-        // 同时更新表头的全选复选框
-        const selectAllHeader = document.getElementById('selectAllCheckboxHeader');
-        if (selectAllHeader) {
-            selectAllHeader.checked = allChecked;
+        // 如果没有复选框，确保全选框未选中
+        if (allCheckboxes.length === 0) {
+            selectAllCheckbox.checked = false;
         }
     }
     
@@ -1839,11 +1838,11 @@
             return;
         }
         
-        // 添加表头（包含全选复选框）
+        // 添加表头（不包含全选复选框）
         let html = `
             <div style="display: flex; align-items: center; padding: 8px 0; border-bottom: 2px solid #333; font-weight: bold; background-color: #f8f9fa;">
                 <div style="width: 30px; padding-left: 10px;">
-                    <input type="checkbox" id="selectAllCheckboxHeader" style="margin-right: 10px;">
+                    <!-- 移除了表头的全选复选框 -->
                 </div>
                 <div style="flex: 1; display: flex;">
                     <div style="flex: 1; padding: 0 5px; color: #333;">${currentLanguage === 'en' ? 'English' : '英文'}</div>
@@ -1873,20 +1872,18 @@
         
         vocabularyList.innerHTML = html;
         
-        // 为表头全选复选框添加事件监听器
-        const selectAllHeader = document.getElementById('selectAllCheckboxHeader');
-        if (selectAllHeader) {
-            selectAllHeader.addEventListener('change', function() {
-                const checkboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]:not(#selectAllCheckboxHeader)');
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
-                });
-                updateSelectAllCheckbox(); // 更新主界面的全选框
+        // 全选/取消全选功能
+        document.getElementById('selectAllCheckbox').addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
             });
-        }
+            // 更新全选框状态
+            updateSelectAllCheckbox();
+        });
         
         // 为每个复选框添加事件监听器
-        const checkboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]:not(#selectAllCheckboxHeader)');
+        const checkboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]');
         checkboxes.forEach(checkbox => {
             checkbox.addEventListener('change', updateSelectAllCheckbox);
         });
@@ -1904,8 +1901,8 @@
     
     // 更新词汇表配置按钮显示
     function saveVocabularyConfig() {
-        // 获取选中的词汇（排除表头的全选复选框）
-        const selectedCheckboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]:checked:not(#selectAllCheckboxHeader)');
+        // 获取选中的词汇（移除了对表头全选复选框的排除）
+        const selectedCheckboxes = document.querySelectorAll('#vocabularyList input[type="checkbox"]:checked');
         const selectedVocabIds = Array.from(selectedCheckboxes).map(cb => cb.value);
         
         // 更新按钮文本和样式
