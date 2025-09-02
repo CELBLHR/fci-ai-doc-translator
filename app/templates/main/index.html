@@ -1577,7 +1577,7 @@
                 <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
                     <input type="text" id="vocabularySearch" placeholder="${currentLanguage === 'en' ? 'Search vocabulary...' : '搜索词汇...'}" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                     <select id="categoryFilter" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        <option value="">${currentLanguage === 'en' ? 'Select Category' : '选择分类'}</option>
+                        <option value="">${currentLanguage === 'en' ? 'Select Category' : '添加标签'}</option>
                     </select>
                     <button id="addCategoryBtn" style="padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">${currentLanguage === 'en' ? 'Add' : '添加'}</button>
                 </div>
@@ -1585,7 +1585,7 @@
                     <!-- 分类标签将在这里动态显示 -->
                 </div>
                 <div style="margin-bottom: 15px; display: flex; align-items: center;">
-                    <input type="checkbox" id="selectAllCheckbox" style="margin-right: 10px;">
+                    <input type="checkbox" id="selectAllCheckboxHeader" style="margin-right: 10px;">
                     <label for="selectAllCheckbox" style="color: #333 !important; font-weight: 500;">${currentLanguage === 'en' ? 'Select All' : '全选'}</label>
                 </div>
                 <div id="vocabularyList" style="min-height: 300px; border: 1px solid #ddd; border-radius: 4px; padding: 15px; max-height: 400px; overflow-y: auto;">
@@ -1597,7 +1597,7 @@
                 <button class="btn btn-primary" onclick="saveVocabularyConfig()">${currentLanguage === 'en' ? 'OK' : '确定'}</button>
             </div>
         `;
-        
+
         // 添加遮罩层
         const overlay = document.createElement('div');
         overlay.id = 'modalOverlay';
@@ -1731,7 +1731,7 @@
         const categoryFilter = document.getElementById('categoryFilter');
         if (categoryFilter) {
             // 清空选项
-            categoryFilter.innerHTML = `<option value="">${currentLanguage === 'en' ? 'Select Category' : '选择分类'}</option>`;
+            categoryFilter.innerHTML = `<option value="">${currentLanguage === 'en' ? 'Select Category' : '添加标签'}</option>`;
             
             // 添加分类选项
             Array.from(categorySet).sort().forEach(category => {
@@ -1842,9 +1842,6 @@
         // 添加表头（包含全选复选框）
         let html = `
             <div style="display: flex; align-items: center; padding: 8px 0; border-bottom: 2px solid #333; font-weight: bold; background-color: #f8f9fa;">
-                <div style="width: 30px; padding-left: 10px;">
-                    <input type="checkbox" id="selectAllCheckboxHeader" style="margin-right: 10px;">
-                </div>
                 <div style="flex: 1; display: flex;">
                     <div style="flex: 1; padding: 0 5px; color: #333;">${currentLanguage === 'en' ? 'English' : '英文'}</div>
                     <div style="flex: 1; padding: 0 5px; color: #333;">${currentLanguage === 'en' ? 'Chinese' : '中文'}</div>
