@@ -616,9 +616,15 @@
         document.getElementById('pdfResultContainer').style.display = 'none';
         updateProgress(0, currentLanguage === 'en' ? 'Starting translation...' : '开始翻译...');
         
+        // 获取目标语言和模型选择
+        const targetLanguage = document.getElementById('targetLanguage').value;
+        const model = document.getElementById('modelSelect').value;
+        
         // 创建FormData对象
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('target_language', targetLanguage);
+        formData.append('model', model);
         
         // 发送请求到后端
         fetch('/translate_pdf', {
@@ -633,6 +639,8 @@
                 document.getElementById('pdfResultContainer').style.display = 'block';
                 document.getElementById('pdfDownloadLink').href = data.download_url;
                 document.getElementById('pdfDownloadLink').setAttribute('download', data.filename);
+                // 翻译完成后刷新历史记录
+                loadHistory();
             } else {
                 // 处理失败
                 updateProgress(0, currentLanguage === 'en' ? 'Processing failed: ' + data.error : '处理失败: ' + data.error);
@@ -641,6 +649,10 @@
         .catch(error => {
             console.error('Error:', error);
             updateProgress(0, currentLanguage === 'en' ? 'Processing failed' : '处理失败');
+        })
+        .finally(() => {
+            // 重置文件输入，允许用户选择同一个文件再次上传
+            document.getElementById('pdfFileInput').value = '';
         });
     }
     
@@ -655,15 +667,15 @@
         const refreshBtn = document.getElementById('refreshHistoryBtn');
         refreshBtn.classList.add('rotating');
         
-        fetch('/api/translation_history?type=pdf_translation')
+        fetch('/api/pdf_translation_history')
             .then(response => response.json())
             .then(data => {
                 refreshBtn.classList.remove('rotating');
                 const tbody = document.getElementById('historyTableBody');
                 tbody.innerHTML = '';
                 
-                if (data.records && data.records.length > 0) {
-                    data.records.forEach(record => {
+                if (data.length > 0) {
+                    data.forEach(record => {
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td title="${record.filename}">${record.filename}</td>

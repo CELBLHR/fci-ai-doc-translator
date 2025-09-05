@@ -2226,10 +2226,31 @@ def process_pdf():
                             qwen_api_key = os.getenv('QWEN_API_KEY')
                             if qwen_api_key:
                                 try:
-                                    translator = QwenTranslator(api_key=qwen_api_key)
-                                    translated_content = translator.translate_text(content)
-                                    if translated_content:
-                                        content = translated_content
+                                    # 使用PPT模块中的Qwen异步翻译功能
+                                    from app.function.local_qwen_async import translate_async
+                                    import asyncio
+                                    
+                                    # 执行异步翻译
+                                    translated_dict = asyncio.run(
+                                        translate_async(content, "通用", [], {}, "zh", "en")
+                                    )
+                                    
+                                    # 将原文和译文组合，译文紧跟在原文下方
+                                    if translated_dict:
+                                        # 按行处理内容，为每行原文添加对应译文
+                                        content_lines = content.split('\n')
+                                        combined_lines = []
+                                        
+                                        for line in content_lines:
+                                            # 添加原文
+                                            combined_lines.append(line)
+                                            # 如果该行有对应译文，则添加译文
+                                            if line.strip() in translated_dict:
+                                                combined_lines.append(translated_dict[line.strip()])
+                                            # 添加空行以保持格式
+                                            combined_lines.append("")
+                                        
+                                        content = '\n'.join(combined_lines)
                                 except Exception as e:
                                     logger.error(f"翻译过程中出错: {e}")
                                     # 即使翻译失败也继续使用原文

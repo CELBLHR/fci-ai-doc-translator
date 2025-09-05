@@ -451,18 +451,39 @@ async def translate_async(text: str, field: str = None, stop_words: List[str] = 
         translation_result = await translate_by_fields_async(
             field, text, stop_words, custom_translations, source_language, target_language
         )
+        logger.info(f"翻译API返回结果类型: {type(translation_result)}")
+        logger.info(f"翻译API返回结果长度: {len(translation_result) if hasattr(translation_result, '__len__') else 'N/A'}")
+        if isinstance(translation_result, str):
+            logger.info(f"翻译API返回结果前200字符: {translation_result[:200]}")
 
         # 清理特殊字符
         text_clean = clean_translation_text(translation_result)
+        logger.info(f"清理后文本类型: {type(text_clean)}")
+        logger.info(f"清理后文本长度: {len(text_clean) if hasattr(text_clean, '__len__') else 'N/A'}")
+        if isinstance(text_clean, str):
+            logger.info(f"清理后文本前200字符: {text_clean[:200]}")
 
         # 解析结果
         parsed_result = await parse_formatted_text_async(text_clean)
+        logger.info(f"解析后结果类型: {type(parsed_result)}")
+        logger.info(f"解析后结果长度: {len(parsed_result) if hasattr(parsed_result, '__len__') else 'N/A'}")
+        if isinstance(parsed_result, (list, dict)) and len(parsed_result) > 0:
+            if isinstance(parsed_result, list) and len(parsed_result) > 0:
+                logger.info(f"解析后结果第一个元素: {parsed_result[0]}")
+            elif isinstance(parsed_result, dict):
+                logger.info(f"解析后结果键示例: {list(parsed_result.keys())[:3]}")
 
         # 构建映射并返回
-        return build_map(parsed_result)
+        result = build_map(parsed_result)
+        logger.info(f"构建映射后的结果类型: {type(result)}")
+        logger.info(f"构建映射后的结果长度: {len(result)}")
+        logger.info(f"构建映射后的结果键示例: {list(result.keys())[:3] if len(result) > 0 else '空'}")
+        return result
 
     except Exception as e:
         logger.error(f"翻译过程中出错: {str(e)}")
+        import traceback
+        logger.error(f"错误详情: {traceback.format_exc()}")
         # 如果出错，返回一个只包含原文的映射
         lines = text.strip().split('\n')
         result = {line: f"[翻译错误: {str(e)}]" for line in lines if line.strip()}
