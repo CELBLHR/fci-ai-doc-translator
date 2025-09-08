@@ -458,6 +458,49 @@ def get_queue_status():
         }), 500
 
 
+@main.route('/api/pdf_translation_history')
+@login_required
+def pdf_translation_history():
+    """获取PDF翻译历史记录"""
+    try:
+        # 构建查询 - 只返回状态为 completed 的记录
+        query = UploadRecord.query.filter_by(user_id=current_user.id, status='completed')
+        
+        # 按上传时间倒序排列
+        records = query.order_by(UploadRecord.upload_time.desc()).all()
+
+        # 格式化记录
+        history_records = []
+        for record in records:
+            # 检查文件是否仍然存在
+            file_path = os.path.join(record.file_path, record.stored_filename)
+            file_exists = os.path.exists(file_path)
+
+            # 使用ISO格式返回时间，让前端正确处理时区
+            upload_time = datetime_to_isoformat(record.upload_time)
+            
+            # 直接使用数据库中存储的文件名
+            history_records.append({
+                'id': record.id,
+                'filename': record.filename,  # 使用数据库中存储的文件名
+                'file_size': record.file_size,
+                'upload_time': upload_time,
+                'status': record.status,
+                'file_exists': file_exists
+            })
+
+        return jsonify(history_records)
+        
+    except Exception as e:
+        logger.error(f"获取翻译历史记录失败: {e}")
+        import traceback
+        logger.error(f"错误详情: {traceback.format_exc()}")
+        return jsonify({
+            'status': 'error',
+            'message': '获取历史记录失败'
+        }), 500
+
+
 @main.route('/history')
 @login_required
 def get_history():
@@ -493,44 +536,6 @@ def get_history():
             'message': '获取历史记录失败'
         }), 500
 
-
-@main.route('/download/<int:record_id>')
-@login_required
-def download_file(record_id):
-    try:
-        # 获取上传记录
-        record = UploadRecord.query.get_or_404(record_id)
-
-        # 验证用户权限
-        if record.user_id != current_user.id:
-            return jsonify({'error': '无权访问此文件'}), 403
-
-        # 检查文件是否存在
-        file_path = os.path.join(record.file_path, record.stored_filename)
-        if not os.path.exists(file_path):
-            return jsonify({'error': '文件不存在'}), 404
-
-        # 添加调试信息
-        print(f"Downloading file: {file_path}")
-        print(f"Original filename: {record.filename}")
-        file_path = os.path.abspath(file_path)
-        return send_file(file_path, as_attachment=True, download_name=record.filename)
-    except Exception as e:
-        print(f"Download error: {str(e)}")
-        return jsonify({'error': f'下载失败: {str(e)}'}), 500
-
-
-@main.route('/delete/<int:record_id>', methods=['DELETE'])
-@login_required
-def delete_file(record_id):
-    try:
-        # 获取上传记录
-        record = UploadRecord.query.get_or_404(record_id)
-
-        # 验证用户权限
-        if record.user_id != current_user.id:
-            return jsonify({'error': '无权删除此文件'}), 403
-
         try:
             # 删除物理文件
             file_path = os.path.join(record.file_path, record.stored_filename)
@@ -557,6 +562,12 @@ def delete_file(record_id):
 @login_required
 def translate():
     return render_template('main/translate.html', user=current_user)
+
+@main.route('/pdf_translate')
+@login_required
+def pdf_translate():
+    """PDF翻译页面"""
+    return render_template('main/pdf_translate.html')
 
 
 @main.route('/batch_process')
@@ -2124,6 +2135,619 @@ def upload_pdf():
         return jsonify({'error': f'上传失败: {str(e)}'}), 500
 
 
+import zipfile
+import requests
+from werkzeug.utils import secure_filename
+from datetime import datetime
+import os
+
+@main.route('/translate_pdf', methods=['POST'])
+@login_required
+def translate_pdf():
+    """处理PDF翻译请求"""
+    try:
+        import zipfile
+        import requests
+        from werkzeug.utils import secure_filename
+        from datetime import datetime
+        import os
+        
+        logger.info("收到PDF翻译请求")
+        logger.info(f"请求方法: {request.method}")
+        logger.info(f"请求内容类型: {request.content_type}")
+        logger.info(f"请求表单数据: {list(request.form.keys())}")
+        logger.info(f"请求文件数据: {list(request.files.keys())}")
+        
+        if 'file' not in request.files:
+            logger.error("请求中没有文件")
+            return jsonify({'success': False, 'error': '没有上传文件'}), 400
+        
+        file = request.files['file']
+        logger.info(f"接收到文件: {file.filename}")
+        logger.info(f"文件内容类型: {file.content_type}")
+        
+        if file.filename == '':
+            logger.error("文件名为空")
+            return jsonify({'success': False, 'error': '文件名为空'}), 400
+            
+        # 检查文件扩展名
+        if not allowed_pdf_file(file.filename):
+            logger.error(f"不支持的文件格式: {file.filename}")
+            return jsonify({'success': False, 'error': '不支持的文件格式，请上传PDF文件'}), 400
+    
+        # 验证文件MIME类型
+        file_content = file.read(1024)  # 读取前1024字节检查文件头
+        file.seek(0)  # 重置文件指针
+        
+        # 检查PDF文件头
+        if not file_content.startswith(b'%PDF-'):
+            logger.error(f"文件不是有效的PDF格式: {file.filename}")
+            logger.error(f"文件头内容: {file_content[:10]}")
+            return jsonify({'success': False, 'error': '文件不是有效的PDF格式，请确保上传的是PDF文件'}), 400
+            
+        # 保存上传的PDF文件
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        unique_filename = f"{timestamp}_{filename}"
+        
+        logger.info(f"处理文件: {filename}, 保存为: {unique_filename}")
+        
+        # 确保上传目录存在 - 使用项目根目录下的uploads文件夹
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        
+        # 确保使用正确的上传文件夹路径
+        # UPLOAD_FOLDER配置是相对于项目根目录的
+        if not os.path.isabs(upload_folder):
+            upload_folder = os.path.join(project_root, upload_folder)
+            
+        pdf_upload_dir = os.path.join(upload_folder, 'pdf_uploads')
+        pdf_output_dir = os.path.join(upload_folder, 'pdf_outputs')
+        
+        # 确保目录存在
+        os.makedirs(pdf_upload_dir, exist_ok=True)
+        os.makedirs(pdf_output_dir, exist_ok=True)
+        
+        logger.info(f"项目根目录: {project_root}")
+        logger.info(f"上传文件夹配置: {current_app.config['UPLOAD_FOLDER']}")
+        logger.info(f"实际上传文件夹路径: {upload_folder}")
+        logger.info(f"PDF上传目录: {pdf_upload_dir}")
+        logger.info(f"PDF输出目录: {pdf_output_dir}")
+        
+        pdf_path = os.path.join(pdf_upload_dir, unique_filename)
+        file.save(pdf_path)
+        
+        logger.info(f"文件已保存到: {pdf_path}")
+        
+        # 验证文件是否正确保存
+        if not os.path.exists(pdf_path):
+            logger.error(f"文件保存失败，路径不存在: {pdf_path}")
+            return jsonify({'success': False, 'error': '文件保存失败'}), 500
+            
+        file_size = os.path.getsize(pdf_path)
+        logger.info(f"保存的文件大小: {file_size} 字节")
+        
+        if file_size == 0:
+            logger.error("保存的文件为空")
+            return jsonify({'success': False, 'error': '上传的文件为空'}), 400
+        
+        # 初始化MinerU API
+        try:
+            from app.function.image_ocr.ocr_api import MinerUAPI
+            logger.info("初始化MinerU API")
+            mineru_api = MinerUAPI()
+            logger.info("MinerU API初始化成功")
+        except ValueError as e:
+            logger.error(f"MinerU API密钥未配置: {e}")
+            return jsonify({'success': False, 'error': 'PDF处理服务未正确配置'}), 500
+        except ImportError as e:
+            logger.error(f"无法导入MinerU API模块: {e}")
+            return jsonify({'success': False, 'error': 'PDF处理服务模块缺失'}), 500
+        except Exception as e:
+            logger.error(f"MinerU API初始化失败: {e}")
+            return jsonify({'success': False, 'error': f'PDF处理服务初始化失败: {str(e)}'}), 500
+        
+        # 使用MinerU处理PDF
+        logger.info(f"开始使用MinerU处理PDF: {pdf_path}")
+        result = mineru_api.process_pdf(pdf_path)
+        logger.info(f"MinerU处理结果: {result}")
+        
+        if not result:
+            logger.error("MinerU处理PDF返回空结果")
+            return jsonify({'success': False, 'error': 'PDF处理失败'}), 500
+        
+        # 检查结果中的状态码
+        if 'code' in result and result['code'] != 0:
+            error_msg = result.get('msg', '未知错误')
+            logger.error(f"MinerU处理PDF失败: {error_msg}")
+            return jsonify({'success': False, 'error': f'PDF处理失败: {error_msg}'}), 500
+        
+        # 获取任务ID和结果
+        if 'data' not in result or 'task_id' not in result['data']:
+            logger.error("MinerU返回结果缺少task_id")
+            logger.error(f"完整结果: {result}")
+            return jsonify({'success': False, 'error': 'PDF处理服务返回数据格式错误'}), 500
+            
+        task_id = result['data']['task_id']
+        logger.info(f"MinerU任务ID: {task_id}")
+        
+        if 'full_zip_url' not in result['data']:
+            logger.error("MinerU返回结果缺少full_zip_url")
+            logger.error(f"完整结果: {result}")
+            return jsonify({'success': False, 'error': 'PDF处理服务未返回下载地址'}), 500
+            
+        zip_url = result['data']['full_zip_url']
+        logger.info(f"ZIP文件下载地址: {zip_url}")
+        
+        # 下载结果
+        zip_filename = f"mineru_result_{task_id}.zip"
+        zip_path = os.path.join(pdf_output_dir, zip_filename)
+        
+        # 下载ZIP文件
+        try:
+            logger.info(f"开始下载ZIP文件: {zip_url}")
+            response = requests.get(zip_url, timeout=300)
+            logger.info(f"下载响应状态码: {response.status_code}")
+            if response.status_code != 200:
+                logger.error(f"下载ZIP文件失败，状态码: {response.status_code}")
+                logger.error(f"响应内容: {response.text}")
+                return jsonify({'success': False, 'error': f'下载结果文件失败，状态码: {response.status_code}'}), 500
+                
+            response.raise_for_status()
+            with open(zip_path, 'wb') as f:
+                f.write(response.content)
+            logger.info(f"ZIP文件已保存到: {zip_path}")
+        except Exception as e:
+            logger.error(f"下载结果文件失败: {e}")
+            import traceback
+            logger.error(f"错误详情: {traceback.format_exc()}")
+            return jsonify({'success': False, 'error': '下载结果文件失败'}), 500
+        
+        # 解压ZIP文件
+        try:
+            logger.info(f"开始解压ZIP文件: {zip_path}")
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                # 列出zip文件中的所有文件
+                file_list = zip_ref.namelist()
+                logger.info(f"ZIP文件包含以下文件: {file_list}")
+                
+                # 解压所有文件
+                zip_ref.extractall(pdf_output_dir)
+                logger.info(f"ZIP文件已解压到: {pdf_output_dir}")
+        except Exception as e:
+            logger.error(f"解压文件失败: {e}")
+            import traceback
+            logger.error(f"错误详情: {traceback.format_exc()}")
+            return jsonify({'success': False, 'error': '解压文件失败'}), 500
+        
+        # 查找markdown文件
+        md_file = None
+        logger.info(f"在目录 {pdf_output_dir} 中查找markdown文件")
+        
+        # 获取解压后的所有文件列表
+        extracted_files = []
+        for root, dirs, files in os.walk(pdf_output_dir):
+            for file in files:
+                full_path = os.path.join(root, file)
+                relative_path = os.path.relpath(full_path, pdf_output_dir)
+                extracted_files.append(relative_path)
+                logger.info(f"  解压文件: {relative_path}")
+                
+        logger.info(f"所有解压文件: {extracted_files}")
+        
+        # 按优先级查找合适的文件
+        # 1. 首先查找包含task_id的markdown文件
+        for file in extracted_files:
+            if file.endswith('.md') and task_id in file:
+                md_file = os.path.join(pdf_output_dir, file)
+                logger.info(f"找到匹配task_id的markdown文件: {md_file}")
+                break
+        
+        # 2. 如果没找到，查找任何markdown文件
+        if not md_file:
+            for file in extracted_files:
+                if file.endswith('.md'):
+                    md_file = os.path.join(pdf_output_dir, file)
+                    logger.info(f"找到markdown文件: {md_file}")
+                    break
+        
+        # 3. 如果仍然没找到，查找txt文件
+        if not md_file:
+            for file in extracted_files:
+                if file.endswith('.txt'):
+                    md_file = os.path.join(pdf_output_dir, file)
+                    logger.info(f"找到txt文件: {md_file}")
+                    break
+        
+        # 无论是否找到md文件，都创建docx文件
+        docx_filename = f"{os.path.splitext(unique_filename)[0]}.docx"
+        docx_path = os.path.join(pdf_output_dir, docx_filename)
+        
+        if not md_file:
+            logger.warning("未找到合适的文本文件，创建包含提示信息的Word文档")
+            try:
+                from docx import Document
+                doc = Document()
+                doc.add_heading('PDF处理结果', 1)
+                doc.add_paragraph('未能从PDF中提取到文本内容，请检查原始PDF文件是否包含可提取的文本。')
+                doc.add_paragraph(f'原始文件名: {filename}')
+                doc.add_paragraph(f'处理时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+                doc.save(docx_path)
+                logger.info(f"创建了包含提示信息的文档: {docx_path}")
+            except Exception as e:
+                logger.error(f"创建提示信息文档失败: {e}")
+                import traceback
+                logger.error(f"错误详情: {traceback.format_exc()}")
+                return jsonify({'success': False, 'error': '处理PDF文件失败'}), 500
+        else:
+            # 读取提取的文本内容
+            try:
+                with open(md_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                logger.info(f"成功读取内容文件: {md_file}")
+                logger.info(f"读取的内容长度: {len(content)} 字符")
+                logger.info(f"读取的内容前200字符: {content[:200]}")
+            except Exception as e:
+                logger.error(f"读取内容文件失败: {e}")
+                return jsonify({'success': False, 'error': '读取提取内容失败'}), 500
+
+            # 如果配置了翻译API，则进行翻译
+            qwen_api_key = os.getenv('QWEN_API_KEY')
+            logger.info(f"检查Qwen API密钥: {'已配置' if qwen_api_key else '未配置'}")
+            if qwen_api_key:
+                try:
+                    # 获取目标语言参数
+                    target_language = request.form.get('target_language', 'EN')
+                    
+                    # 根据用户选择设置语言参数
+                    # 默认源语言为中文，目标语言根据选择确定
+                    lang_map = {
+                        'EN': ('Chinese', 'English'),   # 中文翻译为英文
+                        'ZH': ('English', 'Chinese'),   # 英文翻译为中文
+                        'JA': ('Chinese', 'Japanese')   # 中文翻译为日文
+                    }
+                    
+                    # 根据PDF内容的语言特征，调整源语言和目标语言
+                    # 这里假设大部分PDF是中文内容，需要翻译为其他语言
+                    if target_language in lang_map:
+                        source_lang, target_lang = lang_map[target_language]
+                    else:
+                        source_lang, target_lang = 'Chinese', 'English'
+                    
+                    logger.info(f"翻译语言设置 - 源语言: {source_lang}, 目标语言: {target_lang}")
+                    
+                    # 使用PPT模块中的Qwen异步翻译功能
+                    from app.function.local_qwen_async import translate_async
+                    import asyncio
+                    
+                    logger.info("开始翻译文本内容")
+                    logger.info(f"待翻译内容长度: {len(content)} 字符")
+                    # 执行异步翻译
+                    translated_dict = asyncio.run(
+                        translate_async(content, "通用", [], {}, source_lang, target_lang)
+                    )
+                    
+                    # 将原文和译文组合，译文紧跟在原文下方
+                    if translated_dict:
+                        logger.info(f"翻译完成，共获得 {len(translated_dict)} 条翻译结果")
+                        logger.info(f"部分翻译结果: {dict(list(translated_dict.items())[:3])}")
+                        
+                        # 检查是否整个文本作为一个整体被翻译
+                        content_stripped = content.strip()
+                        if content_stripped in translated_dict and translated_dict[content_stripped].strip():
+                            # 整个文本被翻译，直接组合，原文在上，译文在下
+                            combined_content = f"{content}\n\n【译文】{translated_dict[content_stripped]}\n"
+                            content = combined_content
+                            logger.info("整个文本作为整体被翻译并组合")
+                        else:
+                            # 按行处理内容，为每行原文添加对应译文
+                            content_lines = content.split('\n')
+                            combined_lines = []
+                            
+                            translation_added = 0
+                            for line in content_lines:
+                                # 添加原文
+                                combined_lines.append(line)
+                                # 如果该行有对应译文，则添加译文
+                                line_stripped = line.strip()
+                                if line_stripped and line_stripped in translated_dict and translated_dict[line_stripped].strip():
+                                    combined_lines.append("【译文】" + translated_dict[line_stripped])
+                                    translation_added += 1
+                                # 添加空行以保持格式
+                                combined_lines.append("")
+                            
+                            content = '\n'.join(combined_lines)
+                            logger.info(f"文本翻译和组合完成，组合后内容长度: {len(content)} 字符")
+                            logger.info(f"实际添加的翻译条数: {translation_added}")
+                            
+                            # 如果没有添加任何翻译，尝试将整个内容作为一个整体处理
+                            if translation_added == 0:
+                                logger.info("未按行匹配到翻译，尝试将整个内容作为整体处理")
+                                if content_stripped in translated_dict and translated_dict[content_stripped].strip():
+                                    combined_content = f"{content}\n\n【译文】{translated_dict[content_stripped]}\n"
+                                    content = combined_content
+                                    logger.info("整个文本作为整体被翻译并组合")
+                    else:
+                        logger.warning("翻译返回空结果，使用原文")
+                except Exception as e:
+                    logger.error(f"翻译过程中出错: {e}")
+                    import traceback
+                    logger.error(f"错误详情: {traceback.format_exc()}")
+                    # 即使翻译失败也继续使用原文
+            
+            # 转换markdown为Word文档
+            # 尝试使用pypandoc转换内容到docx
+            conversion_success = False  # 初始化变量
+            try:
+                import pypandoc
+                logger.info(f"使用pypandoc转换内容到 {docx_path}")
+                logger.info(f"转换前内容长度: {len(content)} 字符")
+                logger.info(f"转换前内容前200字符: {content[:200]}")
+                pypandoc.convert_text(content, 'docx', format='md', outputfile=docx_path)
+                conversion_success = True
+                logger.info("pypandoc转换成功")
+            except Exception as e:
+                logger.warning(f"使用pypandoc转换失败: {e}")
+                import traceback
+                logger.warning(f"错误详情: {traceback.format_exc()}")
+            
+            # 如果pypandoc不可用或转换失败，使用python-docx手动转换
+            if not conversion_success:
+                try:
+                    from docx import Document
+                    doc = Document()
+                    
+                    logger.info(f"使用python-docx手动转换内容")
+                    lines = content.split('\n')
+                    
+                    # 简单处理markdown内容，支持双语对照格式
+                    for line in lines:
+                        line = line.strip()
+                        if line.startswith('#'):
+                            # 处理标题 (最多支持6级标题)
+                            level = min(line.count('#'), 6)
+                            doc.add_heading(line.lstrip('# ').strip(), level=level)
+                        elif line.startswith('* ') or line.startswith('- '):
+                            # 处理无序列表
+                            doc.add_paragraph(line[2:].strip(), style='ListBullet')
+                        elif line.startswith('1. '):
+                            # 处理有序列表
+                            doc.add_paragraph(line[3:].strip(), style='ListNumber')
+                        elif line.startswith('【译文】'):
+                            # 处理译文段落，使用灰色字体以便区分
+                            from docx.shared import RGBColor
+                            paragraph = doc.add_paragraph()
+                            run = paragraph.add_run(line[5:].strip())  # 去掉"【译文】"前缀
+                            run.font.color.rgb = RGBColor(128, 128, 128)  # 灰色字体
+                        elif line.strip() == '':
+                            # 空行跳过，但确保段落分隔
+                            continue
+                        else:
+                            # 普通段落
+                            if line:
+                                doc.add_paragraph(line)
+                    
+                    doc.save(docx_path)
+                    conversion_success = True
+                    logger.info("python-docx转换成功")
+                except Exception as e2:
+                    logger.error(f"使用python-docx转换也失败了: {e2}")
+                    import traceback
+                    logger.error(f"错误详情: {traceback.format_exc()}")
+                    # 即使转换失败，也创建一个包含原始内容的docx文件
+                    try:
+                        from docx import Document
+                        doc = Document()
+                        doc.add_heading('PDF内容提取结果', 1)
+                        doc.add_paragraph('以下是直接从提取结果中获取的内容:')
+                        
+                        # 添加内容到文档中
+                        doc.add_paragraph(content)
+                        
+                        doc.save(docx_path)
+                        conversion_success = True
+                        logger.info("创建了包含内容的文档")
+                    except Exception as e3:
+                        logger.error(f"创建包含内容的文档也失败了: {e3}")
+                        import traceback
+                        logger.error(f"错误详情: {traceback.format_exc()}")
+                        return jsonify({'success': False, 'error': '转换Word文档失败'}), 500
+        
+        # 验证生成的docx文件是否存在
+        if not os.path.exists(docx_path):
+            logger.error(f"生成的Word文档不存在: {docx_path}")
+            logger.error(f"输出目录内容: {os.listdir(pdf_output_dir) if os.path.exists(pdf_output_dir) else '目录不存在'}")
+            # 尝试再次创建文件作为最后的保障
+            try:
+                from docx import Document
+                doc = Document()
+                doc.add_heading('PDF翻译结果', 1)
+                doc.add_paragraph('文件处理完成，但发生未知错误。')
+                doc.save(docx_path)
+                logger.info(f"作为最后保障创建了文档: {docx_path}")
+            except Exception as final_error:
+                logger.error(f"最终创建文档尝试也失败了: {final_error}")
+                return jsonify({'success': False, 'error': '生成Word文档失败'}), 500
+        else:
+            logger.info(f"确认生成的Word文档存在: {docx_path}")
+        
+        file_size = os.path.getsize(docx_path)
+        logger.info(f"生成的Word文档大小: {file_size} 字节")
+        
+        if file_size == 0:
+            logger.error("生成的Word文档为空")
+            return jsonify({'success': False, 'error': '生成的Word文档为空'}), 500
+        
+        # 记录到数据库
+        try:
+            from app.models.upload_record import UploadRecord
+            record = UploadRecord(
+                filename=docx_filename,
+                stored_filename=docx_filename,
+                file_path=docx_path,
+                user_id=current_user.id,
+                file_size=file_size,
+                status='completed'
+            )
+            db.session.add(record)
+            db.session.commit()
+            logger.info("上传记录已保存到数据库")
+            logger.info(f"记录ID: {record.id}")
+        except Exception as e:
+            logger.error(f"保存上传记录失败: {e}")
+            # 即使数据库记录失败，我们仍然返回成功，因为文件已生成
+            db.session.rollback()
+        
+        logger.info(f"PDF翻译完成，生成文件: {docx_path}")
+        # 确保返回的是JSON响应
+        response_data = {
+            'success': True, 
+            'message': 'PDF翻译完成',
+            'download_url': url_for('main.download_translated_pdf', filename=docx_filename, _external=False),
+            'filename': docx_filename
+        }
+        logger.info(f"返回响应数据: {response_data}")
+        response = jsonify(response_data)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+        
+    except Exception as e:
+        logger.error(f"PDF翻译过程中出错: {e}")
+        import traceback
+        logger.error(f"错误详情: {traceback.format_exc()}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': f'处理过程中出错: {str(e)}'}), 500
+
+@main.route('/download_translated_pdf/<filename>')
+@login_required
+def download_translated_pdf(filename):
+    """下载翻译后的PDF文件（实际上是Word文档）"""
+    try:
+        logger.info(f"用户 {current_user.username} 请求下载文件: {filename}")
+        
+        # 确保文件名是安全的
+        from werkzeug.utils import secure_filename
+        filename = secure_filename(filename)
+        logger.info(f"安全文件名: {filename}")
+        
+        # 构建文件路径 - 使用项目根目录下的uploads文件夹
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        
+        # 确保使用正确的上传文件夹路径
+        # UPLOAD_FOLDER配置是相对于项目根目录的
+        if not os.path.isabs(upload_folder):
+            upload_folder = os.path.join(project_root, upload_folder)
+        
+        pdf_output_dir = os.path.join(upload_folder, 'pdf_outputs')
+        file_path = os.path.join(pdf_output_dir, filename)
+        
+        logger.info(f"项目根目录: {project_root}")
+        logger.info(f"上传文件夹配置: {current_app.config['UPLOAD_FOLDER']}")
+        logger.info(f"实际上传文件夹路径: {upload_folder}")
+        logger.info(f"PDF输出目录: {pdf_output_dir}")
+        logger.info(f"期望的文件路径: {file_path}")
+        logger.info(f"文件绝对路径: {os.path.abspath(file_path)}")
+        
+        # 检查目录是否存在
+        if not os.path.exists(pdf_output_dir):
+            logger.error(f"PDF输出目录不存在: {pdf_output_dir}")
+            os.makedirs(pdf_output_dir, exist_ok=True)
+            logger.info(f"已创建PDF输出目录: {pdf_output_dir}")
+        
+        # 检查文件是否存在
+        if not os.path.exists(file_path):
+            logger.error(f"下载文件不存在: {file_path}")
+            logger.error(f"文件绝对路径: {os.path.abspath(file_path)}")
+            
+            # 列出输出目录中的所有文件
+            if os.path.exists(pdf_output_dir):
+                files_in_dir = os.listdir(pdf_output_dir)
+                logger.info(f"目录中的文件列表: {files_in_dir}")
+                
+                # 尝试模糊匹配文件名
+                matched_files = [f for f in files_in_dir if filename in f or f.startswith(filename.split('.')[0])]
+                logger.info(f"匹配的文件: {matched_files}")
+                
+                if matched_files:
+                    # 使用第一个匹配的文件
+                    file_path = os.path.join(pdf_output_dir, matched_files[0])
+                    filename = matched_files[0]
+                    logger.info(f"使用匹配的文件: {file_path}")
+                    logger.info(f"匹配文件的绝对路径: {os.path.abspath(file_path)}")
+                else:
+                    # 如果没有匹配的文件，尝试查找任何docx文件
+                    docx_files = [f for f in files_in_dir if f.endswith('.docx')]
+                    if docx_files:
+                        file_path = os.path.join(pdf_output_dir, docx_files[0])
+                        filename = docx_files[0]
+                        logger.info(f"使用目录中的第一个docx文件: {file_path}")
+                        logger.info(f"第一个docx文件的绝对路径: {os.path.abspath(file_path)}")
+            else:
+                logger.error("PDF输出目录不存在")
+                flash('文件目录不存在', 'error')
+                return redirect(url_for('main.index'))
+        
+        # 再次检查文件是否存在
+        if not os.path.exists(file_path):
+            logger.error(f"文件仍然不存在: {file_path}")
+            logger.error(f"文件绝对路径: {os.path.abspath(file_path)}")
+            # 列出所有可能的文件
+            if os.path.exists(pdf_output_dir):
+                all_files = os.listdir(pdf_output_dir)
+                logger.info(f"输出目录中所有文件: {all_files}")
+            flash('文件不存在', 'error')
+            return redirect(url_for('main.index'))
+        
+        # 确保文件扩展名正确
+        if not filename.endswith('.docx'):
+            logger.warning(f"下载文件扩展名不正确: {filename}")
+        
+        logger.info(f"发送文件给用户: {file_path}")
+        logger.info(f"文件大小: {os.path.getsize(file_path)} 字节")
+        logger.info(f"文件绝对路径: {os.path.abspath(file_path)}")
+        
+        # 确保使用绝对路径发送文件
+        absolute_file_path = os.path.abspath(file_path)
+        if os.path.exists(absolute_file_path):
+            logger.info(f"使用绝对路径发送文件: {absolute_file_path}")
+            return send_file(absolute_file_path, as_attachment=True, download_name=filename)
+        else:
+            logger.error(f"绝对路径文件也不存在: {absolute_file_path}")
+            flash('文件不存在', 'error')
+            return redirect(url_for('main.index'))
+            
+    except Exception as e:
+        logger.error(f"下载文件时出错: {e}")
+        import traceback
+        logger.error(f"错误详情: {traceback.format_exc()}")
+        flash('下载文件时出错: ' + str(e), 'error')
+        return redirect(url_for('main.index'))
+
+
+@main.route('/download/<int:record_id>')
+@login_required
+def download_translated_file(record_id):
+    """下载翻译后的文件"""
+    try:
+        from app.models.upload_record import UploadRecord
+        record = UploadRecord.query.get(record_id)
+        
+        if not record:
+            flash('文件记录不存在', 'error')
+            return redirect(url_for('main.index'))
+        
+        if not os.path.exists(record.file_path):
+            flash('文件不存在', 'error')
+            return redirect(url_for('main.index'))
+        
+        return send_file(record.file_path, as_attachment=True, download_name=record.filename)
+    except Exception as e:
+        logger.error(f"下载文件时出错: {e}")
+        flash('下载文件时出错', 'error')
+        return redirect(url_for('main.index'))
+
+
 @main.route('/file_management')
 @login_required
 def file_management():
@@ -2229,23 +2853,73 @@ def admin_delete_file(record_id):
             'message': '文件删除成功'
         })
 
-@main.route('/zxcvbnm')
-def secret_login():
-    """秘密登录页面，用于直接访问账号密码登录"""
-# 批量上传翻译功能
-EXCEL_ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
 
-def allowed_excel_file(filename):
-    if '.' not in filename:
-        return False
-    ext = filename.rsplit('.', 1)[1].lower()
-    return ext in EXCEL_ALLOWED_EXTENSIONS
-
-@main.route('/api/translations/download_template')
+@main.route('/api/translation_history')
 @login_required
-def download_template():
-    """下载批量上传翻译模板文件"""
+def translation_history():
+    """获取翻译历史记录"""
     try:
+        # 获取查询参数
+        file_type = request.args.get('type', '')
+        
+        # 构建查询 - 只返回状态为 completed 的记录
+        query = UploadRecord.query.filter_by(user_id=current_user.id, status='completed')
+        
+        # 按上传时间倒序排列
+        records = query.order_by(UploadRecord.upload_time.desc()).all()
+
+        # 格式化记录
+        history_records = []
+        for record in records:
+            # 检查文件是否仍然存在
+            file_path = os.path.join(record.file_path, record.stored_filename)
+            file_exists = os.path.exists(file_path)
+
+            # 使用ISO格式返回时间，让前端正确处理时区
+            upload_time = datetime_to_isoformat(record.upload_time)
+            
+            # 直接使用数据库中存储的文件名
+            history_records.append({
+                'id': record.id,
+                'filename': record.filename,  # 使用数据库中存储的文件名
+                'file_size': record.file_size,
+                'upload_time': upload_time,
+                'status': record.status,
+                'file_exists': file_exists
+            })
+
+        # 如果指定了文件类型，则在Python层面进行过滤（避免SQL层面的字段不存在错误）
+        if file_type:
+            filtered_records = []
+            for record in history_records:
+                # 由于数据库中可能没有file_type字段，我们只能通过文件名后缀等方式大致判断
+                # 这里简化处理，如果需要精确过滤，需要在数据库中添加file_type字段
+                if file_type == 'pdf_translation':
+                    # 简单地通过文件名判断是否为PDF翻译记录
+                    if record['filename'].endswith('.docx') or 'translated' in record['filename']:
+                        filtered_records.append(record)
+                else:
+                    # 对于其他类型，暂时不过滤
+                    filtered_records.append(record)
+            history_records = filtered_records
+
+        return jsonify(history_records)
+        
+    except Exception as e:
+        logger.error(f"获取翻译历史记录失败: {e}")
+        import traceback
+        logger.error(f"错误详情: {traceback.format_exc()}")
+        return jsonify({
+            'status': 'error',
+            'message': '获取历史记录失败'
+        }), 500
+
+        import traceback
+        logger.error(f"错误详情: {traceback.format_exc()}")
+        return jsonify({
+            'status': 'error',
+            'message': '获取历史记录失败'
+        }), 500
         template_path = './批量上传词汇(模板).xlsx'
 
         if not os.path.exists(template_path):

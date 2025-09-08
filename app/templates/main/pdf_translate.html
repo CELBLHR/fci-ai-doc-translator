@@ -1,0 +1,714 @@
+{% extends "main/base_layout.html" %}
+
+{% block title %}{% if session.get('language') == 'en' %}PDF Translation{% else %}PDF翻译{% endif %}{% endblock %}
+
+{% block styles %}
+<style>
+    /* 重写容器样式 - 固定比例布局 */
+    .container {
+        margin-left: 17vw !important; /* 与侧边栏宽度一致 */
+        width: 83vw !important; /* 占据剩余视口宽度 */
+        background-color: #f8f9fa;
+        color: rgb(110,111,114);
+        line-height: 1.6;
+        padding: 1.4vw; /* 使用视口单位 */
+        min-height: 100vh;
+        box-sizing: border-box;
+    }
+
+    /* 页面头部 - 响应式尺寸 */
+    .page-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 2.1vw;
+        background: white;
+        padding: 1.4vw 2.1vw;
+        border-radius: 0.8vw;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .header-icon {
+        width: 2.8vw;
+        height: 2.8vw;
+        min-width: 32px;
+        min-height: 32px;
+        background: rgb(0,148,217);
+        border-radius: 0.6vw;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1vw;
+    }
+
+    .header-icon i {
+        color: white;
+        font-size: 1.4rem;
+    }
+
+    .header-title {
+        font-size: 2rem;
+        font-weight: 600;
+        color: rgb(0,148,217);
+    }
+
+    /* 主内容区域 - 调整比例 */
+    .main-content {
+        display: grid;
+        grid-template-columns: 15vw 1fr; /* 左侧缩小到15%，右侧更宽 */
+        gap: 1.5vw;
+        align-items: start;
+        width: 100%;
+        max-width: none;
+    }
+
+    /* 左侧配置面板 - 更紧凑的设计 */
+    .config-panel {
+        background: white;
+        border-radius: 0.8vw;
+        padding: 1.0vw; /* 减少内边距 */
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        position: sticky;
+        top: 1.4vw;
+    }
+
+    .config-panel h3 {
+        font-size: 1.2rem; /* 稍微缩小标题 */
+        font-weight: 600;
+        color: rgb(0,148,217);
+        margin-bottom: 1.0vw; /* 减少底部间距 */
+        display: flex;
+        align-items: center;
+        gap: 0.6vw;
+    }
+
+    .form-group {
+        margin-bottom: 0.8vw; /* 减少表单组间距 */
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.3vw; /* 减少标签间距 */
+        font-size: 0.9rem; /* 缩小标签字体 */
+        font-weight: 500;
+        color: rgb(110,111,114);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.6vw 0.8vw; /* 减少输入框内边距 */
+        border: 1px solid #dee2e6;
+        border-radius: 0.5vw;
+        font-size: 0.9rem; /* 缩小字体 */
+        color: rgb(110,111,114);
+        background: white;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: rgb(0,148,217);
+        box-shadow: 0 0 0 3px rgba(0,148,217,0.1);
+    }
+
+    .form-text {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+        line-height: 1.2;
+    }
+
+    /* 右侧主区域 */
+    .translation-area {
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+    }
+
+    /* 上传卡片 */
+    .upload-card {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .upload-card h2 {
+        font-size: 20px;
+        font-weight: 600;
+        color: rgb(0,148,217);
+        margin-bottom: 25px;
+    }
+
+    .upload-zone {
+        border: 2px dashed #dee2e6;
+        border-radius: 12px;
+        padding: 60px 30px;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: #fafbfc;
+    }
+
+    .upload-zone.dragover {
+        border-color: rgb(0,148,217);
+        background: rgba(0,148,217,0.02);
+    }
+
+    .upload-zone-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .upload-text {
+        font-size: 16px;
+        color: rgb(110,111,114);
+    }
+
+    .upload-btn {
+        background: rgb(0,148,217);
+        color: white;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        border: none;
+        cursor: pointer;
+    }
+
+    .upload-btn:hover {
+        background: rgb(0,130,190);
+        transform: translateY(-1px);
+    }
+
+    /* 进度条样式 */
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #f1f3f4;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: rgb(0,148,217);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    /* 历史记录表格 - 优化行高和列宽 */
+    .history-card {
+        background: white;
+        border-radius: 0.8vw;
+        padding: 2.1vw;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .history-card h3 {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: rgb(0,148,217);
+        margin-bottom: 1.6vw;
+        display: flex;
+        align-items: center;
+        gap: 0.7vw;
+    }
+    
+    .refresh-btn-header {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.2vw;
+        margin-left: auto; /* 将按钮推到右侧 */
+        color: rgb(0,148,217);
+        font-size: 1.2rem;
+        transition: transform 0.2s ease;
+    }
+    
+    .refresh-btn-header:hover {
+        transform: rotate(90deg); /* 悬停时旋转按钮 */
+    }
+    
+    .rotating {
+        animation: rotate 1s linear;
+    }
+    
+    @keyframes rotate {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 1rem;
+        table-layout: fixed; /* 固定表格布局以控制列宽 */
+    }
+
+    /* 表格列宽控制 */
+    .history-table th:nth-child(1), /* 文件名 */
+    .history-table td:nth-child(1) {
+        width: 30%; /* 文件名列缩窄 */
+    }
+
+    .history-table th:nth-child(2), /* 上传时间 */
+    .history-table td:nth-child(2) {
+        width: 20%;
+    }
+
+    .history-table th:nth-child(3), /* 文件大小 */
+    .history-table td:nth-child(3) {
+        width: 15%;
+    }
+
+    .history-table th:nth-child(4), /* 翻译状态 */
+    .history-table td:nth-child(4) {
+        width: 18%; /* 状态列加宽 */
+    }
+
+    .history-table th:nth-child(5), /* 操作 */
+    .history-table td:nth-child(5) {
+        width: 17%; /* 增加操作列宽度以容纳两个按钮 */
+    }
+
+    .history-table th {
+        padding: 0.8vw 0.7vw; /* 减少行高 */
+        text-align: left;
+        font-weight: 600;
+        color: rgb(110,111,114);
+        border-bottom: 2px solid #f1f3f4;
+        background: #fafbfc;
+        font-size: 0.9rem;
+    }
+
+    .history-table th:first-child {
+        border-radius: 0.6vw 0 0 0;
+    }
+
+    .history-table th:last-child {
+        border-radius: 0 0.6vw 0 0;
+    }
+
+    .history-table td {
+        padding: 0.8vw 0.7vw; /* 减少行高 */
+        border-bottom: 1px solid #f1f3f4;
+        color: rgb(110,111,114);
+        font-size: 0.9rem;
+        vertical-align: middle;
+    }
+
+    /* 文件名列 - 文本省略 */
+    .history-table td:nth-child(1) {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* 翻译状态列 - 确保不换行 */
+    .history-table td:nth-child(4) {
+        white-space: nowrap;
+    }
+
+    .history-table tr:hover {
+        background: #fafbfc;
+    }
+
+    /* 状态样式 */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .status-badge.completed {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-badge.processing {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-badge.pending {
+        background: #cce5ff;
+        color: #004085;
+    }
+
+    /* 操作按钮 - 只显示图标，水平排列 */
+    .action-btn {
+        padding: 0.4vw 0.6vw; /* 缩小按钮尺寸 */
+        border-radius: 0.3vw;
+        font-size: 1rem; /* 图标大小 */
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        margin-right: 0.4vw; /* 按钮间距 */
+        border: none;
+        cursor: pointer;
+        width: 2vw; /* 固定宽度 */
+        height: 2vw; /* 固定高度 */
+        min-width: 24px;
+        min-height: 24px;
+        vertical-align: middle;
+        line-height: 1;
+        box-sizing: border-box;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    .action-btn.download {
+        background: rgb(0,148,217);
+        color: white;
+    }
+
+    .action-btn:hover {
+        opacity: 0.8;
+        transform: translateY(-1px);
+    }
+
+    /* 响应式设计 - 调整比例 */
+    @media (max-width: 1200px) {
+        .container {
+            margin-left: 16vw !important;
+            width: 84vw !important;
+        }
+        
+        .main-content {
+            grid-template-columns: 15vw 1fr; /* 在中等屏幕上进一步缩小左侧 */
+            gap: 1.5vw;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            margin-left: 15vw !important;
+            width: 85vw !important;
+        }
+        
+        .main-content {
+            grid-template-columns: 1fr; /* 小屏幕上改为单列布局 */
+            gap: 1.4vw;
+        }
+        
+        .config-panel {
+            position: static;
+        }
+        
+        .page-selector {
+            right: 1.4vw;
+            width: 18vw;
+            min-width: 200px;
+        }
+        
+        /* 确保历史记录表格在小屏幕上保持固定布局 */
+        .history-table {
+            table-layout: fixed;
+        }
+        
+        /* 在小屏幕上保持操作列宽度 */
+        .history-table th:nth-child(5),
+        .history-table td:nth-child(5) {
+            width: 17%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 页面头部 -->
+<div class="page-header">
+    <div class="header-icon">
+        <i class="bi bi-file-pdf"></i>
+    </div>
+    <h1 class="header-title">{% if session.get('language') == 'en' %}PDF Translation{% else %}PDF翻译{% endif %}</h1>
+</div>
+
+<!-- 主内容区域 -->
+<div class="main-content">
+    <!-- 左侧配置面板 -->
+    <div class="config-panel">
+        <h3><i class="bi bi-gear"></i> {% if session.get('language') == 'en' %}Configuration{% else %}配置选项{% endif %}</h3>
+        
+        <div class="form-group">
+            <label for="targetLanguage">
+                <i class="bi bi-translate"></i>
+                {% if session.get('language') == 'en' %}Target Language{% else %}目标语言{% endif %}
+            </label>
+            <select class="form-control" id="targetLanguage">
+                <option value="EN" {% if session.get('pdf_target_language', 'EN') == 'EN' %}selected{% endif %}>English</option>
+                <option value="ZH" {% if session.get('pdf_target_language', 'EN') == 'ZH' %}selected{% endif %}>中文</option>
+                <option value="JA" {% if session.get('pdf_target_language', 'EN') == 'JA' %}selected{% endif %}>日本語</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="modelSelect">
+                <i class="bi bi-robot"></i>
+                {% if session.get('language') == 'en' %}Translation Model{% else %}翻译模型{% endif %}
+            </label>
+            <select class="form-control" id="modelSelect">
+                <option value="qwen" {% if session.get('pdf_model', 'qwen') == 'qwen' %}selected{% endif %}>Qwen</option>
+                <option value="deepseek" {% if session.get('pdf_model', 'qwen') == 'deepseek' %}selected{% endif %}>DeepSeek</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 右侧主区域 -->
+    <div class="translation-area">
+        <!-- PDF翻译卡片 -->
+        <div class="upload-card">
+            <h2><i class="bi bi-file-pdf"></i> {% if session.get('language') == 'en' %}PDF Translation{% else %}PDF翻译{% endif %}</h2>
+            <div class="upload-zone" id="pdfUploadZone">
+                <div class="upload-zone-content">
+                    <i class="bi bi-cloud-upload" style="font-size: 48px; color: #6c757d; margin-bottom: 15px;"></i>
+                    <div class="upload-text">
+                        {% if session.get('language') == 'en' %}
+                            Drag and drop PDF files here or
+                        {% else %}
+                            将PDF文件拖拽到此处或
+                        {% endif %}
+                    </div>
+                    <button class="upload-btn" id="pdfUploadBtn">
+                        {% if session.get('language') == 'en' %}Select PDF File{% else %}选择PDF文件{% endif %}
+                    </button>
+                    <input type="file" id="pdfFileInput" accept=".pdf" style="display: none;">
+                </div>
+            </div>
+            
+            <!-- 进度条 -->
+            <div id="pdfProgressContainer" style="display: none; margin-top: 20px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="pdfProgressFill" style="width: 0%"></div>
+                    </div>
+                    <span id="pdfProgressText">0%</span>
+                </div>
+            </div>
+            
+            <!-- 结果展示 -->
+            <div id="pdfResultContainer" style="display: none; margin-top: 20px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="bi bi-check-circle-fill" style="color: #28a745; font-size: 24px;"></i>
+                    <span id="pdfResultText">{% if session.get('language') == 'en' %}Translation completed successfully!{% else %}翻译完成！{% endif %}</span>
+                    <a href="#" class="btn btn-secondary" id="pdfDownloadLink" style="margin-left: auto;">
+                        <i class="bi bi-download"></i>
+                        {% if session.get('language') == 'en' %}Download{% else %}下载{% endif %}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 历史记录卡片 -->
+        <div class="history-card">
+            <div style="display: flex; align-items: center;">
+                <h3><i class="bi bi-clock-history"></i> {% if session.get('language') == 'en' %}Translation History{% else %}翻译历史{% endif %}</h3>
+                <button class="refresh-btn-header" id="refreshHistoryBtn" title="{% if session.get('language') == 'en' %}Refresh{% else %}刷新{% endif %}">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>{% if session.get('language') == 'en' %}File Name{% else %}文件名{% endif %}</th>
+                            <th>{% if session.get('language') == 'en' %}Upload Time{% else %}上传时间{% endif %}</th>
+                            <th>{% if session.get('language') == 'en' %}Size{% else %}大小{% endif %}</th>
+                            <th>{% if session.get('language') == 'en' %}Status{% else %}状态{% endif %}</th>
+                            <th>{% if session.get('language') == 'en' %}Actions{% else %}操作{% endif %}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <!-- 历史记录将通过JavaScript动态加载 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 全局变量
+    let currentLanguage = '{{ session.get("language", "zh") }}';
+    
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        initializePDFTranslation();
+        loadHistory();
+    });
+    
+    // 初始化PDF翻译功能
+    function initializePDFTranslation() {
+        const uploadZone = document.getElementById('pdfUploadZone');
+        const fileInput = document.getElementById('pdfFileInput');
+        const uploadBtn = document.getElementById('pdfUploadBtn');
+        
+        // 点击上传按钮时触发文件选择
+        uploadBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        // 文件选择后处理
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        // 拖拽上传事件处理
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length) {
+                handleFiles(e.dataTransfer.files);
+            }
+        });
+        
+        // 刷新历史记录按钮
+        document.getElementById('refreshHistoryBtn').addEventListener('click', loadHistory);
+    }
+    
+    // 处理文件选择
+    function handleFileSelect(e) {
+        if (e.target.files.length) {
+            handleFiles(e.target.files);
+        }
+    }
+    
+    // 处理文件
+    function handleFiles(files) {
+        const file = files[0];
+        if (!file) return;
+        
+        // 检查文件类型
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            alert(currentLanguage === 'en' ? 'Please select a PDF file' : '请选择PDF文件');
+            return;
+        }
+        
+        // 开始上传和处理
+        translatePDF(file);
+    }
+    
+    // 翻译PDF文件
+    function translatePDF(file) {
+        // 显示进度条
+        document.getElementById('pdfProgressContainer').style.display = 'block';
+        document.getElementById('pdfResultContainer').style.display = 'none';
+        updateProgress(0, currentLanguage === 'en' ? 'Starting translation...' : '开始翻译...');
+        
+        // 获取目标语言和模型选择
+        const targetLanguage = document.getElementById('targetLanguage').value;
+        const model = document.getElementById('modelSelect').value;
+        
+        // 创建FormData对象
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('target_language', targetLanguage);
+        formData.append('model', model);
+        
+        // 发送请求到后端
+        fetch('/translate_pdf', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 处理成功
+                document.getElementById('pdfProgressContainer').style.display = 'none';
+                document.getElementById('pdfResultContainer').style.display = 'block';
+                document.getElementById('pdfDownloadLink').href = data.download_url;
+                document.getElementById('pdfDownloadLink').setAttribute('download', data.filename);
+                // 翻译完成后刷新历史记录
+                loadHistory();
+            } else {
+                // 处理失败
+                updateProgress(0, currentLanguage === 'en' ? 'Processing failed: ' + data.error : '处理失败: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            updateProgress(0, currentLanguage === 'en' ? 'Processing failed' : '处理失败');
+        })
+        .finally(() => {
+            // 重置文件输入，允许用户选择同一个文件再次上传
+            document.getElementById('pdfFileInput').value = '';
+        });
+    }
+    
+    // 更新进度条
+    function updateProgress(percent, text) {
+        document.getElementById('pdfProgressFill').style.width = percent + '%';
+        document.getElementById('pdfProgressText').textContent = text || percent + '%';
+    }
+    
+    // 加载历史记录
+    function loadHistory() {
+        const refreshBtn = document.getElementById('refreshHistoryBtn');
+        refreshBtn.classList.add('rotating');
+        
+        fetch('/api/pdf_translation_history')
+            .then(response => response.json())
+            .then(data => {
+                refreshBtn.classList.remove('rotating');
+                const tbody = document.getElementById('historyTableBody');
+                tbody.innerHTML = '';
+                
+                if (data.length > 0) {
+                    data.forEach(record => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td title="${record.filename}">${record.filename}</td>
+                            <td>${record.upload_time}</td>
+                            <td>${formatFileSize(record.file_size)}</td>
+                            <td><span class="status-badge completed">${currentLanguage === 'en' ? 'Completed' : '已完成'}</span></td>
+                            <td>
+                                <a href="/download_translated_pdf/${record.filename}" class="action-btn download" title="${currentLanguage === 'en' ? 'Download' : '下载'}">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td colspan="5" style="text-align: center;">${currentLanguage === 'en' ? 'No translation history' : '暂无翻译历史'}</td>`;
+                    tbody.appendChild(row);
+                }
+            })
+            .catch(error => {
+                refreshBtn.classList.remove('rotating');
+                console.error('Error loading history:', error);
+            });
+    }
+    
+    // 格式化文件大小
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+</script>
+{% endblock %}
