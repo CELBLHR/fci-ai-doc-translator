@@ -19,7 +19,7 @@ from ..utils.translation_utils import (
 # 配置
 from config import api_key
 
-model = 'qwen2.5-72b-instruct'
+model = 'qwen3-235b-a22b-instruct-2507'
 logging.basicConfig(level=logging.INFO, format='%(message)s', encoding='utf-8')
 logger = logging.getLogger(__name__)
 

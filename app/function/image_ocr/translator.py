@@ -70,7 +70,7 @@ class QwenTranslator:
         }
         
         data = {
-            "model": "qwen2.5-72b-instruct",  # 使用qwen-turbo模型，更快更便宜
+            "model": "qwen3-235b-a22b-instruct-2507",  # 使用qwen-turbo模型，更快更便宜
             "input": {
                 "messages": [
                     {
