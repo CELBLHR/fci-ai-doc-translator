@@ -402,6 +402,10 @@
                     <i class="bi bi-translate"></i>
                     {% if session.get('language') == 'en' %}PPT Translation{% else %}PPT翻译{% endif %}
                 </a>
+                <a href="{{ url_for('main.pdf_translation') }}" class="nav-link {% if request.endpoint == 'main.pdf_translation' %}active{% endif %}">
+                    <i class="bi bi-translate"></i>
+                    {% if session.get('language') == 'en' %}PDF Translation{% else %}PDF翻译{% endif %}
+                </a>
                 <a href="{{ url_for('main.dictionary') }}" class="nav-link {% if request.endpoint == 'main.dictionary' %}active{% endif %}">
                     <i class="bi bi-book"></i>
                     {% if session.get('language') == 'en' %}Dictionary{% else %}词库管理{% endif %}
