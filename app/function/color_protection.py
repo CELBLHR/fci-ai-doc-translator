@@ -356,14 +356,14 @@ def protect_colors_during_processing(text_frame, processing_func, *args, **kwarg
         raise e
 
 
-def safe_replace_paragraph_text(paragraph,bilingual_translation, text,translation, preserve_formatting) -> bool:
+def safe_replace_paragraph_text(paragraph, new_text, preserve_formatting=True) -> bool:
     """
     安全地替换段落文本，保持格式
 
     Args:
         paragraph: PPT段落对象
-        new_text: 新文本
-        preserve_formatting: 是否保持格式
+        new_text: 要写入的完整新文本（已在上层处理双语/单语逻辑）
+        preserve_formatting: 是否尽量保持原有格式
 
     Returns:
         bool: 是否成功
@@ -420,34 +420,30 @@ def safe_replace_paragraph_text(paragraph,bilingual_translation, text,translatio
                     original_formats.append(run_format)
                     break  # 只取第一个有内容的run的格式
 
-        # 清除段落并添加新文本
-        # paragraph.clear()
-        # run = paragraph.add_run()
-        # run.text = new_text
-        if str(bilingual_translation) == "1":
-            # 双语模式：原文 + 翻译
-            paragraph.text=text+"\n"+translation
-        else:
-            # 仅翻译模式
-            paragraph.text = translation
+        # 直接写入新文本（上层已决定双语/单语形式）
+        paragraph.text = new_text
         # 恢复格式
         if preserve_formatting and original_formats:
             format_info = original_formats[0]  # 使用第一个格式
 
             try:
-                if format_info.get('font_name'):
-                    run.font.name = format_info['font_name']
-                if format_info.get('font_size'):
-                    run.font.size = format_info['font_size']
-                if format_info.get('font_bold') is not None:
-                    run.font.bold = format_info['font_bold']
-                if format_info.get('font_italic') is not None:
-                    run.font.italic = format_info['font_italic']
-                if format_info.get('font_underline') is not None:
-                    run.font.underline = format_info['font_underline']
+                # 尝试恢复第一个 run 的格式
+                if paragraph.runs:
+                    run = paragraph.runs[0]
+                    if format_info.get('font_name'):
+                        run.font.name = format_info['font_name']
+                    if format_info.get('font_size'):
+                        run.font.size = format_info['font_size']
+                    if format_info.get('font_bold') is not None:
+                        run.font.bold = format_info['font_bold']
+                    if format_info.get('font_italic') is not None:
+                        run.font.italic = format_info['font_italic']
+                    if format_info.get('font_underline') is not None:
+                        run.font.underline = format_info['font_underline']
 
                 # 恢复颜色
-                if format_info.get('color'):
+                if paragraph.runs and format_info.get('color'):
+                    run = paragraph.runs[0]
                     color_type, color_value = format_info['color']
                     if color_type == 'rgb' and color_value:
                         r, g, b = color_value

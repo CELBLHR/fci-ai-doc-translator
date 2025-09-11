@@ -570,6 +570,10 @@ def batch_process():
 def settings():
     return render_template('main/settings.html', user=current_user)
 
+@main.route('/pdf_translation')
+@login_required
+def pdf_translation():
+    return render_template('main/pdf_translation.html', user=current_user)
 
 @main.route('/dictionary')
 @login_required
