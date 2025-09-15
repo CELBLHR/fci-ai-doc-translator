@@ -382,9 +382,9 @@ const translations = {
         englishPlaceholder: '英文',
         chinesePlaceholder: '中文',
         dutchPlaceholder: '荷兰语',
-        categoryPlaceholder: '分类（多个分类用分号分隔）',
+        categoryPlaceholder: '标签（多个标签用分号分隔）',
         setPublicEntry: '设为公共词条（所有用户可见）',
-        searchPlaceholder: '搜索英文、中文、荷兰语、分类等...',
+        searchPlaceholder: '搜索英文、中文、荷兰语、标签等...',
         search: '搜索',
         myEntries: '我的词条',
         publicEntries: '公共词条',
@@ -392,7 +392,7 @@ const translations = {
         english: '英文',
         chinese: '中文',
         dutch: '荷兰语',
-        category: '分类',
+        category: '标签',
         createTime: '创建时间',
         type: '类型',
         creator: '创建者',
@@ -415,7 +415,7 @@ const translations = {
         englishPrompt: '英文:',
         chinesePrompt: '中文:',
         dutchPrompt: '荷兰语:',
-        categoryPrompt: '分类:',
+        categoryPrompt: '标签:',
         userCancel: '用户取消',
         updateSuccess: '更新成功',
         updateFailed: '更新失败',
@@ -435,9 +435,9 @@ const translations = {
         englishPlaceholder: 'English',
         chinesePlaceholder: 'Chinese',
         dutchPlaceholder: 'Dutch',
-        categoryPlaceholder: 'Category (separate multiple categories with semicolon)',
+        categoryPlaceholder: 'Tag (separate multiple tags with semicolon)',
         setPublicEntry: 'Set as public entry (visible to all users)',
-        searchPlaceholder: 'Search English, Chinese, Dutch, category, etc...',
+        searchPlaceholder: 'Search English, Chinese, Dutch, tag, etc...',
         search: 'Search',
         myEntries: 'My Entries',
         publicEntries: 'Public Entries',
@@ -445,7 +445,7 @@ const translations = {
         english: 'English',
         chinese: 'Chinese',
         dutch: 'Dutch',
-        category: 'Category',
+        category: 'Tag',
         createTime: 'Created Time',
         type: 'Type',
         creator: 'Creator',
@@ -468,7 +468,7 @@ const translations = {
         englishPrompt: 'English:',
         chinesePrompt: 'Chinese:',
         dutchPrompt: 'Dutch:',
-        categoryPrompt: 'Category:',
+        categoryPrompt: 'Tag:',
         userCancel: 'User cancelled',
         updateSuccess: 'Updated successfully',
         updateFailed: 'Failed to update',
@@ -552,10 +552,14 @@ function getText(key, params = {}) {
 <section class="add-section">
     <h2>{% if session.get('language') == 'en' %}Add New Translation{% else %}添加新翻译{% endif %}</h2>
     <div class="input-group">
-        <input type="text" id="englishInput" placeholder="{% if session.get('language') == 'en' %}English{% else %}英文{% endif %}">
-        <input type="text" id="chineseInput" placeholder="{% if session.get('language') == 'en' %}Chinese{% else %}中文{% endif %}">
-        <input type="text" id="dutchInput" placeholder="{% if session.get('language') == 'en' %}Dutch{% else %}荷兰语{% endif %}">
-        <input type="text" id="categoryInput" placeholder="{% if session.get('language') == 'en' %}Category (separate multiple categories with semicolon){% else %}分类（多个分类用分号分隔）{% endif %}">
+        <input type="text" id="englishInput" placeholder="{% if session.get('language') == 'en' %}English{% else %}英文{% endif %}" style="background-color: #ffffff; color: #333333; border: 1px solid #ddd; border-radius: 4px; padding: 8px 12px;">
+        <input type="text" id="chineseInput" placeholder="{% if session.get('language') == 'en' %}Chinese{% else %}中文{% endif %}" style="background-color: #ffffff; color: #333333; border: 1px solid #ddd; border-radius: 4px; padding: 8px 12px;">
+        <input type="text" id="dutchInput" placeholder="{% if session.get('language') == 'en' %}Dutch{% else %}荷兰语{% endif %}" style="background-color: #ffffff; color: #333333; border: 1px solid #ddd; border-radius: 4px; padding: 8px 12px;">
+        <input type="text" id="categoryInput" placeholder="{% if session.get('language') == 'en' %}Tag (separate multiple tags with semicolon){% else %}标签（多个标签用分号分隔）{% endif %}" style="display:none;">
+        <button id="pickCategoryBtn" class="action-btn">
+            <i class="bi bi-tags"></i>
+            {% if session.get('language') == 'en' %}Choose Tag{% else %}选择标签{% endif %}
+        </button>
         <button id="addBtn">
             <i class="bi bi-plus-lg"></i>
             {% if session.get('language') == 'en' %}Add{% else %}添加{% endif %}
@@ -571,10 +575,36 @@ function getText(key, params = {}) {
     {% endif %}
 </section>
 
+<!-- 标签选择弹窗 -->
+<div id="categoryModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.35); z-index:1200; align-items:center; justify-content:center;">
+  <div style="background:#fff; width:520px; max-width:92vw; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.15);">
+    <div style="padding:14px 16px; border-bottom:1px solid #eee; display:flex; align-items:center;">
+      <strong style="color:rgb(0,148,217);">{% if session.get('language') == 'en' %}Select Tag{% else %}选择标签{% endif %}</strong>
+      <button id="closeCategoryModal" style="margin-left:auto; background:none; border:none; cursor:pointer; font-size:18px;">×</button>
+    </div>
+    <div style="padding:14px 16px; max-height:60vh; overflow:auto;">
+      <div style="margin-bottom:10px; display:flex; gap:8px; align-items:center;">
+        <label><input type="checkbox" id="multiSelectToggle"> {% if session.get('language') == 'en' %}Multi-select{% else %}多选{% endif %}</label>
+      </div>
+      <div id="categoryList" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <input type="text" id="newCategoryInput" placeholder="{% if session.get('language') == 'en' %}New tag{% else %}新增标签{% endif %}" style="flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:6px;">
+        <button id="addCategoryBtn" class="action-btn"><i class="bi bi-plus-lg"></i> {% if session.get('language') == 'en' %}Add{% else %}添加{% endif %}</button>
+      </div>
+    </div>
+    <div style="padding:12px 16px; border-top:1px solid #eee; display:flex; gap:10px; justify-content:flex-end;">
+      <button id="confirmCategoryBtn" class="action-btn"><i class="bi bi-check-lg"></i> {% if session.get('language') == 'en' %}Confirm{% else %}确定{% endif %}</button>
+      <button id="cancelCategoryBtn" class="action-btn" style="background:#6c757d; color:#fff;"><i class="bi bi-x-lg"></i> {% if session.get('language') == 'en' %}Cancel{% else %}取消{% endif %}</button>
+    </div>
+  </div>
+</div>
+
+<!-- 移除了误放置的独立添加按钮区块，按钮已并入上方 input-group -->
+
 <!-- 搜索栏 -->
 <section class="search-section">
     <div class="search-container">
-        <input type="text" id="searchInput" placeholder="{% if session.get('language') == 'en' %}Search English, Chinese, Dutch, category, etc...{% else %}搜索英文、中文、荷兰语、分类等...{% endif %}">
+        <input type="text" id="searchInput" placeholder="{% if session.get('language') == 'en' %}Search English, Chinese, Dutch, tag, etc...{% else %}搜索英文、中文、荷兰语、标签等...{% endif %}">
         <button id="searchBtn">
             <i class="bi bi-search"></i>
             {% if session.get('language') == 'en' %}Search{% else %}搜索{% endif %}
@@ -598,7 +628,7 @@ function getText(key, params = {}) {
                     <th>{% if session.get('language') == 'en' %}English{% else %}英文{% endif %}</th>
                     <th>{% if session.get('language') == 'en' %}Chinese{% else %}中文{% endif %}</th>
                     <th>{% if session.get('language') == 'en' %}Dutch{% else %}荷兰语{% endif %}</th>
-                    <th>{% if session.get('language') == 'en' %}Category{% else %}分类{% endif %}</th>
+                    <th>{% if session.get('language') == 'en' %}Tag{% else %}标签{% endif %}</th>
                     <th>{% if session.get('language') == 'en' %}Created Time{% else %}创建时间{% endif %}</th>
                     <th>{% if session.get('language') == 'en' %}Type{% else %}类型{% endif %}</th>
                     <th>{% if session.get('language') == 'en' %}Creator{% else %}创建者{% endif %}</th>
@@ -635,6 +665,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 绑定事件
     document.getElementById('addBtn').addEventListener('click', addTranslation);
+    document.getElementById('pickCategoryBtn').addEventListener('click', openCategoryModal);
     document.getElementById('addStopWordBtn').addEventListener('click', addStopWord);
     document.getElementById('searchBtn').addEventListener('click', () => {
         currentPage = 1;
@@ -670,6 +701,13 @@ document.addEventListener('DOMContentLoaded', function() {
             loadTranslations(currentSearch, currentPage);
         });
     });
+    // 分类弹窗事件
+    document.getElementById('closeCategoryModal').addEventListener('click', closeCategoryModal);
+    document.getElementById('cancelCategoryBtn').addEventListener('click', closeCategoryModal);
+    document.getElementById('confirmCategoryBtn').addEventListener('click', confirmCategorySelection);
+    document.getElementById('addCategoryBtn').addEventListener('click', addNewCategoryChip);
+    // 初次加载分类
+    loadCategories();
 });
 
 // 更新统计信息
@@ -742,6 +780,129 @@ async function addTranslation() {
     } catch (error) {
         showToast(error.message, 'error');
     }
+}
+
+// 分类选择逻辑
+let selectedCategories = new Set();
+let allowMultiSelect = false;
+let originalCategories = []; // 存储原始分类列表
+let tempAddedCategories = new Set(); // 存储临时添加的分类
+
+function openCategoryModal() {
+    // 保存当前选择状态，用于取消时恢复
+    selectedCategories = new Set();
+    tempAddedCategories = new Set();
+    document.getElementById('categoryModal').style.display = 'flex';
+}
+
+function closeCategoryModal() {
+    // 取消时清理临时添加的分类，恢复到原始状态
+    selectedCategories.clear();
+    tempAddedCategories.clear();
+    document.getElementById('categoryModal').style.display = 'none';
+    // 重新加载原始分类列表
+    loadCategories();
+}
+
+async function loadCategories() {
+    try {
+        const res = await fetch('/api/translations/categories');
+        const data = await res.json();
+        originalCategories = data.categories || [];
+        renderCategoryChips(originalCategories);
+    } catch (e) {
+        console.error('Load categories error', e);
+    }
+}
+
+function renderCategoryChips(categories) {
+    const list = document.getElementById('categoryList');
+    list.innerHTML = '';
+    // toggle multi-select
+    const multiToggle = document.getElementById('multiSelectToggle');
+    allowMultiSelect = !!multiToggle?.checked;
+    if (multiToggle) {
+        multiToggle.onchange = () => {
+            allowMultiSelect = multiToggle.checked;
+            // 如果切到单选，只保留一个
+            if (!allowMultiSelect && selectedCategories.size > 1) {
+                const first = Array.from(selectedCategories)[0];
+                selectedCategories = new Set([first]);
+            }
+            updateSelectedDisplay();
+            renderCategoryChips(categories);
+        };
+    }
+    categories.forEach(cat => {
+        const isSelected = selectedCategories.has(cat);
+        const btn = document.createElement('button');
+        btn.className = 'action-btn';
+        btn.style.background = isSelected ? 'rgb(0,148,217)' : '#e9ecef';
+        btn.style.color = isSelected ? '#fff' : '#333';
+        btn.textContent = cat;
+        btn.title = cat;
+        btn.onclick = () => toggleCategory(cat);
+        list.appendChild(btn);
+    });
+}
+
+function toggleCategory(cat) {
+    if (allowMultiSelect) {
+        if (selectedCategories.has(cat)) selectedCategories.delete(cat); else selectedCategories.add(cat);
+    } else {
+        selectedCategories = new Set([cat]);
+    }
+    updateSelectedDisplay();
+    // 重新渲染保持样式
+    const chips = Array.from(document.getElementById('categoryList').children).map(c => c.textContent);
+    renderCategoryChips(chips);
+}
+
+function addNewCategoryChip() {
+    const input = document.getElementById('newCategoryInput');
+    const val = (input.value || '').trim();
+    if (!val) return;
+    
+    // 检查是否已存在于原始分类中
+    if (originalCategories.includes(val)) {
+        showToast(getCurrentLanguage() === 'en' ? 'Tag already exists' : '标签已存在', 'warning');
+        return;
+    }
+    
+    if (!allowMultiSelect) selectedCategories.clear();
+    selectedCategories.add(val);
+    tempAddedCategories.add(val); // 标记为临时添加
+    input.value = '';
+    
+    // 将新增标签插入到当前chip列表展示
+    const chips = [...originalCategories, ...Array.from(tempAddedCategories)];
+    renderCategoryChips(chips);
+    updateSelectedDisplay();
+}
+
+function confirmCategorySelection() {
+    // 将选择写入隐藏输入，按分号分隔
+    const categoryInput = document.getElementById('categoryInput');
+    categoryInput.value = Array.from(selectedCategories).join(';');
+    // 更新按钮显示
+    updateSelectedDisplay();
+    // 确认后清理临时分类标记
+    tempAddedCategories.clear();
+    document.getElementById('categoryModal').style.display = 'none';
+}
+
+function updateSelectedDisplay() {
+    const btn = document.getElementById('pickCategoryBtn');
+    const cats = Array.from(selectedCategories);
+    if (cats.length === 0) {
+        btn.innerHTML = '<i class="bi bi-tags"></i> ' + (getCurrentLanguage() === 'en' ? 'Choose Tag' : '选择标签');
+    } else {
+        btn.textContent = cats.join('; ');
+    }
+}
+
+function getCurrentLanguage() {
+    return '{{ session.get("language", "zh") }}';
 }
 
 // 添加停翻词

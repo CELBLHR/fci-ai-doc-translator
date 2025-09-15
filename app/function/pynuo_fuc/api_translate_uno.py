@@ -356,7 +356,7 @@ def re_parse_formatted_text_async(text: str):
                 {"role": "user", "content": text}
             ],
             temperature=0.3,
-            max_tokens=8000
+            max_tokens=16000  # Increased from 8000 to 16000 to handle larger JSON responses
         )
         result = response.choices[0].message.content
         logger.info(f"JSON修复成功")

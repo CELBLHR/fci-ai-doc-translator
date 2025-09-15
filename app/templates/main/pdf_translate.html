@@ -514,10 +514,13 @@
 
         <!-- 历史记录卡片 -->
         <div class="history-card">
-            <div style="display: flex; align-items: center;">
-                <h3><i class="bi bi-clock-history"></i> {% if session.get('language') == 'en' %}Translation History{% else %}翻译历史{% endif %}</h3>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <h3 style="margin-right: auto;"><i class="bi bi-clock-history"></i> {% if session.get('language') == 'en' %}Translation History{% else %}翻译历史{% endif %}</h3>
                 <button class="refresh-btn-header" id="refreshHistoryBtn" title="{% if session.get('language') == 'en' %}Refresh{% else %}刷新{% endif %}">
                     <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <button id="refreshHistoryBtnText" class="upload-btn" style="padding: 6px 12px; border-radius: 6px;">
+                    {% if session.get('language') == 'en' %}Refresh{% else %}刷新{% endif %}
                 </button>
             </div>
             <div class="table-responsive">
@@ -584,7 +587,10 @@
         });
         
         // 刷新历史记录按钮
-        document.getElementById('refreshHistoryBtn').addEventListener('click', loadHistory);
+        const refreshBtnHeader = document.getElementById('refreshHistoryBtn');
+        const refreshBtnText = document.getElementById('refreshHistoryBtnText');
+        if (refreshBtnHeader) refreshBtnHeader.addEventListener('click', loadHistory);
+        if (refreshBtnText) refreshBtnText.addEventListener('click', loadHistory);
     }
     
     // 处理文件选择
@@ -665,12 +671,12 @@
     // 加载历史记录
     function loadHistory() {
         const refreshBtn = document.getElementById('refreshHistoryBtn');
-        refreshBtn.classList.add('rotating');
+        if (refreshBtn) refreshBtn.classList.add('rotating');
         
         fetch('/api/pdf_translation_history')
             .then(response => response.json())
             .then(data => {
-                refreshBtn.classList.remove('rotating');
+                if (refreshBtn) refreshBtn.classList.remove('rotating');
                 const tbody = document.getElementById('historyTableBody');
                 tbody.innerHTML = '';
                 
@@ -683,9 +689,15 @@
                             <td>${formatFileSize(record.file_size)}</td>
                             <td><span class="status-badge completed">${currentLanguage === 'en' ? 'Completed' : '已完成'}</span></td>
                             <td>
-                                <a href="/download_translated_pdf/${record.filename}" class="action-btn download" title="${currentLanguage === 'en' ? 'Download' : '下载'}">
-                                    <i class="bi bi-download"></i>
-                                </a>
+                                ${record.file_exists ? 
+                                    `<a href="/download_translated_pdf/${record.stored_filename || record.filename}" class="action-btn download" title="${currentLanguage === 'en' ? 'Download' : '下载'}" target="_blank">
+                                        <i class="bi bi-download"></i>
+                                    </a>` : 
+                                    `<span class="text-muted">${currentLanguage === 'en' ? 'File not found' : '文件不存在'}</span>`
+                                }
+                                <button class="action-btn" style="background:#dc3545;color:#fff;" title="${currentLanguage === 'en' ? 'Delete' : '删除'}" onclick="deleteHistory('${record.stored_filename || record.filename}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                             </td>
                         `;
                         tbody.appendChild(row);
@@ -697,9 +709,32 @@
                 }
             })
             .catch(error => {
-                refreshBtn.classList.remove('rotating');
+                if (refreshBtn) refreshBtn.classList.remove('rotating');
                 console.error('Error loading history:', error);
             });
+    }
+    
+    // 删除历史记录
+    function deleteHistory(filename) {
+        if (!filename) return;
+        if (!confirm(currentLanguage === 'en' ? 'Confirm delete?' : '确认删除该记录及文件吗？')) return;
+        fetch('/api/pdf_translation/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                loadHistory();
+            } else {
+                alert((currentLanguage === 'en' ? 'Delete failed: ' : '删除失败：') + (res.error || ''));
+            }
+        })
+        .catch(err => {
+            console.error('Delete error:', err);
+            alert(currentLanguage === 'en' ? 'Delete failed' : '删除失败');
+        });
     }
     
     // 格式化文件大小

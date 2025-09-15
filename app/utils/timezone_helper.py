@@ -17,8 +17,9 @@ def get_default_timezone():
         return pytz.timezone('Asia/Shanghai')
 
 def now_with_timezone():
-    """获取带时区的当前时间"""
-    return datetime.now(get_default_timezone())
+    """获取当前时间（无时区信息，用于兼容MySQL DATETIME）"""
+    # 返回不带tzinfo的时间，避免MySQL不支持时区导致写库失败
+    return datetime.now()
 
 
 def localize_datetime(dt, assume_timezone='UTC'):

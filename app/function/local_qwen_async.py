@@ -215,7 +215,7 @@ async def get_field_async(text: str) -> str:
                     {"role": "user", "content": f"请分析以下文本内容属于哪个领域：\n\n{text[:1000]}"}  # 限制文本长度
                 ],
                 temperature=0.1,
-                max_tokens=50
+                max_tokens=100  # Increased from 50 to 100 to allow for slightly longer responses
             )
             result = response.choices[0].message.content.strip()
             logger.info(f"成功获取领域信息: {result}")
@@ -237,14 +237,12 @@ async def get_field_async(text: str) -> str:
         return "其他"  # 返回默认领域
 
 # 创建翻译文本的异步函数
-async def translate_by_fields_async(field: str, text: str, stop_words: List[str],
-                                custom_translations: Dict[str, str],
-                                source_language: str, target_language: str) -> str:
+async def translate_by_fields_async(field, text, stop_words, custom_translations, source_language, target_language):
     """
-    异步根据领域翻译文本
-
+    异步调用Qwen API翻译文本
+    
     Args:
-        field: 领域
+        field: 文本领域
         text: 待翻译文本
         stop_words: 停止词列表
         custom_translations: 自定义翻译字典
@@ -252,10 +250,11 @@ async def translate_by_fields_async(field: str, text: str, stop_words: List[str]
         target_language: 目标语言
 
     Returns:
-        翻译结果JSON字符串
+        翻译结果
     """
-    stop_words_str = ", ".join(f'"{word}"' for word in stop_words)
-    custom_translations_str = ", ".join(f'"{k}": "{v}"' for k, v in custom_translations.items())
+    # 将stop_words和custom_translations转换为字符串
+    stop_words_str = ", ".join(f'"{word}"' for word in stop_words) if stop_words else ""
+    custom_translations_str = ", ".join(f'"{k}": "{v}"' for k, v in custom_translations.items()) if custom_translations else ""
 
     # 在异步函数中使用同步客户端，使用线程池执行
     loop = asyncio.get_event_loop()
@@ -266,61 +265,42 @@ async def translate_by_fields_async(field: str, text: str, stop_words: List[str]
             response = client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=[
-                    {"role": "system", "content": f"""您是{field}领域的专家。
-接下来，您将获得一系列{source_language}文本（包括短语、句子和单词）。
-以下或单词短语**保留原样，不翻译**：
-{stop_words_str}
-请将每一段{source_language}文本翻译成专业的{target_language}。
-1. 每一个【】内的内容，都是一个完整的段落或句群，请**保持整体性**，不要拆分为多个目标句子。
-2. 输出格式应严格保持输入顺序，一段对应一段，使用如下 JSON 格式输出：
+                    {"role": "system", "content": f"""您是翻译{field}领域文本的专家。接下来，您将获得一系列{source_language}文本（包括短语、句子和单词）。
+请将每一段文本翻译成专业的{target_language}。
 
-  {{
-    "source_language": "【原始文本】",
-    "target_language": "【对应翻译】"
-  }},
-  ...
-3. 不要对【】内的内容进行切分，每段只输出一个目标译文。
-    **重要：请严格遵守以下翻译规则**：
-    1. **格式要求**：
-        - 对每条待翻译文本，输出一个 JSON 对象，格式如下：
+### **格式要求**：
+1. 请严格按照如下JSON格式输出，不要添加任何额外解释或文本：
+      [
+          {{
+              "source_language": "原语言文本",
+              "target_language": "译文"
+          }},
           {{
               "source_language": "原语言文本",
               "target_language": "译文"
           }}
-        - 若有多条待翻译文本，请按顺序在 **同一个 JSON 数组** 内输出，例如：
-          [
-              {{
-                  "source_language": "原语言文本",
-                  "target_language": "译文"
-              }},
-              {{
-                  "source_language": "原语言文本",
-                  "target_language": "译文"
-              }}
-          ]
-        - **不要输出额外信息、注释或多余文本**。
+      ]
+      
+2. **自定义翻译**：
+   如果遇到以下词汇，在保持语义通顺的前提下使用提供的翻译做参考：
+       {custom_translations_str}
 
-    2. **自定义翻译**：
-       如果遇到以下词汇，在保持语义通顺的前提下使用提供的翻译做参考：
-           {custom_translations_str}
+3. **数字处理**：
+    - 如果输入是 **单独的数字**，请保持原样，如：
+      {{
+          "source_language": "1",
+          "target_language": "1"
+      }}
 
+4. **翻译风格**：
+    - 请保持翻译的专业性，并符合 {field} 领域的语言习惯。
 
-    3. **数字处理**：
-        - 如果输入是 **单独的数字**，请保持原样，如：
-          {{
-              "source_language": "1",
-              "target_language": "1"
-          }}
-
-    4. **翻译风格**：
-        - 请保持翻译的专业性，并符合 {field} 领域的语言习惯。
-
-    现在，请按照上述规则翻译文本
-    """},
+现在，请按照上述规则翻译文本
+"""},
                     {"role": "user", "content": text}
                 ],
                 temperature=0.7,
-                max_tokens=8000,
+                max_tokens=16000,  # Increased from 8000 to 16000 to handle longer paragraphs
                 timeout=600
             )
             result = response.choices[0].message.content
@@ -338,10 +318,8 @@ async def translate_by_fields_async(field: str, text: str, stop_words: List[str]
         result = await retry_with_backoff(_async_translate)
         return result
     except Exception as e:
-        # 如果所有重试都失败，返回错误信息
-        logger.error(f"翻译失败，返回错误信息: {str(e)}")
-        # 返回一个简单的JSON格式错误信息
-        return f'[{{"source_language": "{text[:100]}...", "target_language": "[翻译失败: {str(e)}]"}}]'
+        logger.error(f"翻译失败: {str(e)}")
+        raise
 
 # 解析格式化文本的函数
 async def parse_formatted_text_async(text: str):
@@ -361,13 +339,11 @@ async def parse_formatted_text_async(text: str):
         fixed_text = await re_parse_formatted_text_async(text)
         return json.loads(fixed_text)
 
-async def re_parse_formatted_text_async(text: str):
+def re_parse_formatted_text_async(text: str):
     """
-    异步重新解析格式化文本，修复可能的格式错误
-
+    同步重新解析格式化文本，修复可能的格式错误
     Args:
         text: 格式可能错误的文本
-
     Returns:
         修复后的文本
     """
@@ -396,7 +372,7 @@ async def re_parse_formatted_text_async(text: str):
                     {"role": "user", "content": text}
                 ],
                 temperature=0.3,
-                max_tokens=8000
+                max_tokens=16000  # Increased from 8000 to 16000 to handle larger JSON responses
             )
             result = response.choices[0].message.content
             logger.info(f"JSON修复成功")
@@ -406,16 +382,12 @@ async def re_parse_formatted_text_async(text: str):
             raise
 
     try:
-        # 使用重试机制执行API调用
-        async def _async_re_parse():
-            return await loop.run_in_executor(None, _re_parse)
-
-        result = await retry_with_backoff(_async_re_parse)
+        # 直接在同步函数中执行API调用
+        result = _re_parse()
         return result
     except Exception as e:
-        # 如果所有重试都失败，返回原始文本
-        logger.error(f"JSON修复失败，返回原始文本: {str(e)}")
-        return text
+        logger.error(f"JSON修复失败: {str(e)}")
+        raise
 
 # build_map函数已移动到 utils/translation_utils.py
 

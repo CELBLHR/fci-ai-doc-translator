@@ -64,6 +64,19 @@ class MinerUAPI:
             'Authorization': f'Bearer {self.token}',
             'User-Agent': 'FCIAI2.0/1.0'
         })
+        
+        # 配置代理和SSL设置
+        self.session.proxies = {
+            'http': None,
+            'https': None
+        }
+        
+        # 禁用SSL验证（仅用于测试）
+        self.session.verify = False
+        
+        # 禁用SSL警告
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     
     def process_pdf(self, file_path):
         """处理本地PDF文件"""
@@ -196,44 +209,72 @@ class MinerUAPI:
             logger.error(f"文件为空: {file_path}")
             return None
         
-        # 使用 tmpfiles.org
-        try:
-            logger.info("准备上传到 tmpfiles.org")
-            with open(file_path, 'rb') as f:
-                # 明确指定文件名和内容类型
-                filename = os.path.basename(file_path)
-                files = {'file': (filename, f, 'application/pdf')}
-                logger.info(f"发送上传请求，文件名: {filename}")
-                
-                response = self.session.post(
-                    'https://tmpfiles.org/api/v1/upload',
-                    files=files,
-                    timeout=(30, 60)
-                )
-                logger.info(f"上传响应状态码: {response.status_code}")
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    logger.info(f"上传响应内容: {result}")
-                    # 获取直接下载链接
-                    if 'data' in result and 'url' in result['data']:
-                        url = result['data']['url']
-                        # 注意：tmpfiles.org的直接下载链接格式可能需要调整
-                        direct_url = url.replace('tmpfiles.org/', 'tmpfiles.org/dl/')
-                        logger.info(f"✅ 上传成功: {direct_url}")
-                        return direct_url
-                    else:
-                        logger.error(f"上传响应格式不正确: {result}")
-                        return None
-                else:
-                    logger.error(f"上传失败，状态码: {response.status_code}, 响应: {response.text}")
-                    return None
-        except Exception as e:
-            logger.error(f"❌ 上传失败: {e}")
-            import traceback
-            logger.error(f"错误详情: {traceback.format_exc()}")
+        # 尝试多个上传服务
+        upload_services = [
+            {
+                'name': 'tmpfiles.org',
+                'url': 'https://tmpfiles.org/api/v1/upload',
+                'method': self._upload_to_tmpfiles
+            },
+            {
+                'name': 'file.io',
+                'url': 'https://file.io',
+                'method': self._upload_to_fileio
+            }
+        ]
         
+        for service in upload_services:
+            try:
+                logger.info(f"尝试上传到 {service['name']}")
+                result = service['method'](file_path)
+                if result:
+                    logger.info(f"✅ 上传到 {service['name']} 成功: {result}")
+                    return result
+                else:
+                    logger.warning(f"上传到 {service['name']} 失败")
+            except Exception as e:
+                logger.error(f"❌ 上传到 {service['name']} 异常: {e}")
+                continue
+        
+        logger.error("所有上传服务都失败了")
         return None
+    
+    def _upload_to_tmpfiles(self, file_path):
+        """上传到tmpfiles.org"""
+        with open(file_path, 'rb') as f:
+            filename = os.path.basename(file_path)
+            files = {'file': (filename, f, 'application/pdf')}
+            
+            response = self.session.post(
+                'https://tmpfiles.org/api/v1/upload',
+                files=files,
+                timeout=(30, 60)
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if 'data' in result and 'url' in result['data']:
+                    url = result['data']['url']
+                    direct_url = url.replace('tmpfiles.org/', 'tmpfiles.org/dl/')
+                    return direct_url
+            return None
+    
+    def _upload_to_fileio(self, file_path):
+        """上传到file.io"""
+        with open(file_path, 'rb') as f:
+            files = {'file': f}
+            
+            response = self.session.post(
+                'https://file.io',
+                files=files,
+                timeout=(30, 60)
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success') and 'link' in result:
+                    return result['link']
+            return None
     
     def download_result(self, zip_url, task_id):
         """下载结果文件"""

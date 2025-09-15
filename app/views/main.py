@@ -458,49 +458,6 @@ def get_queue_status():
         }), 500
 
 
-@main.route('/api/pdf_translation_history')
-@login_required
-def pdf_translation_history():
-    """获取PDF翻译历史记录"""
-    try:
-        # 构建查询 - 只返回状态为 completed 的记录
-        query = UploadRecord.query.filter_by(user_id=current_user.id, status='completed')
-        
-        # 按上传时间倒序排列
-        records = query.order_by(UploadRecord.upload_time.desc()).all()
-
-        # 格式化记录
-        history_records = []
-        for record in records:
-            # 检查文件是否仍然存在
-            file_path = os.path.join(record.file_path, record.stored_filename)
-            file_exists = os.path.exists(file_path)
-
-            # 使用ISO格式返回时间，让前端正确处理时区
-            upload_time = datetime_to_isoformat(record.upload_time)
-            
-            # 直接使用数据库中存储的文件名
-            history_records.append({
-                'id': record.id,
-                'filename': record.filename,  # 使用数据库中存储的文件名
-                'file_size': record.file_size,
-                'upload_time': upload_time,
-                'status': record.status,
-                'file_exists': file_exists
-            })
-
-        return jsonify(history_records)
-        
-    except Exception as e:
-        logger.error(f"获取翻译历史记录失败: {e}")
-        import traceback
-        logger.error(f"错误详情: {traceback.format_exc()}")
-        return jsonify({
-            'status': 'error',
-            'message': '获取历史记录失败'
-        }), 500
-
-
 @main.route('/history')
 @login_required
 def get_history():
@@ -832,6 +789,29 @@ def get_translations():
         'total_items': pagination.total
     })
 
+
+@main.route('/api/translations/categories', methods=['GET'])
+@login_required
+def get_translation_categories():
+    """获取所有已存在的分类列表（去重，按字母排序）"""
+    try:
+        from app.models.translation import Translation as TranslationModel
+        categories_set = set()
+        # 仅提取有值的分类
+        for row in db.session.query(TranslationModel.category).filter(TranslationModel.category.isnot(None)).all():
+            value = row[0]
+            if not value:
+                continue
+            # 支持分号分隔的多分类
+            for part in value.split(';'):
+                name = part.strip()
+                if name:
+                    categories_set.add(name)
+        categories = sorted(categories_set, key=lambda x: x.lower())
+        return jsonify({'categories': categories})
+    except Exception as e:
+        logger.error(f"获取分类失败: {e}")
+        return jsonify({'categories': []}), 200
 
 @main.route('/api/translations', methods=['POST'])
 @login_required
@@ -2146,61 +2126,29 @@ import os
 def translate_pdf():
     """处理PDF翻译请求"""
     try:
-        import zipfile
-        import requests
-        from werkzeug.utils import secure_filename
-        from datetime import datetime
-        import os
-        
         logger.info("收到PDF翻译请求")
-        logger.info(f"请求方法: {request.method}")
-        logger.info(f"请求内容类型: {request.content_type}")
-        logger.info(f"请求表单数据: {list(request.form.keys())}")
-        logger.info(f"请求文件数据: {list(request.files.keys())}")
         
+        # 检查是否有文件上传
         if 'file' not in request.files:
-            logger.error("请求中没有文件")
-            return jsonify({'success': False, 'error': '没有上传文件'}), 400
+            logger.error("未找到上传的文件")
+            return jsonify({'success': False, 'error': '未找到上传的文件'}), 400
         
-        file = request.files['file']
-        logger.info(f"接收到文件: {file.filename}")
-        logger.info(f"文件内容类型: {file.content_type}")
-        
-        if file.filename == '':
+        original_file = request.files['file']
+        if original_file.filename == '':
             logger.error("文件名为空")
             return jsonify({'success': False, 'error': '文件名为空'}), 400
-            
-        # 检查文件扩展名
-        if not allowed_pdf_file(file.filename):
-            logger.error(f"不支持的文件格式: {file.filename}")
-            return jsonify({'success': False, 'error': '不支持的文件格式，请上传PDF文件'}), 400
-    
-        # 验证文件MIME类型
-        file_content = file.read(1024)  # 读取前1024字节检查文件头
-        file.seek(0)  # 重置文件指针
-        
-        # 检查PDF文件头
-        if not file_content.startswith(b'%PDF-'):
-            logger.error(f"文件不是有效的PDF格式: {file.filename}")
-            logger.error(f"文件头内容: {file_content[:10]}")
-            return jsonify({'success': False, 'error': '文件不是有效的PDF格式，请确保上传的是PDF文件'}), 400
-            
-        # 保存上传的PDF文件
-        filename = secure_filename(file.filename)
+
+        # 生成唯一文件名
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        unique_filename = f"{timestamp}_{filename}"
-        
-        logger.info(f"处理文件: {filename}, 保存为: {unique_filename}")
-        
-        # 确保上传目录存在 - 使用项目根目录下的uploads文件夹
+        unique_filename = f"{timestamp}_{secure_filename(original_file.filename)}"
+        logger.info(f"生成唯一文件名: {unique_filename}")
+
+        # 获取上传文件夹路径
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         upload_folder = current_app.config['UPLOAD_FOLDER']
-        
-        # 确保使用正确的上传文件夹路径
-        # UPLOAD_FOLDER配置是相对于项目根目录的
         if not os.path.isabs(upload_folder):
             upload_folder = os.path.join(project_root, upload_folder)
-            
+        
         pdf_upload_dir = os.path.join(upload_folder, 'pdf_uploads')
         pdf_output_dir = os.path.join(upload_folder, 'pdf_outputs')
         
@@ -2215,7 +2163,7 @@ def translate_pdf():
         logger.info(f"PDF输出目录: {pdf_output_dir}")
         
         pdf_path = os.path.join(pdf_upload_dir, unique_filename)
-        file.save(pdf_path)
+        original_file.save(pdf_path)
         
         logger.info(f"文件已保存到: {pdf_path}")
         
@@ -2231,29 +2179,37 @@ def translate_pdf():
             logger.error("保存的文件为空")
             return jsonify({'success': False, 'error': '上传的文件为空'}), 400
         
-        # 初始化MinerU API
+        # 尝试使用MinerU API，如果失败则使用本地处理器
+        result = None
         try:
             from app.function.image_ocr.ocr_api import MinerUAPI
             logger.info("初始化MinerU API")
             mineru_api = MinerUAPI()
             logger.info("MinerU API初始化成功")
-        except ValueError as e:
-            logger.error(f"MinerU API密钥未配置: {e}")
-            return jsonify({'success': False, 'error': 'PDF处理服务未正确配置'}), 500
-        except ImportError as e:
-            logger.error(f"无法导入MinerU API模块: {e}")
-            return jsonify({'success': False, 'error': 'PDF处理服务模块缺失'}), 500
+            
+            # 使用MinerU处理PDF
+            logger.info(f"开始使用MinerU处理PDF: {pdf_path}")
+            result = mineru_api.process_pdf(pdf_path)
+            logger.info(f"MinerU处理结果: {result}")
+            
         except Exception as e:
-            logger.error(f"MinerU API初始化失败: {e}")
-            return jsonify({'success': False, 'error': f'PDF处理服务初始化失败: {str(e)}'}), 500
+            logger.warning(f"MinerU API处理失败: {e}")
+            result = None
         
-        # 使用MinerU处理PDF
-        logger.info(f"开始使用MinerU处理PDF: {pdf_path}")
-        result = mineru_api.process_pdf(pdf_path)
-        logger.info(f"MinerU处理结果: {result}")
+        # 如果MinerU失败或返回空结果，使用本地PDF处理器
+        if not result:
+            logger.info("MinerU处理失败，尝试使用本地PDF处理器...")
+            try:
+                from app.function.local_pdf_processor import LocalPDFProcessor
+                local_processor = LocalPDFProcessor()
+                result = local_processor.process_pdf(pdf_path)
+                logger.info(f"本地PDF处理结果: {result}")
+            except Exception as local_e:
+                logger.error(f"本地PDF处理器也失败了: {local_e}")
+                return jsonify({'success': False, 'error': 'PDF处理失败，请检查文件格式'}), 500
         
         if not result:
-            logger.error("MinerU处理PDF返回空结果")
+            logger.error("所有PDF处理方法都失败了")
             return jsonify({'success': False, 'error': 'PDF处理失败'}), 500
         
         # 检查结果中的状态码
@@ -2283,25 +2239,43 @@ def translate_pdf():
         zip_filename = f"mineru_result_{task_id}.zip"
         zip_path = os.path.join(pdf_output_dir, zip_filename)
         
-        # 下载ZIP文件
+        # 下载或复制ZIP文件
         try:
-            logger.info(f"开始下载ZIP文件: {zip_url}")
-            response = requests.get(zip_url, timeout=300)
-            logger.info(f"下载响应状态码: {response.status_code}")
-            if response.status_code != 200:
-                logger.error(f"下载ZIP文件失败，状态码: {response.status_code}")
-                logger.error(f"响应内容: {response.text}")
-                return jsonify({'success': False, 'error': f'下载结果文件失败，状态码: {response.status_code}'}), 500
+            logger.info(f"开始处理ZIP文件: {zip_url}")
+            
+            # 检查是否是本地文件（file://协议）
+            if zip_url.startswith('file://'):
+                # 本地文件，直接复制
+                source_path = zip_url[7:]  # 移除 'file://' 前缀
+                logger.info(f"复制本地文件: {source_path} -> {zip_path}")
                 
-            response.raise_for_status()
-            with open(zip_path, 'wb') as f:
-                f.write(response.content)
-            logger.info(f"ZIP文件已保存到: {zip_path}")
+                if not os.path.exists(source_path):
+                    logger.error(f"源文件不存在: {source_path}")
+                    return jsonify({'success': False, 'error': '结果文件不存在'}), 500
+                
+                import shutil
+                shutil.copy2(source_path, zip_path)
+                logger.info(f"ZIP文件已复制到: {zip_path}")
+            else:
+                # 远程文件，使用requests下载
+                logger.info(f"下载远程ZIP文件: {zip_url}")
+                response = requests.get(zip_url, timeout=300)
+                logger.info(f"下载响应状态码: {response.status_code}")
+                if response.status_code != 200:
+                    logger.error(f"下载ZIP文件失败，状态码: {response.status_code}")
+                    logger.error(f"响应内容: {response.text}")
+                    return jsonify({'success': False, 'error': f'下载结果文件失败，状态码: {response.status_code}'}), 500
+                    
+                response.raise_for_status()
+                with open(zip_path, 'wb') as f:
+                    f.write(response.content)
+                logger.info(f"ZIP文件已保存到: {zip_path}")
+                
         except Exception as e:
-            logger.error(f"下载结果文件失败: {e}")
+            logger.error(f"处理结果文件失败: {e}")
             import traceback
             logger.error(f"错误详情: {traceback.format_exc()}")
-            return jsonify({'success': False, 'error': '下载结果文件失败'}), 500
+            return jsonify({'success': False, 'error': '处理结果文件失败'}), 500
         
         # 解压ZIP文件
         try:
@@ -2370,10 +2344,18 @@ def translate_pdf():
                 doc = Document()
                 doc.add_heading('PDF处理结果', 1)
                 doc.add_paragraph('未能从PDF中提取到文本内容，请检查原始PDF文件是否包含可提取的文本。')
-                doc.add_paragraph(f'原始文件名: {filename}')
+                doc.add_paragraph(f'原始文件名: {original_file.filename}')
                 doc.add_paragraph(f'处理时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+                
+                # 添加更多诊断信息
+                doc.add_paragraph('可能的故障原因:')
+                doc.add_paragraph('1. PDF文件可能是扫描的图像，不含可提取文本')
+                doc.add_paragraph('2. 文件可能受密码保护')
+                doc.add_paragraph('3. 文本可能被PDF格式问题损坏')
+                doc.add_paragraph('4. 文件可能为空或损坏')
+                
                 doc.save(docx_path)
-                logger.info(f"创建了包含提示信息的文档: {docx_path}")
+                logger.info(f"创建了包含详细提示信息的文档: {docx_path}")
             except Exception as e:
                 logger.error(f"创建提示信息文档失败: {e}")
                 import traceback
@@ -2408,7 +2390,6 @@ def translate_pdf():
                     }
                     
                     # 根据PDF内容的语言特征，调整源语言和目标语言
-                    # 这里假设大部分PDF是中文内容，需要翻译为其他语言
                     if target_language in lang_map:
                         source_lang, target_lang = lang_map[target_language]
                     else:
@@ -2420,60 +2401,386 @@ def translate_pdf():
                     from app.function.local_qwen_async import translate_async
                     import asyncio
                     
-                    logger.info("开始翻译文本内容")
-                    logger.info(f"待翻译内容长度: {len(content)} 字符")
-                    # 执行异步翻译
-                    translated_dict = asyncio.run(
-                        translate_async(content, "通用", [], {}, source_lang, target_lang)
-                    )
+                    logger.info("开始逐行扫描和翻译")
+                    # 逐行扫描处理内容
+                    lines = content.split('\n')
+                    processed_lines = []
+                    i = 0
                     
-                    # 将原文和译文组合，译文紧跟在原文下方
-                    if translated_dict:
-                        logger.info(f"翻译完成，共获得 {len(translated_dict)} 条翻译结果")
-                        logger.info(f"部分翻译结果: {dict(list(translated_dict.items())[:3])}")
+                    while i < len(lines):
+                        line = lines[i].strip()
                         
-                        # 检查是否整个文本作为一个整体被翻译
-                        content_stripped = content.strip()
-                        if content_stripped in translated_dict and translated_dict[content_stripped].strip():
-                            # 整个文本被翻译，直接组合，原文在上，译文在下
-                            combined_content = f"{content}\n\n【译文】{translated_dict[content_stripped]}\n"
-                            content = combined_content
-                            logger.info("整个文本作为整体被翻译并组合")
+                        # 如果是空行，直接添加
+                        if not line:
+                            processed_lines.append("")
+                            i += 1
+                            continue
+                        
+                        # 添加原文行
+                        processed_lines.append(line)
+                        
+                        # 检查是否为标题（以#开头）
+                        if line.startswith('#'):
+                            logger.info(f"检测到标题: {line}")
+                            # 翻译标题
+                            try:
+                                # 创建新的事件循环来运行异步翻译任务
+                                import asyncio
+                                loop = asyncio.new_event_loop()
+                                asyncio.set_event_loop(loop)
+                                try:
+                                    translated_dict = loop.run_until_complete(
+                                        translate_async(line, "通用", [], {}, source_lang, target_lang)
+                                    )
+                                finally:
+                                    loop.close()
+                                
+                                if translated_dict and line in translated_dict:
+                                    translated_text = translated_dict[line]
+                                    if translated_text.strip() and not translated_text.startswith('[翻译错误:'):
+                                        processed_lines.append("【译文】" + translated_text)
+                                        logger.info(f"标题翻译完成: {line} -> {translated_text}")
+                                    else:
+                                        processed_lines.append("【译文】[翻译失败]")
+                                        logger.warning(f"标题翻译失败: {line}")
+                                else:
+                                    # 增加更智能的匹配逻辑
+                                    if translated_dict:
+                                        logger.warning(f"标题未找到翻译结果: {line}")
+                                        logger.warning(f"翻译字典键列表: {list(translated_dict.keys())}")
+                                        
+                                        # 尝试多种匹配策略
+                                        matched = False
+                                        translated_text = ""
+                                        
+                                        # 策略1: 精确匹配
+                                        if line in translated_dict:
+                                            translated_text = translated_dict[line]
+                                            matched = True
+                                        
+                                        # 策略2: 去除空白字符后匹配
+                                        if not matched:
+                                            line_stripped = line.strip()
+                                            for key in translated_dict.keys():
+                                                if key.strip() == line_stripped:
+                                                    translated_text = translated_dict[key]
+                                                    matched = True
+                                                    logger.info(f"通过去除空白字符匹配成功: {line[:30]}...")
+                                                    break
+                                        
+                                        # 策略3: 如果原始文本包含多个句子，尝试分割后匹配
+                                        if not matched:
+                                            # 检查是否可以按句号分割
+                                            if '. ' in line and len(line) > 100:  # 长文本且包含句号
+                                                sentences = line.split('. ')
+                                                # 重构句子（添加句号，除了最后一个）
+                                                sentences = [s + '.' if i < len(sentences) - 1 else s 
+                                                           for i, s in enumerate(sentences)]
+                                                
+                                                matched_fragments = []
+                                                for sentence in sentences:
+                                                    sentence_stripped = sentence.strip()
+                                                    if sentence_stripped:
+                                                        for key in translated_dict.keys():
+                                                            # 精确匹配或包含关系
+                                                            if (key.strip() == sentence_stripped or 
+                                                                sentence_stripped in key.strip() or
+                                                                key.strip() in sentence_stripped):
+                                                                matched_fragments.append(translated_dict[key])
+                                                                break
+                                                
+                                                # 如果所有片段都匹配成功
+                                                if len(matched_fragments) == len([s for s in sentences if s.strip()]):
+                                                    translated_text = ''.join(matched_fragments)
+                                                    matched = True
+                                                    logger.info(f"通过句子分割匹配成功: {line[:30]}...")
+                                        
+                                        # 策略4: 模糊匹配（包含关系）
+                                        if not matched:
+                                            for key in translated_dict.keys():
+                                                if line.strip() in key.strip() or key.strip() in line.strip():
+                                                    translated_text = translated_dict[key]
+                                                    matched = True
+                                                    logger.info(f"通过模糊匹配找到翻译结果: {line[:30]}... -> {translated_text[:30]}...")
+                                                    break
+                                        
+                                        # 策略5: 部分匹配（最长公共子串）
+                                        if not matched:
+                                            def longest_common_substring(s1, s2):
+                                                # 简单的最长公共子串计算
+                                                # 返回公共子串的长度
+                                                m = len(s1)
+                                                n = len(s2)
+                                                # 创建二维数组来存储长度
+                                                LCSuff = [[0 for k in range(n+1)] for l in range(m+1)]
+                                                result = 0
+                                                
+                                                for i in range(m + 1):
+                                                    for j in range(n + 1):
+                                                        if (i == 0 or j == 0):
+                                                            LCSuff[i][j] = 0
+                                                        elif (s1[i-1] == s2[j-1]):
+                                                            LCSuff[i][j] = LCSuff[i-1][j-1] + 1
+                                                            result = max(result, LCSuff[i][j])
+                                                        else:
+                                                            LCSuff[i][j] = 0
+                                                return result
+                                            
+                                            # 寻找最相似的键
+                                            best_match_key = None
+                                            best_match_score = 0
+                                            line_normalized = line.strip().lower()
+                                            
+                                            for key in translated_dict.keys():
+                                                key_normalized = key.strip().lower()
+                                                # 计算相似度（公共子串长度/较长字符串长度）
+                                                common_len = longest_common_substring(line_normalized, key_normalized)
+                                                max_len = max(len(line_normalized), len(key_normalized))
+                                                if max_len > 0:
+                                                    similarity = common_len / max_len
+                                                    if similarity > best_match_score and similarity > 0.8:  # 相似度阈值
+                                                        best_match_score = similarity
+                                                        best_match_key = key
+                                            
+                                            if best_match_key:
+                                                translated_text = translated_dict[best_match_key]
+                                                matched = True
+                                                logger.info(f"通过部分匹配找到翻译结果: {line[:30]}... -> {translated_text[:30]}... (相似度: {best_match_score:.2f})")
+                                        
+                                        if matched and translated_text.strip() and not translated_text.startswith('[翻译错误:'):
+                                            processed_lines.append("【译文】" + translated_text)
+                                            logger.info(f"标题翻译完成: {line} -> {translated_text}")
+                                        else:
+                                            processed_lines.append("【译文】[翻译失败]")
+                                            logger.warning(f"标题翻译失败，无法匹配: {line}")
+                                    else:
+                                        processed_lines.append("【译文】[翻译失败]")
+                                        logger.warning(f"翻译结果为空: {line}")
+                            except Exception as e:
+                                logger.error(f"标题翻译出错: {e}")
+                                processed_lines.append("【译文】[翻译出错]")
+                        
+                        # 检查是否为普通段落（非空且非标题）
+                        elif line:
+                            logger.info(f"检测到段落: {line[:50]}...")
+                            # 翻译段落
+                            try:
+                                # 创建新的事件循环来运行异步翻译任务
+                                import asyncio
+                                loop = asyncio.new_event_loop()
+                                asyncio.set_event_loop(loop)
+                                try:
+                                    translated_dict = loop.run_until_complete(
+                                        translate_async(line, "通用", [], {}, source_lang, target_lang)
+                                    )
+                                finally:
+                                    loop.close()
+                                
+                                if translated_dict and line in translated_dict:
+                                    translated_text = translated_dict[line]
+                                    if translated_text.strip() and not translated_text.startswith('[翻译错误:'):
+                                        processed_lines.append("【译文】" + translated_text)
+                                        logger.info(f"段落翻译完成: {line[:30]}... -> {translated_text[:30]}...")
+                                    else:
+                                        processed_lines.append("【译文】[翻译失败]")
+                                        logger.warning(f"段落翻译失败: {line[:50]}...")
+                                else:
+                                    # 增加更智能的匹配逻辑
+                                    if translated_dict:
+                                        logger.warning(f"段落未找到翻译结果: {line[:50]}...")
+                                        logger.warning(f"翻译字典键列表: {list(translated_dict.keys())}")
+                                        
+                                        # 尝试多种匹配策略
+                                        matched = False
+                                        translated_text = ""
+                                        
+                                        # 策略1: 精确匹配
+                                        if line in translated_dict:
+                                            translated_text = translated_dict[line]
+                                            matched = True
+                                        
+                                        # 策略2: 去除空白字符后匹配
+                                        if not matched:
+                                            line_stripped = line.strip()
+                                            for key in translated_dict.keys():
+                                                if key.strip() == line_stripped:
+                                                    translated_text = translated_dict[key]
+                                                    matched = True
+                                                    logger.info(f"通过去除空白字符匹配成功: {line[:30]}...")
+                                                    break
+                                        
+                                        # 策略3: 如果原始文本包含多个句子，尝试分割后匹配
+                                        if not matched:
+                                            # 检查是否可以按句号分割
+                                            if '. ' in line and len(line) > 100:  # 长文本且包含句号
+                                                sentences = line.split('. ')
+                                                # 重构句子（添加句号，除了最后一个）
+                                                sentences = [s + '.' if i < len(sentences) - 1 else s 
+                                                           for i, s in enumerate(sentences)]
+                                                
+                                                matched_fragments = []
+                                                for sentence in sentences:
+                                                    sentence_stripped = sentence.strip()
+                                                    if sentence_stripped:
+                                                        for key in translated_dict.keys():
+                                                            # 精确匹配或包含关系
+                                                            if (key.strip() == sentence_stripped or 
+                                                                sentence_stripped in key.strip() or
+                                                                key.strip() in sentence_stripped):
+                                                                matched_fragments.append(translated_dict[key])
+                                                                break
+                                                
+                                                # 如果所有片段都匹配成功
+                                                if len(matched_fragments) == len([s for s in sentences if s.strip()]):
+                                                    translated_text = ''.join(matched_fragments)
+                                                    matched = True
+                                                    logger.info(f"通过句子分割匹配成功: {line[:30]}...")
+                                        
+                                        # 策略4: 模糊匹配（包含关系）
+                                        if not matched:
+                                            for key in translated_dict.keys():
+                                                if line.strip() in key.strip() or key.strip() in line.strip():
+                                                    translated_text = translated_dict[key]
+                                                    matched = True
+                                                    logger.info(f"通过模糊匹配找到翻译结果: {line[:30]}... -> {translated_text[:30]}...")
+                                                    break
+                                        
+                                        # 策略5: 部分匹配（最长公共子串）
+                                        if not matched:
+                                            def longest_common_substring(s1, s2):
+                                                # 简单的最长公共子串计算
+                                                # 返回公共子串的长度
+                                                m = len(s1)
+                                                n = len(s2)
+                                                # 创建二维数组来存储长度
+                                                LCSuff = [[0 for k in range(n+1)] for l in range(m+1)]
+                                                result = 0
+                                                
+                                                for i in range(m + 1):
+                                                    for j in range(n + 1):
+                                                        if (i == 0 or j == 0):
+                                                            LCSuff[i][j] = 0
+                                                        elif (s1[i-1] == s2[j-1]):
+                                                            LCSuff[i][j] = LCSuff[i-1][j-1] + 1
+                                                            result = max(result, LCSuff[i][j])
+                                                        else:
+                                                            LCSuff[i][j] = 0
+                                                return result
+                                            
+                                            # 寻找最相似的键
+                                            best_match_key = None
+                                            best_match_score = 0
+                                            line_normalized = line.strip().lower()
+                                            
+                                            for key in translated_dict.keys():
+                                                key_normalized = key.strip().lower()
+                                                # 计算相似度（公共子串长度/较长字符串长度）
+                                                common_len = longest_common_substring(line_normalized, key_normalized)
+                                                max_len = max(len(line_normalized), len(key_normalized))
+                                                if max_len > 0:
+                                                    similarity = common_len / max_len
+                                                    if similarity > best_match_score and similarity > 0.8:  # 相似度阈值
+                                                        best_match_score = similarity
+                                                        best_match_key = key
+                                            
+                                            if best_match_key:
+                                                translated_text = translated_dict[best_match_key]
+                                                matched = True
+                                                logger.info(f"通过部分匹配找到翻译结果: {line[:30]}... -> {translated_text[:30]}... (相似度: {best_match_score:.2f})")
+                                        
+                                        if matched and translated_text.strip() and not translated_text.startswith('[翻译错误:'):
+                                            processed_lines.append("【译文】" + translated_text)
+                                            logger.info(f"段落翻译完成: {line[:30]}... -> {translated_text[:30]}...")
+                                        else:
+                                            processed_lines.append("【译文】[翻译失败]")
+                                            logger.warning(f"段落翻译失败，无法匹配: {line[:50]}...")
+                                    else:
+                                        processed_lines.append("【译文】[翻译失败]")
+                                        logger.warning(f"翻译结果为空: {line[:50]}...")
+                            except Exception as e:
+                                logger.error(f"段落翻译出错: {e}")
+                                processed_lines.append("【译文】[翻译出错]")
+                        
+                        i += 1
+                    
+                    # 重新组合内容
+                    content = '\n'.join(processed_lines)
+                    logger.info("逐行扫描和翻译处理完成")
+                    
+                    # 使用新的双语文档生成器创建Word文档
+                    try:
+                        from app.utils.document_generator import process_markdown_to_bilingual_doc
+                        logger.info("使用新的双语文档生成器创建Word文档")
+                        
+                        # 确保docx_path目录存在
+                        os.makedirs(os.path.dirname(docx_path), exist_ok=True)
+                        
+                        # 创建双语Word文档
+                        success = process_markdown_to_bilingual_doc(content, translated_dict, docx_path)
+                        
+                        if success:
+                            logger.info(f"成功创建双语Word文档: {docx_path}")
+                            conversion_success = True
                         else:
-                            # 按行处理内容，为每行原文添加对应译文
-                            content_lines = content.split('\n')
-                            combined_lines = []
-                            
-                            translation_added = 0
-                            for line in content_lines:
-                                # 添加原文
-                                combined_lines.append(line)
-                                # 如果该行有对应译文，则添加译文
-                                line_stripped = line.strip()
-                                if line_stripped and line_stripped in translated_dict and translated_dict[line_stripped].strip():
-                                    combined_lines.append("【译文】" + translated_dict[line_stripped])
-                                    translation_added += 1
-                                # 添加空行以保持格式
-                                combined_lines.append("")
-                            
-                            content = '\n'.join(combined_lines)
-                            logger.info(f"文本翻译和组合完成，组合后内容长度: {len(content)} 字符")
-                            logger.info(f"实际添加的翻译条数: {translation_added}")
-                            
-                            # 如果没有添加任何翻译，尝试将整个内容作为一个整体处理
-                            if translation_added == 0:
-                                logger.info("未按行匹配到翻译，尝试将整个内容作为整体处理")
-                                if content_stripped in translated_dict and translated_dict[content_stripped].strip():
-                                    combined_content = f"{content}\n\n【译文】{translated_dict[content_stripped]}\n"
-                                    content = combined_content
-                                    logger.info("整个文本作为整体被翻译并组合")
-                    else:
-                        logger.warning("翻译返回空结果，使用原文")
+                            logger.error("使用新的文档生成器创建Word文档失败")
+                    except Exception as e:
+                        logger.warning(f"使用新的文档生成器创建Word文档失败: {e}")
+                        import traceback
+                        logger.warning(f"错误详情: {traceback.format_exc()}")
+                    
                 except Exception as e:
                     logger.error(f"翻译过程中出错: {e}")
                     import traceback
                     logger.error(f"错误详情: {traceback.format_exc()}")
                     # 即使翻译失败也继续使用原文
+            
+            # 修复图片路径问题
+            # 将相对路径的图片引用改为绝对路径，确保pypandoc能找到图片
+            logger.info("开始处理图片路径")
+            # 获取markdown文件所在目录
+            md_dir = os.path.dirname(md_file)
+            logger.info(f"Markdown文件所在目录: {md_dir}")
+            
+            # 查找所有图片文件
+            image_files = []
+            for root, dirs, files in os.walk(md_dir):
+                for file in files:
+                    if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
+                        full_path = os.path.join(root, file)
+                        relative_path = os.path.relpath(full_path, md_dir)
+                        image_files.append((full_path, relative_path))
+                        logger.info(f"找到图片文件: {relative_path}")
+            
+            logger.info(f"总共找到 {len(image_files)} 个图片文件")
+            
+            # 替换markdown中的图片路径为绝对路径
+            for full_path, relative_path in image_files:
+                # 构造图片引用格式
+                old_ref = f'](images/{os.path.basename(relative_path)})'
+                new_ref = f']({full_path})'
+                content = content.replace(old_ref, new_ref)
+                logger.info(f"替换图片引用: {old_ref} -> {new_ref}")
+            
+            # 新增：使用逐段翻译并写入Word的流程（原文+译文）
+            try:
+                from app.utils.document_generator import translate_markdown_to_bilingual_doc
+                ok = translate_markdown_to_bilingual_doc(
+                    content,
+                    docx_path,
+                    source_language='en',
+                    target_language='zh',
+                    image_base_dir=md_dir
+                )
+                if ok:
+                    return jsonify({
+                        'success': True,
+                        'message': 'PDF处理完成',
+                        'download_url': f"/download_docx/{os.path.basename(docx_path)}"
+                    })
+                else:
+                    logger.warning('逐段翻译生成Word失败，回退到旧流程')
+            except Exception as e:
+                logger.warning(f"逐段翻译流程异常，回退到旧流程: {e}")
             
             # 转换markdown为Word文档
             # 尝试使用pypandoc转换内容到docx
@@ -2495,37 +2802,271 @@ def translate_pdf():
             if not conversion_success:
                 try:
                     from docx import Document
+                    from docx.shared import Inches
+                    doc = Document()
+                except Exception as e:
+                    logger.error(f"导入docx模块失败: {e}")
+                    import traceback
+                    logger.error(f"错误详情: {traceback.format_exc()}")
+                    # 在这里可以添加备用处理方案或重新抛出异常
+                    raise  # 重新抛出异常
+                    
+                    logger.info(f"使用python-docx手动转换内容")
+                    lines = content.split('\n')
+                    
+                    # 按段落匹配原文和译文
+                    # 创建一个用于匹配的翻译字典副本
+                    translation_lookup = translated_dict.copy()
+                    
+                    # 用于存储最终结果
+                    combined_content = []
+                    
+                    # 用于跟踪未匹配的译文
+                    unmatched_translations = []
+                    
+                    # 逐个处理原始段落
+                    for i, paragraph in enumerate(final_paragraphs):
+                        paragraph = paragraph.strip()
+                        if not paragraph:
+                            continue
+                            
+                        # 添加原文
+                        combined_content.append(paragraph)
+                        
+                        # 查找对应的译文
+                        translated_text = None
+                        
+                        # 精确匹配
+                        if paragraph in translation_lookup and translation_lookup[paragraph].strip() and not translation_lookup[paragraph].startswith('[翻译错误:'):
+                            translated_text = translation_lookup[paragraph]
+                            del translation_lookup[paragraph]
+                        
+                        # 如果没有找到，尝试前缀匹配
+                        if not translated_text:
+                            for orig_text, trans_text in list(translation_lookup.items()):
+                                # 检查原文和译文是否满足任一匹配条件
+                                if trans_text.strip() and not trans_text.startswith('[翻译错误:') and (
+                                    orig_text.startswith(paragraph) or 
+                                    paragraph.startswith(orig_text) or
+                                    len(set(orig_text.split()) & set(paragraph.split())) / max(len(orig_text.split()), 1) > 0.7
+                                ):
+                                    translated_text = trans_text
+                                    del translation_lookup[orig_text]
+                                    break
+                        
+                        # 如果仍然没有找到，尝试模糊匹配
+                        if not translated_text and translated_dict:
+                            # 取第一个可用的译文作为备选
+                            for orig_text, trans_text in list(translated_dict.items()):
+                                if trans_text.strip() and not trans_text.startswith('[翻译错误:') and orig_text in translation_lookup:
+                                    translated_text = trans_text
+                                    del translation_lookup[orig_text]
+                                    break
+                        
+                        # 如果找到对应的译文且不是错误标记，添加到内容中
+                        if translated_text and not translated_text.startswith('[翻译错误:'):
+                            # 确保译文另起一行显示
+                            combined_content.append(paragraph)  # 先添加原文
+                            combined_content.append("【译文】" + translated_text)  # 再添加译文，另起一行
+                        # 即使翻译失败或没有找到匹配译文，也不添加任何内容（包括占位符）
+                        # 这样可以避免在最终结果中显示"翻译失败"或"[未找到匹配译文]"
+                        else:
+                            # 尝试重新翻译该段落，确保不会有翻译失败的情况
+                            retry_translated_text = None
+                            try:
+                                # 使用默认翻译服务重新翻译
+                                from app.function.translate_by_qwen import translate_qwen
+                                # 分析段落所属领域
+                                field = "通用"
+                                stop_words = []  # 可以根据需要添加停止词
+                                custom_translations = {}  # 可以根据需要添加自定义翻译
+                                
+                                # 调用翻译函数
+                                retry_result = translate_qwen(paragraph, field, stop_words, custom_translations, 'auto', 'zh')
+                                
+                                # 从结果字典中获取译文
+                                if paragraph in retry_result:
+                                    retry_translated_text = retry_result[paragraph]
+                                
+                                if retry_translated_text and not retry_translated_text.startswith('[翻译错误:]'):
+                                    combined_content.append(paragraph)  # 先添加原文
+                                    combined_content.append("")  # 添加空行
+                                    combined_content.append("【译文】" + retry_translated_text)  # 再添加译文，另起一行
+                                    combined_content.append("")  # 添加空行
+                                else:
+                                    # 即使重试失败也只添加原文
+                                    combined_content.append(paragraph)
+                                    combined_content.append("")  # 添加空行
+                            except Exception as retry_error:
+                                logger.warning(f"重试翻译失败: {retry_error}")
+                                # 即使重试失败也只添加原文
+                                combined_content.append(paragraph)
+                                combined_content.append("")  # 添加空行
+                    
+                    # 重新组合内容，使用换行符连接，确保原文和译文各自独立成行
+                    content = '\n'.join(combined_content)
+                    logger.info("按段落匹配原文和译文完成")
+            
+            # 修复图片路径问题
+                logger.error(f"翻译过程中出错: {e}")
+                import traceback
+                logger.error(f"错误详情: {traceback.format_exc()}")
+                # 即使翻译失败也继续使用原文
+            
+            # 修复图片路径问题
+
+            
+            # 修复图片路径问题
+
+            
+            # 修复图片路径问题
+
+            
+            # 修复图片路径问题
+
+            
+            # 修复图片路径问题
+
+            
+            # 修复图片路径问题
+
+            
+            # 修复图片路径问题
+
+            
+            # 修复图片路径问题
+            # 将相对路径的图片引用改为绝对路径，确保pypandoc能找到图片
+            logger.info("开始处理图片路径")
+            # 获取markdown文件所在目录
+            md_dir = os.path.dirname(md_file)
+            logger.info(f"Markdown文件所在目录: {md_dir}")
+            
+            # 查找所有图片文件
+            image_files = []
+            for root, dirs, files in os.walk(md_dir):
+                for file in files:
+                    if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
+                        full_path = os.path.join(root, file)
+                        relative_path = os.path.relpath(full_path, md_dir)
+                        image_files.append((full_path, relative_path))
+                        logger.info(f"找到图片文件: {relative_path}")
+            
+            logger.info(f"总共找到 {len(image_files)} 个图片文件")
+            
+            # 替换markdown中的图片路径为绝对路径
+            for full_path, relative_path in image_files:
+                # 构造图片引用格式
+                old_ref = f'](images/{os.path.basename(relative_path)})'
+                new_ref = f']({full_path})'
+                content = content.replace(old_ref, new_ref)
+                logger.info(f"替换图片引用: {old_ref} -> {new_ref}")
+            
+            # 转换markdown为Word文档
+            # 尝试使用pypandoc转换内容到docx
+            conversion_success = False  # 初始化变量
+            try:
+                import pypandoc
+                logger.info(f"使用pypandoc转换内容到 {docx_path}")
+                logger.info(f"转换前内容长度: {len(content)} 字符")
+                logger.info(f"转换前内容前200字符: {content[:200]}")
+                pypandoc.convert_text(content, 'docx', format='md', outputfile=docx_path)
+                conversion_success = True
+                logger.info("pypandoc转换成功")
+            except Exception as e:
+                logger.warning(f"使用pypandoc转换失败: {e}")
+                import traceback
+                logger.warning(f"错误详情: {traceback.format_exc()}")
+            
+            # 如果pypandoc不可用或转换失败，使用python-docx手动转换
+            if not conversion_success:
+                try:
+                    from docx import Document
+                    from docx.shared import Inches
                     doc = Document()
                     
                     logger.info(f"使用python-docx手动转换内容")
                     lines = content.split('\n')
                     
-                    # 简单处理markdown内容，支持双语对照格式
-                    for line in lines:
-                        line = line.strip()
+                    # 简单处理内容，支持双语对照格式
+                    i = 0
+                    while i < len(lines):
+                        line = lines[i].strip()
                         if line.startswith('#'):
                             # 处理标题 (最多支持6级标题)
                             level = min(line.count('#'), 6)
                             doc.add_heading(line.lstrip('# ').strip(), level=level)
+                            
+                            # 检查下一行是否为该标题的译文
+                            if i + 1 < len(lines) and lines[i + 1].strip().startswith('【译文】'):
+                                # 添加译文段落，使用灰色字体以便区分
+                                from docx.shared import RGBColor
+                                paragraph = doc.add_paragraph()
+                                run = paragraph.add_run(lines[i + 1].strip()[5:].strip())  # 去掉"【译文】"前缀
+                                run.font.color.rgb = RGBColor(128, 128, 128)  # 灰色字体
+                                i += 2  # 跳过标题和译文两行
+                            else:
+                                i += 1  # 只跳过标题行
                         elif line.startswith('* ') or line.startswith('- '):
                             # 处理无序列表
                             doc.add_paragraph(line[2:].strip(), style='ListBullet')
+                            i += 1
                         elif line.startswith('1. '):
                             # 处理有序列表
                             doc.add_paragraph(line[3:].strip(), style='ListNumber')
+                            i += 1
                         elif line.startswith('【译文】'):
                             # 处理译文段落，使用灰色字体以便区分
                             from docx.shared import RGBColor
                             paragraph = doc.add_paragraph()
                             run = paragraph.add_run(line[5:].strip())  # 去掉"【译文】"前缀
                             run.font.color.rgb = RGBColor(128, 128, 128)  # 灰色字体
+                            i += 1
+                        elif line.startswith('![') and '](' in line and line.endswith(')'):
+                            # 处理图片
+                            try:
+                                # 提取图片路径
+                                start = line.find('](') + 2
+                                end = line.rfind(')')
+                                image_path = line[start:end]
+                                
+                                # 添加图片到文档
+                                if os.path.exists(image_path):
+                                    doc.add_picture(image_path, width=Inches(6))  # 设置图片宽度
+                                    logger.info(f"添加图片到文档: {image_path}")
+                                else:
+                                    logger.warning(f"图片文件不存在: {image_path}")
+                                    # 添加图片路径作为文本占位符
+                                    doc.add_paragraph(f"[图片: {os.path.basename(image_path)}]")
+                            except Exception as img_error:
+                                logger.error(f"处理图片时出错: {img_error}")
+                                # 添加图片路径作为文本占位符
+                                if '](' in line:
+                                    start = line.find('](') + 2
+                                    end = line.rfind(')')
+                                    image_path = line[start:end] if end > start else "未知图片"
+                                    doc.add_paragraph(f"[图片: {os.path.basename(image_path)}]")
+                            i += 1
                         elif line.strip() == '':
                             # 空行跳过，但确保段落分隔
-                            continue
+                            i += 1
                         else:
                             # 普通段落
                             if line:
+                                # 添加原文段落
                                 doc.add_paragraph(line)
+                                
+                                # 检查下一行是否为该段落的译文
+                                if i + 1 < len(lines) and lines[i + 1].strip().startswith('【译文】'):
+                                    # 添加译文段落，使用灰色字体以便区分
+                                    from docx.shared import RGBColor
+                                    paragraph = doc.add_paragraph()
+                                    run = paragraph.add_run(lines[i + 1].strip()[5:].strip())  # 去掉"【译文】"前缀
+                                    run.font.color.rgb = RGBColor(128, 128, 128)  # 灰色字体
+                                    i += 2  # 跳过原文和译文两行
+                                else:
+                                    i += 1  # 只跳过原文行
+                            else:
+                                i += 1
                     
                     doc.save(docx_path)
                     conversion_success = True
@@ -2541,8 +3082,49 @@ def translate_pdf():
                         doc.add_heading('PDF内容提取结果', 1)
                         doc.add_paragraph('以下是直接从提取结果中获取的内容:')
                         
-                        # 添加内容到文档中
-                        doc.add_paragraph(content)
+                        # 添加内容到文档中，支持双语格式
+                        lines = content.split('\n')
+                        i = 0
+                        while i < len(lines):
+                            line = lines[i].strip()
+                            if line.startswith('#'):
+                                # 处理标题 (最多支持6级标题)
+                                level = min(line.count('#'), 6)
+                                doc.add_heading(line.lstrip('# ').strip(), level=level)
+                                
+                                # 检查下一行是否为该标题的译文
+                                if i + 1 < len(lines) and lines[i + 1].strip().startswith('【译文】'):
+                                    # 添加译文段落，使用灰色字体以便区分
+                                    from docx.shared import RGBColor
+                                    paragraph = doc.add_paragraph()
+                                    run = paragraph.add_run(lines[i + 1].strip()[5:].strip())  # 去掉"【译文】"前缀
+                                    run.font.color.rgb = RGBColor(128, 128, 128)  # 灰色字体
+                                    i += 2  # 跳过标题和译文两行
+                                else:
+                                    i += 1  # 只跳过标题行
+                            elif line.startswith('【译文】'):
+                                # 特殊处理译文段落
+                                from docx.shared import RGBColor
+                                paragraph = doc.add_paragraph()
+                                run = paragraph.add_run(line[5:].strip())  # 去掉"【译文】"前缀
+                                run.font.color.rgb = RGBColor(128, 128, 128)  # 灰色字体
+                                i += 1
+                            elif line:
+                                # 添加原文段落
+                                doc.add_paragraph(line)
+                                
+                                # 检查下一行是否为该段落的译文
+                                if i + 1 < len(lines) and lines[i + 1].strip().startswith('【译文】'):
+                                    # 添加译文段落，使用灰色字体以便区分
+                                    from docx.shared import RGBColor
+                                    paragraph = doc.add_paragraph()
+                                    run = paragraph.add_run(lines[i + 1].strip()[5:].strip())  # 去掉"【译文】"前缀
+                                    run.font.color.rgb = RGBColor(128, 128, 128)  # 灰色字体
+                                    i += 2  # 跳过原文和译文两行
+                                else:
+                                    i += 1  # 只跳过原文行
+                            else:
+                                i += 1
                         
                         doc.save(docx_path)
                         conversion_success = True
@@ -2553,40 +3135,15 @@ def translate_pdf():
                         logger.error(f"错误详情: {traceback.format_exc()}")
                         return jsonify({'success': False, 'error': '转换Word文档失败'}), 500
         
-        # 验证生成的docx文件是否存在
-        if not os.path.exists(docx_path):
-            logger.error(f"生成的Word文档不存在: {docx_path}")
-            logger.error(f"输出目录内容: {os.listdir(pdf_output_dir) if os.path.exists(pdf_output_dir) else '目录不存在'}")
-            # 尝试再次创建文件作为最后的保障
-            try:
-                from docx import Document
-                doc = Document()
-                doc.add_heading('PDF翻译结果', 1)
-                doc.add_paragraph('文件处理完成，但发生未知错误。')
-                doc.save(docx_path)
-                logger.info(f"作为最后保障创建了文档: {docx_path}")
-            except Exception as final_error:
-                logger.error(f"最终创建文档尝试也失败了: {final_error}")
-                return jsonify({'success': False, 'error': '生成Word文档失败'}), 500
-        else:
-            logger.info(f"确认生成的Word文档存在: {docx_path}")
-        
-        file_size = os.path.getsize(docx_path)
-        logger.info(f"生成的Word文档大小: {file_size} 字节")
-        
-        if file_size == 0:
-            logger.error("生成的Word文档为空")
-            return jsonify({'success': False, 'error': '生成的Word文档为空'}), 500
-        
         # 记录到数据库
         try:
             from app.models.upload_record import UploadRecord
             record = UploadRecord(
-                filename=docx_filename,
+                filename=original_file.filename,  # 原始文件名
                 stored_filename=docx_filename,
-                file_path=docx_path,
+                file_path=pdf_output_dir,
                 user_id=current_user.id,
-                file_size=file_size,
+                file_size=os.path.getsize(docx_path),
                 status='completed'
             )
             db.session.add(record)
@@ -2595,28 +3152,26 @@ def translate_pdf():
             logger.info(f"记录ID: {record.id}")
         except Exception as e:
             logger.error(f"保存上传记录失败: {e}")
+            import traceback
+            logger.error(f"错误详情: {traceback.format_exc()}")
             # 即使数据库记录失败，我们仍然返回成功，因为文件已生成
             db.session.rollback()
         
         logger.info(f"PDF翻译完成，生成文件: {docx_path}")
-        # 确保返回的是JSON响应
-        response_data = {
+        return jsonify({
             'success': True, 
-            'message': 'PDF翻译完成',
-            'download_url': url_for('main.download_translated_pdf', filename=docx_filename, _external=False),
-            'filename': docx_filename
-        }
-        logger.info(f"返回响应数据: {response_data}")
-        response = jsonify(response_data)
-        response.headers['Content-Type'] = 'application/json'
-        return response
+            'message': 'PDF翻译完成', 
+            'filename': docx_filename,
+            'file_path': docx_path,
+            'download_url': url_for('main.download_translated_pdf', filename=docx_filename, _external=True)
+        })
         
     except Exception as e:
-        logger.error(f"PDF翻译过程中出错: {e}")
+        logger.error(f"处理PDF翻译时出错: {e}")
         import traceback
         logger.error(f"错误详情: {traceback.format_exc()}")
-        db.session.rollback()
-        return jsonify({'success': False, 'error': f'处理过程中出错: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': f'处理PDF翻译时出错: {str(e)}'}), 500
+
 
 @main.route('/download_translated_pdf/<filename>')
 @login_required
@@ -2685,8 +3240,7 @@ def download_translated_pdf(filename):
                         logger.info(f"第一个docx文件的绝对路径: {os.path.abspath(file_path)}")
             else:
                 logger.error("PDF输出目录不存在")
-                flash('文件目录不存在', 'error')
-                return redirect(url_for('main.index'))
+                return jsonify({'success': False, 'error': '文件目录不存在'}), 404
         
         # 再次检查文件是否存在
         if not os.path.exists(file_path):
@@ -2696,8 +3250,7 @@ def download_translated_pdf(filename):
             if os.path.exists(pdf_output_dir):
                 all_files = os.listdir(pdf_output_dir)
                 logger.info(f"输出目录中所有文件: {all_files}")
-            flash('文件不存在', 'error')
-            return redirect(url_for('main.index'))
+            return jsonify({'success': False, 'error': '文件不存在'}), 404
         
         # 确保文件扩展名正确
         if not filename.endswith('.docx'):
@@ -2714,16 +3267,61 @@ def download_translated_pdf(filename):
             return send_file(absolute_file_path, as_attachment=True, download_name=filename)
         else:
             logger.error(f"绝对路径文件也不存在: {absolute_file_path}")
-            flash('文件不存在', 'error')
-            return redirect(url_for('main.index'))
+            return jsonify({'success': False, 'error': '文件不存在'}), 404
             
     except Exception as e:
         logger.error(f"下载文件时出错: {e}")
         import traceback
         logger.error(f"错误详情: {traceback.format_exc()}")
-        flash('下载文件时出错: ' + str(e), 'error')
-        return redirect(url_for('main.index'))
+        return jsonify({'success': False, 'error': f'下载文件时出错: {str(e)}'}), 500
 
+
+@main.route('/api/pdf_translation/delete', methods=['POST'])
+@login_required
+def delete_pdf_translation():
+    """根据文件名删除PDF历史记录及物理文件（若存在记录）"""
+    try:
+        data = request.get_json(silent=True) or {}
+        filename = data.get('filename')
+        if not filename:
+            return jsonify({'success': False, 'error': '缺少文件名'}), 400
+
+        from werkzeug.utils import secure_filename
+        filename = secure_filename(filename)
+
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        if not os.path.isabs(upload_folder):
+            upload_folder = os.path.join(project_root, upload_folder)
+        pdf_output_dir = os.path.join(upload_folder, 'pdf_outputs')
+        file_path = os.path.join(pdf_output_dir, filename)
+
+        # 删除物理文件
+        file_deleted = False
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                file_deleted = True
+            except Exception as e:
+                logger.warning(f"删除文件失败: {file_path}, {e}")
+
+        # 删除数据库记录（按 stored_filename 匹配）
+        from app.models.upload_record import UploadRecord
+        record_deleted = False
+        try:
+            record = UploadRecord.query.filter_by(user_id=current_user.id, stored_filename=filename).first()
+            if record:
+                db.session.delete(record)
+                db.session.commit()
+                record_deleted = True
+        except Exception as e:
+            logger.warning(f"删除数据库记录失败: {e}")
+            db.session.rollback()
+
+        return jsonify({'success': True, 'file_deleted': file_deleted, 'record_deleted': record_deleted})
+    except Exception as e:
+        logger.error(f"删除PDF历史时出错: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @main.route('/download/<int:record_id>')
 @login_required
@@ -2862,8 +3460,8 @@ def translation_history():
         # 获取查询参数
         file_type = request.args.get('type', '')
         
-        # 构建查询 - 只返回状态为 completed 的记录
-        query = UploadRecord.query.filter_by(user_id=current_user.id, status='completed')
+        # 构建查询 - 先按用户筛选，不强制状态=completed，避免写库异常导致历史缺失
+        query = UploadRecord.query.filter_by(user_id=current_user.id)
         
         # 按上传时间倒序排列
         records = query.order_by(UploadRecord.upload_time.desc()).all()
@@ -2871,9 +3469,34 @@ def translation_history():
         # 格式化记录
         history_records = []
         for record in records:
+            # 仅保留PDF翻译生成的记录（目录包含 pdf_outputs）
+            try:
+                if 'pdf_outputs' not in (record.file_path or ''):
+                    continue
+            except Exception:
+                pass
             # 检查文件是否仍然存在
             file_path = os.path.join(record.file_path, record.stored_filename)
             file_exists = os.path.exists(file_path)
+            
+            # 如果文件不存在，尝试在pdf_outputs目录中查找
+            if not file_exists:
+                try:
+                    # 构建项目根目录和pdf_outputs路径
+                    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    upload_folder = current_app.config['UPLOAD_FOLDER']
+                    if not os.path.isabs(upload_folder):
+                        upload_folder = os.path.join(project_root, upload_folder)
+                    pdf_output_dir = os.path.join(upload_folder, 'pdf_outputs')
+                    
+                    # 在pdf_outputs目录中查找文件
+                    potential_file_path = os.path.join(pdf_output_dir, record.stored_filename)
+                    if os.path.exists(potential_file_path):
+                        file_exists = True
+                        file_path = potential_file_path
+                        logger.info(f"在pdf_outputs目录中找到历史文件: {file_path}")
+                except Exception as e:
+                    logger.warning(f"查找历史文件时出错: {e}")
 
             # 使用ISO格式返回时间，让前端正确处理时区
             upload_time = datetime_to_isoformat(record.upload_time)
@@ -2882,6 +3505,7 @@ def translation_history():
             history_records.append({
                 'id': record.id,
                 'filename': record.filename,  # 使用数据库中存储的文件名
+                'stored_filename': getattr(record, 'stored_filename', None),
                 'file_size': record.file_size,
                 'upload_time': upload_time,
                 'status': record.status,
@@ -2906,7 +3530,7 @@ def translation_history():
         return jsonify(history_records)
         
     except Exception as e:
-        logger.error(f"获取翻译历史记录失败: {e}")
+        logger.error(f"获取PDF翻译历史记录失败: {e}")
         import traceback
         logger.error(f"错误详情: {traceback.format_exc()}")
         return jsonify({
@@ -2935,6 +3559,116 @@ def translation_history():
     except Exception as e:
         logger.error(f"下载模板文件失败: {str(e)}")
         return jsonify({'error': f'下载模板文件失败: {str(e)}'}), 500
+
+
+@main.route('/api/pdf_translation_history')
+@login_required
+def pdf_translation_history():
+    """获取PDF翻译历史记录"""
+    try:
+        logger.info("[PDF History] 开始查询历史记录")
+        # 构建查询 - 只返回状态为 completed 的记录
+        query = UploadRecord.query.filter_by(user_id=current_user.id, status='completed')
+        
+        # 按上传时间倒序排列
+        records = query.order_by(UploadRecord.upload_time.desc()).all()
+        logger.info(f"[PDF History] 查询到用户记录数: {len(records)}")
+
+        # 格式化记录
+        history_records = []
+        for record in records:
+            try:
+                logger.info(f"[PDF History] 记录: id={record.id}, filename={record.filename}, stored={record.stored_filename}, path={record.file_path}")
+            except Exception:
+                pass
+
+            # 仅保留PDF翻译生成的记录（目录包含 pdf_outputs）
+            try:
+                if 'pdf_outputs' not in (record.file_path or ''):
+                    logger.info(f"[PDF History] 过滤非pdf_outputs记录: id={record.id}, path={record.file_path}")
+                    continue
+            except Exception:
+                pass
+
+            # 检查文件是否仍然存在
+            file_path = os.path.join(record.file_path, record.stored_filename)
+            file_exists = os.path.exists(file_path)
+            logger.info(f"[PDF History] 文件存在: {file_exists}, full_path={file_path}")
+            
+            # 如果文件不存在，尝试在pdf_outputs目录中查找
+            if not file_exists:
+                try:
+                    # 构建项目根目录和pdf_outputs路径
+                    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    upload_folder = current_app.config['UPLOAD_FOLDER']
+                    if not os.path.isabs(upload_folder):
+                        upload_folder = os.path.join(project_root, upload_folder)
+                    pdf_output_dir = os.path.join(upload_folder, 'pdf_outputs')
+                    
+                    # 在pdf_outputs目录中查找文件
+                    potential_file_path = os.path.join(pdf_output_dir, record.stored_filename)
+                    if os.path.exists(potential_file_path):
+                        file_exists = True
+                        file_path = potential_file_path
+                        logger.info(f"在pdf_outputs目录中找到历史文件: {file_path}")
+                except Exception as e:
+                    logger.warning(f"查找历史文件时出错: {e}")
+
+            # 使用ISO格式返回时间，让前端正确处理时区
+            upload_time = datetime_to_isoformat(record.upload_time)
+            
+            # 直接使用数据库中存储的文件名
+            history_records.append({
+                'id': record.id,
+                'filename': record.filename,  # 使用数据库中存储的文件名
+                'stored_filename': getattr(record, 'stored_filename', None),
+                'file_size': record.file_size,
+                'upload_time': upload_time,
+                'status': record.status,
+                'file_exists': file_exists
+            })
+
+        # 如果通过数据库没有获取到任何PDF历史，回退到文件系统扫描
+        if len(history_records) == 0:
+            try:
+                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                upload_folder = current_app.config['UPLOAD_FOLDER']
+                if not os.path.isabs(upload_folder):
+                    upload_folder = os.path.join(project_root, upload_folder)
+                pdf_output_dir = os.path.join(upload_folder, 'pdf_outputs')
+                logger.info(f"[PDF History] 数据库为空，改为扫描目录: {pdf_output_dir}")
+                if os.path.exists(pdf_output_dir):
+                    files = [f for f in os.listdir(pdf_output_dir) if f.lower().endswith('.docx')]
+                    files.sort(key=lambda f: os.path.getmtime(os.path.join(pdf_output_dir, f)), reverse=True)
+                    for fname in files[:50]:  # 限制最多50条
+                        fpath = os.path.join(pdf_output_dir, fname)
+                        try:
+                            history_records.append({
+                                'id': None,
+                                'filename': fname,
+                                'stored_filename': fname,
+                                'file_size': os.path.getsize(fpath),
+                                'upload_time': datetime_to_isoformat(datetime.fromtimestamp(os.path.getmtime(fpath))),
+                                'status': 'completed',
+                                'file_exists': True
+                            })
+                        except Exception:
+                            continue
+            except Exception as e:
+                logger.warning(f"[PDF History] 扫描目录失败: {e}")
+
+        logger.info(f"[PDF History] 返回记录数: {len(history_records)}")
+        return jsonify(history_records)
+        
+    except Exception as e:
+        logger.error(f"获取PDF翻译历史记录失败: {e}")
+        import traceback
+        logger.error(f"错误详情: {traceback.format_exc()}")
+        return jsonify({
+            'status': 'error',
+            'message': '获取历史记录失败'
+        }), 500
+
 
 def create_template_file(file_path):
     """创建模板 Excel 文件"""

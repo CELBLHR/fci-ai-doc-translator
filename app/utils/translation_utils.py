@@ -26,6 +26,8 @@ def build_map(data: List[Dict[str, str]]) -> Dict[str, str]:
             source = item['source_language']
             target = item['target_language']
             result[source] = target
+            # 添加调试信息
+            # print(f"构建映射: {repr(source)} -> {repr(target)}")
     return result
 
 
@@ -58,8 +60,8 @@ def re_parse_formatted_text(text: str) -> List[Dict[str, str]]:
         解析后的翻译数据列表
     """
     try:
-        # 移除可能的markdown代码块标记
-        text = re.sub(r'```json\s*', '', text)
+        # 移除可能的代码块标记
+        text = re.sub(r'``json\s*', '', text)
         text = re.sub(r'```\s*$', '', text)
         
         # 尝试修复常见的JSON格式问题
