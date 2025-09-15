@@ -80,7 +80,7 @@ class QwenTranslator:
                 ]
             },
             "parameters": {
-                "max_tokens": 1000,
+                "max_tokens": 16000,  # Increased from 1000 to 16000 to handle longer texts
                 "temperature": 0.1,  # 较低的温度确保翻译准确性
                 "top_p": 0.8
             }

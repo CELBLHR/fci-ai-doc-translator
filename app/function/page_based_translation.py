@@ -79,26 +79,26 @@ class PageBasedTranslator:
 
         # 处理普通文本框
         for shape_index, shape in enumerate(slide.shapes):
-        #     if shape.has_text_frame:
-        #         text_frame = shape.text_frame
-        #         for paragraph_index, paragraph in enumerate(text_frame.paragraphs):
-        #             text = paragraph.text.strip()
-        #             if text:
-        #                 is_translatable = self.is_translatable_text(text)
-        #                 para_info = ParagraphInfo(
-        #                     text=text,
-        #                     slide_index=slide_index,
-        #                     shape_index=shape_index,
-        #                     paragraph_index=paragraph_index,
-        #                     shape_type='textbox',
-        #                     is_translatable=is_translatable
-        #                 )
-        #                 paragraphs.append(para_info)
+            #     if shape.has_text_frame:
+            #         text_frame = shape.text_frame
+            #         for paragraph_index, paragraph in enumerate(text_frame.paragraphs):
+            #             text = paragraph.text.strip()
+            #             if text:
+            #                 is_translatable = self.is_translatable_text(text)
+            #                 para_info = ParagraphInfo(
+            #                     text=text,
+            #                     slide_index=slide_index,
+            #                     shape_index=shape_index,
+            #                     paragraph_index=paragraph_index,
+            #                     shape_type='textbox',
+            #                     is_translatable=is_translatable
+            #                 )
+            #                 paragraphs.append(para_info)
 
-        #                 if is_translatable:
-        #                     logger.debug(f"收集可翻译段落: '{text[:50]}...'")
-        #                 else:
-        #                     logger.debug(f"收集不可翻译段落: '{text[:50]}...'")
+            #                 if is_translatable:
+            #                     logger.debug(f"收集可翻译段落: '{text[:50]}...'")
+            #                 else:
+            #                     logger.debug(f"收集不可翻译段落: '{text[:50]}...'")
 
             # 处理表格
             if shape.has_table:

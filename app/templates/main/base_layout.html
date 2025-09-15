@@ -426,7 +426,8 @@
                             <i class="bi bi-person-check"></i> 
                             {% if session.get('language') == 'en' %}Registration Approval{% else %}注册审批{% endif %}
                         </a>
-                        <a href="{{ url_for('main.user_management') }}" class="nav-link">
+                        <!-- 修复：将不存在的main.user_management端点改为已存在的端点 -->
+                        <a href="{{ url_for('main.registration_approval') }}" class="nav-link">
                             <i class="bi bi-people"></i> 
                             {% if session.get('language') == 'en' %}User Management{% else %}用户管理{% endif %}
                         </a>
