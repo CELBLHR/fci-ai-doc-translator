@@ -1336,30 +1336,36 @@
                     document.getElementById('progressText').textContent = progress + '%';
                 }
                 else if (data.status === 'completed') {
-                    window.isTranslationActive = false;
-                    window.waitingCount = 0;
-                    messageSpan.textContent = getText('translationCompleted');
-                    progressContainer.style.display = 'block';
+                    // 检查是否已经显示过完成弹窗
+                    // 使用localStorage来持久化存储这个标志
+                    const popupAlreadyShown = localStorage.getItem('completionPopupAlreadyShown') === 'true';
+                    if (popupAlreadyShown) {
+                        // 如果已经显示过弹窗，则不再显示
+                        window.isTranslationActive = false;
+                        window.waitingCount = 0;
+                        messageSpan.textContent = getText('translationCompleted');
+                        progressContainer.style.display = 'block';
 
-                    const finalTotalSlides = data.total_slides || 0;
-                    if (finalTotalSlides > 0) {
-                        document.getElementById('currentSlide').textContent = finalTotalSlides;
-                        document.getElementById('totalSlides').textContent = finalTotalSlides;
+                        const finalTotalSlides = data.total_slides || 0;
+                        if (finalTotalSlides > 0) {
+                            document.getElementById('currentSlide').textContent = finalTotalSlides;
+                            document.getElementById('totalSlides').textContent = finalTotalSlides;
+                        }
+
+                        document.getElementById('progressBarFill').style.width = '100%';
+                        document.getElementById('progressText').textContent = '100%';
+
+                        loadHistory();
+                        
+                        // 停止轮询
+                        if (window.statusCheckInterval) {
+                            clearInterval(window.statusCheckInterval);
+                            window.statusCheckInterval = null;
+                        }
+                    } else {
+                        // Show popup notification and refresh page after user confirmation
+                        showCompletionPopup(getText('completionPopup'));
                     }
-
-                    document.getElementById('progressBarFill').style.width = '100%';
-                    document.getElementById('progressText').textContent = '100%';
-
-                    loadHistory();
-                    
-                    // 停止轮询
-                    if (window.statusCheckInterval) {
-                        clearInterval(window.statusCheckInterval);
-                        window.statusCheckInterval = null;
-                    }
-                    
-                    // Show popup notification and refresh page after user confirmation
-                    showCompletionPopup(getText('completionPopup'));
                 }
                 else if (data.status === 'failed') {
                     window.isTranslationActive = false;

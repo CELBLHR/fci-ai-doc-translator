@@ -9,9 +9,12 @@ import time
 import requests
 import logging
 import zipfile
+import platform
+import subprocess
 from pathlib import Path
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from PIL import Image
 
 # 修复logger_config_ocr导入问题
 try:
@@ -107,20 +110,38 @@ class MinerUAPI:
         try:
             logger.info("发送创建任务请求...")
             response = self.session.post(
-                task_url, 
-                headers=headers, 
+                task_url,
+                headers=headers,
                 json=data,
                 timeout=(30, 60)
             )
             result = response.json()
-            
-            if result['code'] != 0:
-                logger.error(f"❌ 创建任务失败: {result['msg']}")
+
+            # 检查API响应的格式和内容
+            if not isinstance(result, dict):
+                logger.error(f"❌ API响应格式错误: {result}")
                 return None
-            
+
+            if 'code' not in result:
+                logger.error(f"❌ API响应缺少'code'字段: {result}")
+                return None
+
+            if result['code'] != 0:
+                error_msg = result.get('msg', '未知错误')
+                logger.error(f"❌ 创建任务失败: {error_msg}")
+                return None
+
+            if 'data' not in result:
+                logger.error(f"❌ API响应缺少'data'字段: {result}")
+                return None
+
+            if 'task_id' not in result['data']:
+                logger.error(f"❌ API响应缺少task_id字段: {result}")
+                return None
+
             task_id = result['data']['task_id']
             logger.info(f"✅ 任务ID: {task_id}")
-            
+
             # 3. 等待处理完成
             logger.info("⏳ 等待处理...")
             return self._wait_for_task_completion(task_id, headers)
@@ -147,11 +168,24 @@ class MinerUAPI:
                 )
                 status_data = status_response.json()
                 logger.info(f"任务状态响应: {status_data}")
-                
-                if 'data' not in status_data or 'state' not in status_data['data']:
-                    logger.error(f"❌ 任务状态响应格式不正确: {status_data}")
+
+                # 检查API响应的格式和内容
+                if not isinstance(status_data, dict):
+                    logger.error(f"❌ 任务状态响应格式错误: {status_data}")
                     return None
-                
+
+                if 'data' not in status_data:
+                    logger.error(f"❌ 任务状态响应缺少'data'字段: {status_data}")
+                    return None
+
+                if not isinstance(status_data['data'], dict):
+                    logger.error(f"❌ 任务状态响应data字段格式错误: {status_data}")
+                    return None
+
+                if 'state' not in status_data['data']:
+                    logger.error(f"❌ 任务状态响应缺少'state'字段: {status_data}")
+                    return None
+
                 state = status_data['data']['state']
                 logger.info(f"当前任务状态: {state}")
                 
@@ -483,20 +517,38 @@ class OCRProcessor:
         
         try:
             response = self.session.post(
-                task_url, 
-                headers=headers, 
+                task_url,
+                headers=headers,
                 json=data,
                 timeout=(30, 60)
             )
             result = response.json()
-            
-            if result['code'] != 0:
-                logger.error(f"❌ 创建任务失败: {result['msg']}")
+
+            # 检查API响应的格式和内容
+            if not isinstance(result, dict):
+                logger.error(f"❌ API响应格式错误: {result}")
                 return None
-            
+
+            if 'code' not in result:
+                logger.error(f"❌ API响应缺少'code'字段: {result}")
+                return None
+
+            if result['code'] != 0:
+                error_msg = result.get('msg', '未知错误')
+                logger.error(f"❌ 创建任务失败: {error_msg}")
+                return None
+
+            if 'data' not in result:
+                logger.error(f"❌ API响应缺少'data'字段: {result}")
+                return None
+
+            if 'task_id' not in result['data']:
+                logger.error(f"❌ API响应缺少task_id字段: {result}")
+                return None
+
             task_id = result['data']['task_id']
             logger.info(f"✅ 任务ID: {task_id}")
-            
+
             # 3. 等待处理完成
             logger.info("⏳ 等待处理...")
             return self._wait_for_task_completion(task_id, headers)
@@ -516,20 +568,42 @@ class OCRProcessor:
                     timeout=(30, 60)
                 )
                 status_data = status_response.json()
-                
+
+                # 检查API响应的格式和内容
+                if not isinstance(status_data, dict):
+                    logger.error(f"❌ 任务状态响应格式错误: {status_data}")
+                    return None
+
+                if 'data' not in status_data:
+                    logger.error(f"❌ 任务状态响应缺少'data'字段: {status_data}")
+                    return None
+
+                if not isinstance(status_data['data'], dict):
+                    logger.error(f"❌ 任务状态响应data字段格式错误: {status_data}")
+                    return None
+
+                if 'state' not in status_data['data']:
+                    logger.error(f"❌ 任务状态响应缺少'state'字段: {status_data}")
+                    return None
+
                 state = status_data['data']['state']
-                
+
                 if state == 'done':
+                    if 'full_zip_url' not in status_data['data']:
+                        logger.error(f"❌ 任务完成但缺少下载URL: {status_data}")
+                        return None
+
                     zip_url = status_data['data']['full_zip_url']
                     logger.info(f"✅ 处理完成！")
                     logger.info(f"📦 下载地址: {zip_url}")
-                    
+
                     # 下载结果
                     self.download_result(zip_url, task_id)
                     return status_data
-                    
+
                 elif state == 'failed':
-                    logger.error(f"❌ 处理失败: {status_data['data']['err_msg']}")
+                    err_msg = status_data['data'].get('err_msg', '未知错误')
+                    logger.error(f"❌ 处理失败: {err_msg}")
                     return None
                     
                 elif state == 'running':
@@ -619,13 +693,34 @@ class OCRProcessor:
             if response.status_code == 200:
                 result = response.json()
                 logger.info(f'✅ 批量请求响应: {result}')
-                
+
+                # 检查API响应的格式和内容
+                if not isinstance(result, dict):
+                    logger.error(f"❌ 批量请求响应格式错误: {result}")
+                    return None
+
+                if 'code' not in result:
+                    logger.error(f"❌ 批量请求响应缺少'code'字段: {result}")
+                    return None
+
                 if result["code"] == 0:
+                    if 'data' not in result:
+                        logger.error(f"❌ 批量请求响应缺少'data'字段: {result}")
+                        return None
+
+                    if 'batch_id' not in result["data"]:
+                        logger.error(f"❌ 批量请求响应缺少batch_id字段: {result}")
+                        return None
+
+                    if 'file_urls' not in result["data"]:
+                        logger.error(f"❌ 批量请求响应缺少file_urls字段: {result}")
+                        return None
+
                     batch_id = result["data"]["batch_id"]
                     urls = result["data"]["file_urls"]
                     logger.info(f'📦 批量ID: {batch_id}')
                     logger.info(f'🔗 上传链接: {urls}')
-                    
+
                     # 上传文件到返回的URL
                     for i, url in enumerate(urls):
                         file_path = valid_files[i]

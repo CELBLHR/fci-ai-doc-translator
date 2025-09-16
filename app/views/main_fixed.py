@@ -2129,7 +2129,6 @@ from flask import Blueprint, request, jsonify, session
 from flask_login import login_required
 
 from app.function.image_ocr.ocr_api import MinerUAPI
-from app.function.translate.qwen import QwenTranslator
 
 import pypandoc
 

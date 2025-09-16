@@ -1186,36 +1186,6 @@ def get_pdf(filename):
         return jsonify({'error': f'获取文件失败: {str(e)}'}), 500
 
 
-@main.route('/ocr_region', methods=['POST'])
-@login_required
-def ocr_region():
-    try:
-        data = request.get_json()
-        image_data = data.get('imageData')  # base64格式的图像数据
-
-        # 使用异步OCR处理
-        from ..function.pdf_annotate_async import ocr_image_region_async
-        import asyncio
-
-        # 创建异步事件循环
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        try:
-            result = loop.run_until_complete(
-                ocr_image_region_async(image_data, 'auto')
-            )
-            return jsonify(result)
-        finally:
-            loop.close()
-
-    except Exception as e:
-        logger.error(f"OCR error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'OCR识别失败: {str(e)}'
-        }), 500
-
 
 @main.route('/save_annotations', methods=['POST'])
 @login_required
@@ -1347,29 +1317,6 @@ def get_sso_users():
     except Exception as e:
         logger.error(f"获取SSO用户列表失败: {e}")
         return jsonify({'error': f'获取用户列表失败: {str(e)}'}), 500
-
-
-@main.route('/ocr_status', methods=['GET'])
-@login_required
-def get_ocr_status():
-    """获取OCR状态信息"""
-    try:
-        from ..function.pdf_annotate_async import pdf_processor
-
-        # 获取OCR读取器信息
-        ocr_info = pdf_processor.get_ocr_info()
-
-        return jsonify({
-            'success': True,
-            'ocr_info': ocr_info
-        })
-
-    except Exception as e:
-        logger.error(f"获取OCR状态失败: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'获取状态失败: {str(e)}'
-        }), 500
 
 
 @main.route('/get_queue_status')
@@ -3334,16 +3281,23 @@ def download_translated_file(record_id):
     try:
         from app.models.upload_record import UploadRecord
         record = UploadRecord.query.get(record_id)
-        
+        print(record_id)
         if not record:
             flash('文件记录不存在', 'error')
             return redirect(url_for('main.index'))
         
-        if not os.path.exists(record.file_path):
+        # 构造完整文件路径
+        file_path = os.path.join(record.file_path, record.stored_filename)
+        print(file_path)
+        # 检查文件是否存在
+        if not os.path.exists(file_path):
             flash('文件不存在', 'error')
             return redirect(url_for('main.index'))
         
-        return send_file(record.file_path, as_attachment=True, download_name=record.filename)
+        # 构造下载文件名
+        download_filename = f"translated_{record.filename}"
+        
+        return send_file(file_path, as_attachment=True, download_name=download_filename)
     except Exception as e:
         logger.error(f"下载文件时出错: {e}")
         flash('下载文件时出错', 'error')

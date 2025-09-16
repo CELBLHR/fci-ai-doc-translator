@@ -402,23 +402,17 @@
                     <i class="bi bi-translate"></i>
                     {% if session.get('language') == 'en' %}PPT Translation{% else %}PPT翻译{% endif %}
                 </a>
-                <a href="{{ url_for('main.pdf_translation') }}" class="nav-link {% if request.endpoint == 'main.pdf_translation' %}active{% endif %}">
-                    <i class="bi bi-translate"></i>
-                    {% if session.get('language') == 'en' %}PDF Translation{% else %}PDF翻译{% endif %}
-                </a>
                 <a href="{{ url_for('main.dictionary') }}" class="nav-link {% if request.endpoint == 'main.dictionary' %}active{% endif %}">
                     <i class="bi bi-book"></i>
                     {% if session.get('language') == 'en' %}Dictionary{% else %}词库管理{% endif %}
                 </a>
-                {# PDF注释链接暂时注释掉，因为路由可能有问题
-                <a href="{{ url_for('main.pdf_annotate') }}" class="nav-link {% if request.endpoint == 'main.pdf_annotate' %}active{% endif %}">
-                    <i class="bi bi-file-pdf"></i>
-                    {% if session.get('language') == 'en' %}PDF Annotation{% else %}PDF注释{% endif %}
-                </a>
-                #}
                 <a href="{{ url_for('main.ingredient') }}" class="nav-link {% if request.endpoint == 'main.ingredient' %}active{% endif %}">
                     <i class="bi bi-search"></i>
                     {% if session.get('language') == 'en' %}Ingredient Search{% else %}成分搜索{% endif %}
+                </a>
+                <a href="{{ url_for('main.pdf_translate') }}" class="nav-link {% if request.endpoint == 'main.pdf_translate' %}active{% endif %}">
+                            <i class="bi bi-file-pdf"></i>
+                            {% if session.get('language') == 'en' %}PDF Translation{% else %}PDF翻译{% endif %}
                 </a>
                 {% if current_user.is_authenticated %}
                     {% if current_user.is_administrator() %}
@@ -450,10 +444,6 @@
                         <a href="{{ url_for('main.logs') }}" class="nav-link {% if request.endpoint == 'main.logs' %}active{% endif %}">
                             <i class="bi bi-journal-text"></i>
                             {% if session.get('language') == 'en' %}Log Management{% else %}日志管理{% endif %}
-                        </a>
-                        <a href="{{ url_for('main.pdf_translate') }}" class="nav-link {% if request.endpoint == 'main.pdf_translate' %}active{% endif %}">
-                            <i class="bi bi-file-pdf"></i>
-                            {% if session.get('language') == 'en' %}PDF Translation{% else %}PDF翻译{% endif %}
                         </a>
                     {% endif %}
                     <a href="{{ url_for('auth.logout') }}" class="nav-link">

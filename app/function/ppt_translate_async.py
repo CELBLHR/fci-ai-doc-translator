@@ -766,6 +766,8 @@ async def process_presentation_async(presentation_path: str,
                 ocr_ppt_path= ocr_controller(uno_pptx_path,
                                             selected_pages=select_page,
                                             output_path=None,
+                                            source_language=source_language,
+                                            target_language=target_language,
                                             enable_text_splitting=enable_text_splitting)
             except Exception as e:
                 logger.error(f"使用ocr接口功能时出错: {str(e)}")
