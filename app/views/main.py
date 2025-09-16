@@ -3137,7 +3137,7 @@ def download_translated_pdf(filename):
         logger.info(f"安全文件名: {filename}")
         
         # 构建文件路径 - 使用项目根目录下的uploads文件夹
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        project_root = (os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         upload_folder = current_app.config['UPLOAD_FOLDER']
         
         # 确保使用正确的上传文件夹路径
@@ -3288,8 +3288,31 @@ def download_translated_file(record_id):
         
         # 构造完整文件路径
         file_path = os.path.join(record.file_path, record.stored_filename)
+        print("*********************************************************")
         print(file_path)
-        # 检查文件是否存在
+        print("*********************************************************")
+
+        # 路径兜底处理：
+        # 1) 如果记录里是相对路径或文件不存在，按配置的UPLOAD_FOLDER重建绝对路径
+        if not os.path.isabs(file_path) or not os.path.exists(file_path):
+            try:
+                base_upload = current_app.config.get('UPLOAD_FOLDER')
+                if base_upload:
+                    # 如果配置是相对路径，拼到应用根
+                    if not os.path.isabs(base_upload):
+                        base_upload = os.path.join(os.path.dirname(current_app.root_path), base_upload)
+                    candidate = os.path.join(base_upload, f"user_{record.user_id}", record.stored_filename)
+                    if os.path.exists(candidate):
+                        file_path = candidate
+                # 2) 兼容历史绝对路径中包含 /app/uploads 的情况，替换为 /uploads
+                if not os.path.exists(file_path):
+                    alt = file_path.replace("/app/uploads/", "/uploads/")
+                    if alt != file_path and os.path.exists(alt):
+                        file_path = alt
+            except Exception:
+                pass
+
+        # 最终检查
         if not os.path.exists(file_path):
             flash('文件不存在', 'error')
             return redirect(url_for('main.index'))
