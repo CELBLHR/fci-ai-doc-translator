@@ -110,7 +110,7 @@ class QwenOCRProcessor:
                     ]
                 },
                 "parameters": {
-                    "max_tokens": 16000,  # Increased from 2000 to 16000 to handle larger OCR results
+                    "max_tokens": 2000,
                     "temperature": 0.1
                 }
             }
