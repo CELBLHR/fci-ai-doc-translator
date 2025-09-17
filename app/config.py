@@ -20,7 +20,7 @@ class Config:
     
     # 文件存储配置
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or 'uploads'
-    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 最大文件大小：50MB
+    MAX_CONTENT_LENGTH = 400 * 1024 * 1024  # 最大文件大小：50MB
     USER_STORAGE_QUOTA = 1024 * 1024 * 1024  # 用户存储配额：1GB
     FILE_CLEANUP_DAYS = 7  # 文件保留天数
     TEMP_FILE_CLEANUP_HOURS = 24  # 临时文件保留小时数

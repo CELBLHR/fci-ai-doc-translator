@@ -43,7 +43,7 @@ class Config:
 
     # 文件存储基础配置
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
-    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 50 * 1024 * 1024))  # 默认50MB
+    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 200 * 1024 * 1024))  # 默认200MB
     
     # 文件存储配额配置（单位：字节）
     USER_STORAGE_QUOTA = int(os.environ.get('USER_STORAGE_QUOTA', 1024 * 1024 * 1024))  # 默认1GB
@@ -106,6 +106,8 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
+    # 开发环境文件大小限制
+    MAX_CONTENT_LENGTH = 200 * 1024 * 1024  # 200MB
     # 开发环境可以设置较小的配额
     USER_STORAGE_QUOTA = 100 * 1024 * 1024  # 100MB
     FILE_CLEANUP_DAYS = 1  # 1天后清理
@@ -113,9 +115,13 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
+    # 生产环境文件大小限制
+    MAX_CONTENT_LENGTH = 200 * 1024 * 1024  # 200MB
 
 class TestingConfig(Config):
     TESTING = True
+    # 测试环境文件大小限制
+    MAX_CONTENT_LENGTH = 200 * 1024 * 1024  # 200MB
     # 测试环境使用内存数据库
     if Config.DB_TYPE == 'sqlite':
         SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'

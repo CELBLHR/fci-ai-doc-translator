@@ -82,7 +82,7 @@ def page2():
 
 # 允许的文件扩展名和大小限制
 ALLOWED_EXTENSIONS = {'ppt', 'pptx'}
-MAX_FILE_SIZE = 200 * 1024 * 1024  # 50MB
+MAX_FILE_SIZE = 200 * 1024 * 1024  # 200MB
 
 
 def allowed_file(filename):
