@@ -601,10 +601,18 @@
 
             formatDateTime(timestamp) {
                 if (!timestamp) return '';
+                let date;
                 if (typeof timestamp === 'string') {
-                    return timestamp;
+                    // 如果是字符串，创建Date对象
+                    date = new Date(timestamp);
+                } else {
+                    // 如果是Date对象，直接使用
+                    date = new Date(timestamp);
                 }
-                const date = new Date(timestamp);
+
+                // 添加8小时偏移来修正时区问题
+                date.setHours(date.getHours() + 8);
+
                 return date.toLocaleString();
             },
 

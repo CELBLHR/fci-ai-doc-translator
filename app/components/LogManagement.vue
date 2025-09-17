@@ -232,6 +232,8 @@ export default {
     const formatDateTime = (timestamp) => {
       if (!timestamp) return ''
       const date = new Date(timestamp)
+      // 添加8小时偏移来修正时区问题
+      date.setHours(date.getHours() + 8)
       return date.toLocaleString()
     }
     

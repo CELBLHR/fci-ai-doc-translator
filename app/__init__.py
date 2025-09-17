@@ -41,6 +41,7 @@ def create_app(config_name='development'):
 
     # 确保上传目录存在
     uploads_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+    print(uploads_path)
     os.makedirs(uploads_path, exist_ok=True)
 
     # 初始化日志

@@ -1338,7 +1338,7 @@
                 else if (data.status === 'completed') {
                     // 检查是否已经显示过完成弹窗
                     // 使用localStorage来持久化存储这个标志
-                    const popupAlreadyShown = localStorage.getItem('completionPopupAlreadyShown') === 'true';
+                    const popupAlreadyShown = localStorage.getItem('completionPopupAlreadyShown:GLOBAL') === 'true';
                     if (popupAlreadyShown) {
                         // 如果已经显示过弹窗，则不再显示
                         window.isTranslationActive = false;
@@ -1591,7 +1591,7 @@
                     <!-- 分类标签将在这里动态显示 -->
                 </div>
                 <div style="margin-bottom: 15px; display: flex; align-items: center;">
-                    <input type="checkbox" id="selectAllCheckboxHeader" style="margin-right: 10px;">
+                    <input type="checkbox" id="selectAllCheckbox" style="margin-right: 10px;">
                     <label for="selectAllCheckbox" style="color: #333 !important; font-weight: 500;">${currentLanguage === 'en' ? 'Select All' : '全选'}</label>
                 </div>
                 <div id="vocabularyList" style="min-height: 300px; border: 1px solid #ddd; border-radius: 4px; padding: 15px; max-height: 400px; overflow-y: auto;">

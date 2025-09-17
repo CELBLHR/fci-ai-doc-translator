@@ -1253,9 +1253,9 @@ function handleFileSelect(event) {
         }
 
         // 检查文件大小 (限制为 10MB)
-        const maxSize = 10 * 1024 * 1024; // 10MB
+        const maxSize = 200 * 1024 * 1024; // 10MB
         if (file.size > maxSize) {
-            showToast(`文件过大: ${(file.size / 1024 / 1024).toFixed(2)}MB。最大支持 10MB`, 'error');
+            showToast(`文件过大: ${(file.size / 1024 / 1024).toFixed(2)}MB。最大支持 200MB`, 'error');
             event.target.value = ''; // 清空文件选择
             fileNameDiv.textContent = '';
             uploadBtn.disabled = true;
