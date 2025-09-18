@@ -163,7 +163,7 @@
             font-size: 1rem;
         }
 
-        /* 主内容区域 - 自适应侧边栏宽度 */
+        /* Main content area - responsive sidebar width */
         .container {
             margin-left: 17vw; /* 与侧边栏宽度一致 */
             width: 83vw; /* 占据剩余的83%视口宽度 */
@@ -173,122 +173,7 @@
             box-sizing: border-box;
         }
 
-        /* 用户信息卡片 - 响应式定位 */
-        .user-info-card {
-            position: fixed;
-            bottom: 1.4vw;
-            right: 1.4vw;
-            background: white;
-            border-radius: 0.8vw;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            width: 18vw;
-            min-width: 250px;
-            max-width: 350px;
-            z-index: 1001;
-            border: 1px solid #e9ecef;
-        }
-
-        .user-info-header {
-            display: flex;
-            align-items: center;
-            padding: 1vw 1.4vw;
-            border-bottom: 1px solid #f1f3f4;
-        }
-
-        .user-avatar i {
-            font-size: 2.2rem;
-            color: rgb(0,148,217);
-            margin-right: 0.8vw;
-        }
-
-        .user-name {
-            font-weight: 600;
-            color: rgb(0,148,217);
-            font-size: 1.1rem;
-        }
-
-        .user-role {
-            color: #ffffff;
-            font-size: 0.9rem;
-            margin-top: 0.1vw;
-        }
-
-        .user-info-toggle {
-            background: none;
-            border: none;
-            color: rgb(110,111,114);
-            cursor: pointer;
-            padding: 5px;
-            border-radius: 4px;
-            transition: all 0.2s ease;
-        }
-
-        .user-info-toggle:hover {
-            background: rgba(0,148,217,0.1);
-            color: rgb(0,148,217);
-        }
-
-        .user-info-body {
-            padding: 15px 20px;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-
-        .user-info-body.expanded {
-            max-height: 250px;
-        }
-
-        .user-info-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 12px;
-            font-size: 14px;
-            color: rgb(110,111,114);
-        }
-
-        .user-info-item i {
-            margin-right: 10px;
-            width: 16px;
-            color: rgb(0,148,217);
-        }
-
-        .user-info-actions {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #f1f3f4;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .user-action-btn {
-            display: flex;
-            align-items: center;
-            padding: 8px 12px;
-            text-decoration: none;
-            color: rgb(110,111,114);
-            font-size: 13px;
-            border-radius: 6px;
-            transition: all 0.2s ease;
-        }
-
-        .user-action-btn i {
-            margin-right: 8px;
-        }
-
-        .user-action-btn:hover {
-            background: rgba(0,148,217,0.1);
-            color: rgb(0,148,217);
-            text-decoration: none;
-        }
-
-        .user-action-btn.logout-btn:hover {
-            background: rgba(220,53,69,0.1);
-            color: #dc3545;
-        }
-
-        /* Toast 消息 - 响应式定位 */
+        /* Toast container - responsive position */
         .toast-container {
             position: fixed;
             top: 1.4vw;
@@ -359,7 +244,7 @@
                 width: 16vw;
                 min-width: 180px;
             }
-            
+            /* Main content area - medium screens */
             .container {
                 margin-left: 16vw;
                 width: 84vw;
@@ -375,16 +260,12 @@
                 width: 15vw;
                 min-width: 160px;
             }
-            
+            /* Main content area - small screens */
             .container {
                 margin-left: 15vw;
                 width: 85vw;
             }
-            
-            .user-info-card {
-                width: 25vw;
-                min-width: 200px;
-            }
+
         }
     </style>
     
@@ -472,59 +353,6 @@
         {% if session.get('language') == 'en' %}中文{% else %}English{% endif %}
     </button>
 
-    <!-- 用户信息卡片 -->
-    {% if current_user.is_authenticated %}
-    <div id="user-info-card" class="user-info-card">
-        <div class="user-info-header">
-            <div class="user-avatar">
-                <i class="bi bi-person-circle"></i>
-            </div>
-            <div class="user-details">
-                <div class="user-name">{{ current_user.get_display_name() }}</div>
-                <div class="user-role">{{ current_user.role.name if current_user.role else (('User' if session.get('language') == 'en' else '用户')) }}</div>
-            </div>
-            <button class="user-info-toggle" onclick="toggleUserInfo()">
-                <i class="bi bi-chevron-up"></i>
-            </button>
-        </div>
-        <div class="user-info-body">
-            <div class="user-info-item">
-                <i class="bi bi-person"></i>
-                <span>{% if session.get('language') == 'en' %}Username{% else %}用户名{% endif %}: {{ current_user.username }}</span>
-            </div>
-            {% if current_user.email %}
-            <div class="user-info-item">
-                <i class="bi bi-envelope"></i>
-                <span>{% if session.get('language') == 'en' %}Email{% else %}邮箱{% endif %}: {{ current_user.email }}</span>
-            </div>
-            {% endif %}
-            {% if current_user.is_sso_user() %}
-            <div class="user-info-item">
-                <i class="bi bi-shield-check"></i>
-                <span>{% if session.get('language') == 'en' %}SSO User{% else %}SSO用户{% endif %} ({{ current_user.sso_provider }})</span>
-            </div>
-            {% endif %}
-            {% if current_user.last_login %}
-            <div class="user-info-item">
-                <i class="bi bi-clock"></i>
-                <span>{% if session.get('language') == 'en' %}Last Login{% else %}上次登录{% endif %}: {{ current_user.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
-            </div>
-            {% endif %}
-            <div class="user-info-actions">
-                {% if current_user.can_change_password() %}
-                <a href="#" class="user-action-btn" onclick="changePassword()">
-                    <i class="bi bi-key"></i> {% if session.get('language') == 'en' %}Change Password{% else %}修改密码{% endif %}
-                </a>
-                {% endif %}
-                <a href="{{ url_for('auth.logout') }}" class="user-action-btn logout-btn">
-                    <i class="bi bi-box-arrow-right"></i> {% if session.get('language') == 'en' %}Logout{% else %}退出登录{% endif %}
-                </a>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- 提示消息容器 -->
     <div id="toastContainer" class="toast-container"></div>
 
     <!-- 基础脚本 -->
@@ -574,9 +402,6 @@
     <!-- 防抖动工具函数 -->
     <script src="{{ url_for('static', filename='js/debounce.js') }}"></script>
     
-    <!-- 用户信息卡片脚本 -->
-    <script src="{{ url_for('static', filename='js/user-info.js') }}"></script>
-
     {% block scripts %}{% endblock %}
 </body>
 </html>

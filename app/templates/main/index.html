@@ -464,6 +464,43 @@
         transition: width 0.3s ease;
     }
 
+    .upload-progress {
+        margin-top: 20px;
+        padding: 18px 22px;
+        background: #f0f8ff;
+        border: 1px solid #d0e7f7;
+        border-radius: 12px;
+        display: none;
+    }
+
+    .upload-progress.show {
+        display: block;
+    }
+
+    .upload-progress-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        color: rgb(0,148,217);
+        font-weight: 500;
+    }
+
+    .upload-progress-bar {
+        width: 100%;
+        height: 6px;
+        background: #e1f1fb;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .upload-progress-bar-fill {
+        height: 100%;
+        width: 0;
+        background: rgb(0,148,217);
+        transition: width 0.2s ease;
+    }
+
     /* 页面选择器 */
     .page-selector {
         position: fixed;
@@ -887,6 +924,16 @@
                 <input type="file" id="fileInput" accept=".ppt,.pptx" style="display: none;">
             </div>
 
+            <div id="uploadProgressWrapper" class="upload-progress">
+                <div class="upload-progress-info">
+                    <span id="uploadProgressLabel">{% if session.get('language') == 'en' %}Uploading file...{% else %}正在上传文件...{% endif %}</span>
+                    <span id="uploadProgressText">0%</span>
+                </div>
+                <div class="upload-progress-bar">
+                    <div id="uploadProgressBar" class="upload-progress-bar-fill"></div>
+                </div>
+            </div>
+
             <!-- 进度显示区域 -->
             <div id="progressContainer" class="progress-container">
                 <div class="progress-info">
@@ -991,6 +1038,7 @@
     let model = 'qwen';
     let enable_text_splitting = "False";
     let enable_uno_conversion = true;
+    let currentTaskKey = 'GLOBAL';
 
     // 获取当前语言设置
     const currentLanguage = '{{ session.get("language", "zh") }}';
@@ -1003,6 +1051,9 @@
             selectPagesError: '请选择要翻译的页面',
             translationStarted: '翻译任务已启动，正在处理中...',
             translationLaunchFailed: '启动翻译失败: ',
+            uploadingFile: '正在上传文件...',
+            uploadCompleted: '文件上传完成',
+            uploadFailed: '文件上传失败，请重试',
             preparingTranslation: '正在准备翻译...',
             translationTimeout: '翻译任务启动超时，请重试',
             queuePosition: '您的文件正在排队中，当前位置：第',
@@ -1026,6 +1077,9 @@
             selectPagesError: 'Please select pages to translate',
             translationStarted: 'Translation task started, processing...',
             translationLaunchFailed: 'Failed to start translation: ',
+            uploadingFile: 'Uploading file...',
+            uploadCompleted: 'Upload completed',
+            uploadFailed: 'File upload failed, please retry',
             preparingTranslation: 'Preparing translation task...',
             translationTimeout: 'Translation task startup timeout, please retry',
             queuePosition: 'Your file is in queue, current position: ',
@@ -1044,6 +1098,46 @@
             configured: 'Configured'
         }
     };
+
+    const uploadProgressWrapper = document.getElementById('uploadProgressWrapper');
+    const uploadProgressBar = document.getElementById('uploadProgressBar');
+    const uploadProgressText = document.getElementById('uploadProgressText');
+    const uploadProgressLabel = document.getElementById('uploadProgressLabel');
+
+    function showUploadProgress(labelKey = 'uploadingFile') {
+        if (!uploadProgressWrapper) return;
+        uploadProgressWrapper.classList.add('show');
+        setUploadProgress(0);
+        if (uploadProgressLabel) uploadProgressLabel.textContent = getText(labelKey);
+    }
+
+    function setUploadProgress(value) {
+        if (!uploadProgressWrapper) return;
+        const normalized = Math.max(0, Math.min(100, Math.round(value)));
+        if (uploadProgressBar) uploadProgressBar.style.width = normalized + '%';
+        if (uploadProgressText) uploadProgressText.textContent = normalized + '%';
+    }
+
+    function markUploadCompleted() {
+        if (!uploadProgressWrapper) return;
+        setUploadProgress(100);
+        if (uploadProgressLabel) uploadProgressLabel.textContent = getText('uploadCompleted');
+        setTimeout(() => hideUploadProgress(), 600);
+    }
+
+    function showUploadErrorFeedback() {
+        if (!uploadProgressWrapper) return;
+        uploadProgressWrapper.classList.add('show');
+        if (uploadProgressLabel) uploadProgressLabel.textContent = getText('uploadFailed');
+        if (uploadProgressBar) uploadProgressBar.style.width = '0%';
+        if (uploadProgressText) uploadProgressText.textContent = '0%';
+        setTimeout(() => hideUploadProgress(), 2000);
+    }
+
+    function hideUploadProgress() {
+        if (!uploadProgressWrapper) return;
+        uploadProgressWrapper.classList.remove('show');
+    }
 
     // 获取翻译文本的辅助函数
     function getText(key) {
@@ -1204,76 +1298,149 @@
     }
 
     // 开始翻译
-    async function startTranslation() {
-        if (!uploadedFile || selectedPages.size === 0) {
-            showToast(getText('selectPagesError'), 'error');
-            return;
-        }
 
-        // 调试信息：显示当前设置
-        console.log('开始翻译，当前设置:', {
-            sourceLanguage,
-            targetLanguage,
-            bilingual_translation,
-            model,
-            enable_text_splitting,
-            enable_uno_conversion,
-            selectedPages: Array.from(selectedPages)
-        });
-
-        try {
-            const formData = new FormData();
-            formData.append('file', uploadedFile);
-            formData.append('source_language', sourceLanguage);
-            formData.append('target_language', targetLanguage);
-            formData.append('bilingual_translation', bilingual_translation);
-            formData.append('model', model);
-            formData.append('enable_text_splitting', enable_text_splitting);
-            formData.append('enable_uno_conversion', enable_uno_conversion);
-            formData.append("select_page", Array.from(selectedPages).join(','));
-            
-            // 添加选中的词汇表ID
-            if (window.selectedVocabulary && window.selectedVocabulary.length > 0) {
-                formData.append('selected_vocabulary', window.selectedVocabulary.join(','));
-                console.log('传递词汇表ID:', window.selectedVocabulary);
-            }
-
-            const response = await fetch('/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (response.ok) {
-                pageSelector.style.display = 'none';
-                document.getElementById('progressContainer').style.display = 'block';
-                document.getElementById('queue-status').style.display = 'flex';
-                document.getElementById('queue-message').textContent = getText('preparingTranslation');
-                
-                // 初始化进度显示
-                document.getElementById('currentSlide').textContent = '0';
-                document.getElementById('totalSlides').textContent = totalPageCount;
-                document.getElementById('progressBarFill').style.width = '0%';
-                document.getElementById('progressText').textContent = '0%';
-                
-                window.isTranslationActive = true;
-                
-                if (window.statusCheckInterval) {
-                    clearInterval(window.statusCheckInterval);
-                }
-                window.statusCheckInterval = setInterval(checkTaskStatus, 2000);
-                
-                setTimeout(() => {
-                    checkTaskStatus();
-                }, 1000);
-
-                showToast(getText('translationStarted'), 'success');
-            }
-        } catch (error) {
-            showToast(getText('translationLaunchFailed') + error.message, 'error');
-        }
+async function startTranslation() {
+    if (!uploadedFile || selectedPages.size === 0) {
+        showToast(getText('selectPagesError'), 'error');
+        return;
     }
 
+    console.log('Start translation with settings:', {
+        sourceLanguage,
+        targetLanguage,
+        bilingual_translation,
+        model,
+        enable_text_splitting,
+        enable_uno_conversion,
+        selectedPages: Array.from(selectedPages)
+    });
+
+    try {
+        const formData = new FormData();
+        formData.append('file', uploadedFile);
+        formData.append('source_language', sourceLanguage);
+        formData.append('target_language', targetLanguage);
+        formData.append('bilingual_translation', bilingual_translation);
+        formData.append('model', model);
+        formData.append('enable_text_splitting', enable_text_splitting);
+        formData.append('enable_uno_conversion', enable_uno_conversion);
+        formData.append('select_page', Array.from(selectedPages).join(','));
+
+        if (window.selectedVocabulary && window.selectedVocabulary.length > 0) {
+            formData.append('selected_vocabulary', window.selectedVocabulary.join(','));
+            console.log('Selected vocabulary IDs:', window.selectedVocabulary);
+        }
+
+        showUploadProgress();
+
+        const result = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload', true);
+
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percent = (event.loaded / event.total) * 100;
+                    setUploadProgress(percent);
+                }
+            };
+
+            xhr.onload = () => {
+                let parsed = null;
+                try {
+                    parsed = JSON.parse(xhr.responseText);
+                } catch (parseError) {
+                    const err = new Error(getText('uploadFailed'));
+                    err.isUploadError = true;
+                    err.cause = parseError;
+                    reject(err);
+                    return;
+                }
+
+                if (xhr.status >= 200 && xhr.status < 300 && parsed && parsed.code === 200) {
+                    resolve(parsed);
+                } else {
+                    const message = (parsed && parsed.msg) ? parsed.msg : (xhr.statusText || '');
+                    const err = new Error(message || getText('uploadFailed'));
+                    err.isUploadError = true;
+                    reject(err);
+                }
+            };
+
+            xhr.onerror = () => {
+                const err = new Error(getText('uploadFailed'));
+                err.isUploadError = true;
+                reject(err);
+            };
+
+            xhr.onabort = () => {
+                const err = new Error(getText('uploadFailed'));
+                err.isUploadError = true;
+                reject(err);
+            };
+
+            xhr.send(formData);
+        });
+
+        markUploadCompleted();
+
+        const newTaskKey = result.record_id ? `record_${result.record_id}` : 'GLOBAL';
+        currentTaskKey = newTaskKey;
+
+        if (typeof resetCompletionPopupState === 'function') {
+            resetCompletionPopupState(currentTaskKey);
+        } else if (typeof SafeStore !== 'undefined') {
+            SafeStore.remove(`completionPopupAlreadyShown:${currentTaskKey}`);
+        } else if (window.localStorage) {
+            localStorage.removeItem(`completionPopupAlreadyShown:${currentTaskKey}`);
+        }
+
+        pageSelector.style.display = 'none';
+
+        const progressContainer = document.getElementById('progressContainer');
+        if (progressContainer) {
+            progressContainer.style.display = 'block';
+        }
+
+        const queueStatus = document.getElementById('queue-status');
+        if (queueStatus) {
+            queueStatus.style.display = 'flex';
+            queueStatus.className = 'queue-status alert-info';
+        }
+
+        const queueMessage = document.getElementById('queue-message');
+        if (queueMessage) {
+            queueMessage.textContent = getText('preparingTranslation');
+        }
+
+        document.getElementById('currentSlide').textContent = '0';
+        document.getElementById('totalSlides').textContent = totalPageCount;
+        document.getElementById('progressBarFill').style.width = '0%';
+        document.getElementById('progressText').textContent = '0%';
+
+        window.isTranslationActive = true;
+        window.waitingCount = 0;
+
+        if (window.statusCheckInterval) {
+            clearInterval(window.statusCheckInterval);
+        }
+        window.statusCheckInterval = setInterval(checkTaskStatus, 2000);
+
+        setTimeout(() => {
+            checkTaskStatus();
+        }, 1000);
+
+        showToast(getText('translationStarted'), 'success');
+    } catch (error) {
+        console.error('Failed to start translation:', error);
+        showUploadErrorFeedback();
+        const fallbackMessage = getText('translationLaunchFailed');
+        const message = (error && error.isUploadError) ? error.message : fallbackMessage + (error?.message || '');
+        showToast(message, 'error');
+    }
+}
+
     // 检查任务状态
+
     function checkTaskStatus() {
         fetch('/task_status')
             .then(response => response.json())
@@ -1320,10 +1487,12 @@
 
                 if (data.status === 'waiting') {
                     window.waitingCount = 0;
+                    statusDiv.className = 'queue-status alert-info';
                     messageSpan.textContent = getText('queuePosition') + data.position + getText('queuePositionSuffix');
                     progressContainer.style.display = 'block';
                 }
                 else if (data.status === 'processing') {
+                    statusDiv.className = 'queue-status alert-info';
                     messageSpan.textContent = getText('translating');
                     progressContainer.style.display = 'block';
 
@@ -1336,35 +1505,48 @@
                     document.getElementById('progressText').textContent = progress + '%';
                 }
                 else if (data.status === 'completed') {
-                    // 检查是否已经显示过完成弹窗
-                    // 使用localStorage来持久化存储这个标志
-                    const popupAlreadyShown = localStorage.getItem('completionPopupAlreadyShown:GLOBAL') === 'true';
+                    window.isTranslationActive = false;
+                    window.waitingCount = 0;
+
+                    if (data.task_id) {
+                        const incomingKey = `task_${data.task_id}`;
+                        currentTaskKey = incomingKey;
+                    }
+
+                    const effectiveKey = currentTaskKey || 'GLOBAL';
+                    const popupKey = `completionPopupAlreadyShown:${effectiveKey}`;
+                    let popupAlreadyShown = false;
+
+                    if (typeof SafeStore !== 'undefined') {
+                        popupAlreadyShown = SafeStore.get(popupKey) === 'true';
+                    } else if (window.localStorage) {
+                        popupAlreadyShown = localStorage.getItem(popupKey) === 'true';
+                    }
+
                     if (popupAlreadyShown) {
-                        // 如果已经显示过弹窗，则不再显示
-                        window.isTranslationActive = false;
-                        window.waitingCount = 0;
-                        messageSpan.textContent = getText('translationCompleted');
-                        progressContainer.style.display = 'block';
-
-                        const finalTotalSlides = data.total_slides || 0;
-                        if (finalTotalSlides > 0) {
-                            document.getElementById('currentSlide').textContent = finalTotalSlides;
-                            document.getElementById('totalSlides').textContent = finalTotalSlides;
-                        }
-
-                        document.getElementById('progressBarFill').style.width = '100%';
-                        document.getElementById('progressText').textContent = '100%';
-
                         loadHistory();
-                        
-                        // 停止轮询
+
                         if (window.statusCheckInterval) {
                             clearInterval(window.statusCheckInterval);
                             window.statusCheckInterval = null;
                         }
+
+                        if (statusDiv) statusDiv.style.display = 'none';
+                        if (progressContainer) progressContainer.style.display = 'none';
+                        if (messageSpan) messageSpan.textContent = '';
                     } else {
-                        // Show popup notification and refresh page after user confirmation
-                        showCompletionPopup(getText('completionPopup'));
+                        if (typeof showCompletionPopup === 'function') {
+                            showCompletionPopup(getText('completionPopup'), effectiveKey);
+                        }
+
+                        if (window.statusCheckInterval) {
+                            clearInterval(window.statusCheckInterval);
+                            window.statusCheckInterval = null;
+                        }
+
+                        if (statusDiv) statusDiv.style.display = 'none';
+                        if (progressContainer) progressContainer.style.display = 'none';
+                        if (messageSpan) messageSpan.textContent = '';
                     }
                 }
                 else if (data.status === 'failed') {

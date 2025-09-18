@@ -120,7 +120,7 @@ class QwenOCRProcessor:
                 self.api_url, 
                 headers=headers, 
                 data=json.dumps(payload),
-                timeout=30
+                timeout=60
             )
             
             # 处理API响应
