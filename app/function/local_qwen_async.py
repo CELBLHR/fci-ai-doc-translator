@@ -394,7 +394,8 @@ def re_parse_formatted_text_async(text: str):
 # 主要翻译函数
 async def translate_async(text: str, field: str = None, stop_words: List[str] = None,
                        custom_translations: Dict[str, str] = None,
-                       source_language: str = "en", target_language: str = "zh"):
+                       source_language: str = "en", target_language: str = "zh",
+                       clean_markdown: bool = True):
     """
     异步翻译功能主函数
 
@@ -405,6 +406,7 @@ async def translate_async(text: str, field: str = None, stop_words: List[str] = 
         custom_translations: 自定义翻译字典
         source_language: 源语言代码
         target_language: 目标语言代码
+        clean_markdown: 是否清理Markdown符号（PDF翻译需要，PPT翻译不需要）
 
     Returns:
         翻译映射字典（原文->译文）
@@ -412,16 +414,26 @@ async def translate_async(text: str, field: str = None, stop_words: List[str] = 
     try:
         # 设置默认值
         stop_words = stop_words or []
-        custom_translations = custom_translations or {}
+        custom_translations = custom_translations or []
+
+        # 根据参数决定是否清理Markdown符号
+        if clean_markdown:
+            # 清理待翻译文本，确保发送到翻译API的文本不包含Markdown符号
+            from app.function.pdf_translation_utils import PDFTranslationUtils
+            cleaned_text = PDFTranslationUtils._strip_inline_markdown(text)
+            logger.debug(f"原文本: {text[:100]}...")
+            logger.debug(f"清理后文本: {cleaned_text[:100]}...")
+        else:
+            cleaned_text = text
 
         # 如果没有领域信息，先获取领域
         if not field:
-            field = await get_field_async(text)
+            field = await get_field_async(cleaned_text)
             logger.info(f"检测到文本领域: {field}")
 
         # 翻译文本
         translation_result = await translate_by_fields_async(
-            field, text, stop_words, custom_translations, source_language, target_language
+            field, cleaned_text, stop_words, custom_translations, source_language, target_language
         )
         logger.info(f"翻译API返回结果类型: {type(translation_result)}")
         logger.info(f"翻译API返回结果长度: {len(translation_result) if hasattr(translation_result, '__len__') else 'N/A'}")

@@ -248,6 +248,73 @@ class PDFTranslationUtils:
 
         return True
 
+    @staticmethod
+    def _strip_inline_markdown(text: str) -> str:
+        """
+        移除常见的 Markdown 行内语法，确保发送到翻译API的文本与匹配时使用的文本一致
+        - 粗体/斜体: **text**, __text__, *text*, _text_
+        - 行内代码: `code`
+        - 链接: [text](url) -> text
+        - 图片标记: ![alt](path) -> alt
+        - 引用残留的转义符号
+        """
+        try:
+            original_text = text or ""
+            s = original_text
+            
+            # 图片: ![alt](path) -> alt
+            s = re.sub(r"!\[([^\]]*)\]\([^\)]*\)", r"\1", s)
+            # 链接: [text](url) -> text
+            s = re.sub(r"\[([^\]]+)\]\([^\)]*\)", r"\1", s)
+            # 粗体/斜体包裹: **text** 或 __text__ 或 *text* 或 _text_
+            s = re.sub(r"\*\*([^*]+)\*\*", r"\1", s)
+            s = re.sub(r"__([^_]+)__", r"\1", s)
+            s = re.sub(r"\*([^*]+)\*", r"\1", s)
+            s = re.sub(r"_([^_]+)_", r"\1", s)
+            # 行内代码: `code`
+            s = re.sub(r"`([^`]+)`", r"\1", s)
+            # 数学: $...$ / \( ... \) / \[ ... \] -> 去除包裹符，只保留内部内容
+            s = re.sub(r"\$\s*([^$]+?)\s*\$", r"\1", s)
+            s = re.sub(r"\\\(\s*([^)]*?)\s*\\\)", r"\1", s)
+            s = re.sub(r"\\\[\s*([^\\]]*?)\s*\\\]", r"\1", s)
+            # 常见 LaTeX 语法清理: ^{...} / _{...} 去掉标记，保留内容
+            s = re.sub(r"\^\s*\{\s*([^}]*)\s*\}", r"\1", s)
+            s = re.sub(r"_\s*\{\s*([^}]*)\s*\}", r"\1", s)
+            # 特定数学符号替换: 改进对 \prime、\cdot、\mathsf 等命令的处理
+            # 处理带空格的命令，如 { \prime } 和 { \cdot }
+            s = re.sub(r"\\prime\s*", "′", s)  # 将 \prime 替换为 Unicode 撇号
+            s = re.sub(r"\{\s*\\prime\s*\}", "′", s)  # 将 { \prime } 替换为 Unicode 撇号
+            s = re.sub(r"\\cdot\s*", "·", s)   # 将 \cdot 替换为 Unicode 中点
+            s = re.sub(r"\{\s*\\cdot\s*\}", "·", s)   # 将 { \cdot } 替换为 Unicode 中点
+            s = re.sub(r"\\times\s*", "×", s)  # 将 \times 替换为 Unicode 乘号
+            s = re.sub(r"\\leq\s*", "≤", s)    # 将 \leq 替换为 Unicode 小于等于号
+            s = re.sub(r"\\geq\s*", "≥", s)    # 将 \geq 替换为 Unicode 大于等于号
+            s = re.sub(r"\\mathsf\s*\{?\s*([^}]*)\s*\}?", r"\1", s)  # 处理 \mathsf{L} 等格式
+            s = re.sub(r"\\mathrm\s*\{?\s*([^}]*)\s*\}?", r"\1", s)  # 处理 \mathrm{R} 等格式
+            # 处理更复杂的带空格花括号情况
+            s = re.sub(r"\{\s*′\s*\}", "′", s)   # 将 { ′ } 替换为 ′
+            s = re.sub(r"\{\s*·\s*\}", "·", s)   # 将 { · } 替换为 ·
+            # 处理单独的 ^ 和 _ 符号
+            s = re.sub(r"\^\s*", "", s)  # 去除单独的 ^ 符号
+            s = re.sub(r"_\s*", "", s)   # 去除单独的 _ 符号
+            # 去除多余的反斜杠和花括号空格
+            s = s.replace("\\{", "{").replace("\\}", "}").replace("\\ ", " ")
+            # 规范连字符与空格: 避免 ' - ' 残留空格
+            s = re.sub(r"\s*-\s*", "-", s)
+            # 折叠多空格
+            s = re.sub(r"\s+", " ", s).strip()
+            # 剩余的转义反斜杠
+            s = s.replace("\\*", "*").replace("\\_", "_").replace("\\#", "#").replace("\\`", "`")
+            
+            # 记录文本清理操作
+            if s != original_text:
+                logger.debug(f"文本清理完成: '{original_text[:30]}...' -> '{s[:30]}...'")
+            
+            return s
+        except Exception as e:
+            logger.error(f"文本清理过程中出错: {e}")
+            return text or ""
+
     def calculate_similarity_score(self,
                                   text1: str,
                                   text2: str,
@@ -300,12 +367,16 @@ class PDFTranslationUtils:
             used_translations = set()
 
         start_time = time.time()
-        original_text = paragraph.text.strip()
+        # 始终使用清理后的文本来进行匹配
+        original_text = self._strip_inline_markdown(paragraph.text.strip())
+        
+        logger.debug(f"尝试匹配段落: '{original_text[:50]}...'")
 
         # 策略1: 精确匹配
         if original_text in translation_dict and original_text not in used_translations:
             translation = translation_dict[original_text]
             processing_time = time.time() - start_time
+            logger.debug(f"精确匹配成功: '{original_text[:30]}...' -> '{translation[:30]}...'")
             return TranslationResult(
                 original_text=original_text,
                 translated_text=translation,
@@ -327,6 +398,7 @@ class PDFTranslationUtils:
                 normalized_dict_text = self.normalize_text(orig_text, remove_punctuation=True)
                 if normalized_dict_text == normalized_original:
                     processing_time = time.time() - start_time
+                    logger.debug(f"标准化匹配成功: '{original_text[:30]}...' -> '{trans_text[:30]}...'")
                     return TranslationResult(
                         original_text=original_text,
                         translated_text=trans_text,
@@ -336,24 +408,55 @@ class PDFTranslationUtils:
                         status=TranslationStatus.COMPLETED
                     )
 
-        # 策略3: 相似度匹配
+        # 策略3: 相似度匹配（增强版）
         best_score = 0.0
         best_translation = None
         best_orig_text = None
-
+        
+        # 创建一个候选列表，用于后续的详细比较
+        candidates = []
+        
         for orig_text, trans_text in translation_dict.items():
             if orig_text in used_translations:
                 continue
+                
+            # 使用多种相似度算法计算得分
+            score1 = self.calculate_similarity_score(original_text, orig_text)
+            score2 = self.calculate_normalized_similarity(original_text, orig_text)
+            score3 = self.calculate_token_similarity(original_text, orig_text)
+            
+            # 综合得分（可以根据需要调整权重）
+            combined_score = (score1 * 0.4 + score2 * 0.3 + score3 * 0.3)
+            
+            if combined_score >= self.similarity_threshold:
+                candidates.append({
+                    'orig_text': orig_text,
+                    'trans_text': trans_text,
+                    'score1': score1,
+                    'score2': score2,
+                    'score3': score3,
+                    'combined_score': combined_score
+                })
+                
+                if combined_score > best_score:
+                    best_score = combined_score
+                    best_translation = trans_text
+                    best_orig_text = orig_text
 
-            score = self.calculate_similarity_score(original_text, orig_text)
-            if score > best_score and score >= self.similarity_threshold:
-                best_score = score
-                best_translation = trans_text
-                best_orig_text = orig_text
-
-        if best_translation:
+        # 从候选列表中选择最佳匹配
+        if candidates:
+            # 按综合得分排序
+            candidates.sort(key=lambda x: x['combined_score'], reverse=True)
+            
+            # 选择得分最高的作为最佳匹配
+            best_candidate = candidates[0]
+            best_translation = best_candidate['trans_text']
+            best_orig_text = best_candidate['orig_text']
+            best_score = best_candidate['combined_score']
+            
             processing_time = time.time() - start_time
-            confidence = best_score  # 使用相似度作为置信度
+            confidence = best_score
+            logger.debug(f"相似度匹配成功 (score={best_score:.2f}): '{original_text[:30]}...' -> '{best_translation[:30]}...'")
             return TranslationResult(
                 original_text=original_text,
                 translated_text=best_translation,
@@ -367,6 +470,7 @@ class PDFTranslationUtils:
         # TODO: 实现基于上下文的匹配算法
 
         processing_time = time.time() - start_time
+        logger.debug(f"所有匹配策略失败: '{original_text[:30]}...'")
         return TranslationResult(
             original_text=original_text,
             translated_text="",
@@ -379,13 +483,15 @@ class PDFTranslationUtils:
 
     def match_bulk_translations(self,
                                 paragraphs: List[PDFParagraph],
-                                translation_dict: Dict[str, str]) -> Dict[int, TranslationResult]:
+                                translation_dict: Dict[str, str],
+                                cleaned_text_mapping: Optional[Dict[str, str]] = None) -> Dict[int, TranslationResult]:
         """
         批量匹配段落的翻译结果
 
         Args:
             paragraphs: 段落列表
             translation_dict: 翻译字典 {原文: 译文}
+            cleaned_text_mapping: 清理后的文本到原始文本的映射 {清理后: 原始}
 
         Returns:
             匹配结果字典 {段落实例ID: 翻译结果}
@@ -403,10 +509,29 @@ class PDFTranslationUtils:
         self.progress_tracker.reset(len(paragraphs))
         self.progress_tracker.update_progress(0, 0, "开始匹配翻译")
 
+        # 创建反向映射，从原始文本到清理后文本
+        original_to_cleaned_mapping = {}
+        if cleaned_text_mapping:
+            original_to_cleaned_mapping = {v: k for k, v in cleaned_text_mapping.items()}
+
         for i, paragraph in enumerate(paragraphs):
             try:
+                # 使用清理后的文本来进行匹配
+                cleaned_paragraph_text = self._strip_inline_markdown(paragraph.text)
+                
+                # 创建一个临时段落，使用清理后的文本
+                temp_paragraph = PDFParagraph(
+                    text=cleaned_paragraph_text,
+                    page_num=paragraph.page_num,
+                    bbox=paragraph.bbox,
+                    region_id=paragraph.region_id,
+                    confidence=paragraph.confidence,
+                    is_translatable=paragraph.is_translatable,
+                    length=paragraph.length
+                )
+                
                 result = self.match_translation_to_paragraph(
-                    paragraph,
+                    temp_paragraph,
                     translation_dict,
                     used_translations
                 )
@@ -606,154 +731,6 @@ class PDFTranslationUtils:
         logger.error(f"翻译失败，已达到最大重试次数: {last_error}")
         return None
 
-    async def process_pdf_translation(self,
-                                     paragraphs: List[PDFParagraph],
-                                     translate_func: Callable,
-                                     write_strategy: str = "append",
-                                     progress_callback: Optional[Callable[[int, int, str], None]] = None) -> Dict[str, Any]:
-        """
-        处理整个PDF的翻译流程
-
-        Args:
-            paragraphs: PDF段落列表
-            translate_func: 翻译函数
-            write_strategy: 写入策略
-            progress_callback: 进度回调函数
-
-        Returns:
-            处理结果字典
-        """
-        try:
-            logger.info("开始处理PDF翻译流程")
-
-            if progress_callback:
-                self.progress_tracker.set_callback(progress_callback)
-
-            # 初始化统计信息
-            total_paragraphs = len(paragraphs)
-            self.progress_tracker.reset(total_paragraphs)
-            self.progress_tracker.update_progress(0, 0, "开始PDF翻译")
-
-            # 准备翻译文本
-            translatable_paragraphs = [p for p in paragraphs if p.is_translatable and p.length > 0]
-
-            if not translatable_paragraphs:
-                logger.warning("没有可翻译的段落")
-                return {
-                    "success": False,
-                    "error": "没有可翻译的段落",
-                    "statistics": {
-                        "total_paragraphs": total_paragraphs,
-                        "translatable_paragraphs": 0,
-                        "processed": 0,
-                        "successful": 0,
-                        "failed": 0
-                    }
-                }
-
-            logger.info(f"发现 {len(translatable_paragraphs)} 个可翻译段落")
-
-            # 构建翻译字典
-            translation_dict = {}
-            failed_paragraphs = []
-
-            # 为每个段落调用翻译
-            for i, paragraph in enumerate(translatable_paragraphs):
-                try:
-                    self.progress_tracker.update_progress(
-                        0, 0,
-                        f"翻译段落 {i+1}/{len(translatable_paragraphs)}"
-                    )
-
-                    # 调用翻译API
-                    result = await self.process_translation_with_retry(
-                        translate_func,
-                        paragraph.text
-                    )
-
-                    if result and 'text' in result:
-                        translation_dict[paragraph.text] = result['text']
-                        logger.debug(f"段落 {i+1} 翻译成功: {result['text'][:50]}...")
-                    else:
-                        logger.warning(f"段落 {i+1} 翻译失败")
-                        failed_paragraphs.append(paragraph)
-
-                except Exception as e:
-                    logger.error(f"处理段落 {i} 时出错: {str(e)}")
-                    failed_paragraphs.append(paragraph)
-                    continue
-
-            # 匹配翻译结果
-            if translation_dict:
-                self.progress_tracker.update_progress(0, 0, "匹配翻译结果")
-                matches = self.match_bulk_translations(translatable_paragraphs, translation_dict)
-
-                # 应用翻译
-                self.progress_tracker.update_progress(0, 0, "应用翻译到PDF")
-                success_count = 0
-
-                for idx, translation_result in matches.items():
-                    if translation_result.status == TranslationStatus.COMPLETED:
-                        actual_paragraph = translatable_paragraphs[idx]
-                        success = await self.write_translation_to_paragraph(
-                            actual_paragraph,
-                            translation_result,
-                            write_strategy
-                        )
-                        if success:
-                            success_count += 1
-
-                # 输出最终统计
-                progress_info = self.progress_tracker.get_progress_info()
-
-                statistics = {
-                    "total_paragraphs": total_paragraphs,
-                    "translatable_paragraphs": len(translatable_paragraphs),
-                    "translation_dict_size": len(translation_dict),
-                    "matched_translations": len(matches),
-                    "successful_writes": success_count,
-                    "failed_paragraphs": len(failed_paragraphs),
-                    "success_rate": success_count / max(len(translatable_paragraphs), 1) * 100
-                }
-
-                result = {
-                    "success": success_count > 0,
-                    "statistics": statistics,
-                    "progress": progress_info,
-                    "matches": matches,
-                    "failed_paragraphs": [p.text for p in failed_paragraphs]
-                }
-
-                logger.info("PDF翻译流程完成")
-                logger.info(".2f"
-                           ".2f")
-
-                return result
-            else:
-                logger.error("没有生成翻译字典")
-                return {
-                    "success": False,
-                    "error": "翻译失败",
-                    "statistics": {
-                        "total_paragraphs": total_paragraphs,
-                        "translatable_paragraphs": len(translatable_paragraphs),
-                        "processed": 0,
-                        "successful": 0,
-                        "failed": len(failed_paragraphs)
-                    },
-                    "failed_paragraphs": [p.text for p in failed_paragraphs]
-                }
-
-        except Exception as e:
-            logger.error(f"PDF翻译处理失败: {str(e)}")
-            import traceback
-            logger.error(f"详细错误信息: {traceback.format_exc()}")
-
-            return {
-                "success": False,
-                "error": str(e),
-                "statistics": {"error": "处理过程中发生异常"}
-            }
 
 
 # 便捷函数
