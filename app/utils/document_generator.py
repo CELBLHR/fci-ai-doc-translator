@@ -67,16 +67,18 @@ class BilingualDocumentGenerator:
             level: 标题级别 (1-6)
         """
         try:
-            level = min(max(level, 1), 6)  # 限制在1-6之间
-            self.document.add_heading(text, level=level)
-            logger.info(f"添加标题: {text[:50]}...")
+            # 清理Markdown符号
+            cleaned_text = self._strip_inline_markdown(text.strip())
+            heading = self.document.add_heading(cleaned_text, level=level)
+            # 设置中文字体
+            for run in heading.runs:
+                run.font.name = '黑体'
+                run._element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+            logger.info(f"添加标题: {cleaned_text}")
         except Exception as e:
             logger.error(f"添加标题失败: {e}")
-            # 备用方法
-            paragraph = self.document.add_paragraph()
-            run = paragraph.add_run(text)
-            run.bold = True
-            run.font.size = Pt(16 - level)  # 级别越高字体越小
+            # 降级处理
+            self.add_original_text(text)
     
     def add_original_text(self, text: str) -> None:
         """
@@ -90,11 +92,13 @@ class BilingualDocumentGenerator:
             return
             
         try:
+            # 清理Markdown符号
+            cleaned_text = self._strip_inline_markdown(text.strip())
             paragraph = self.document.add_paragraph()
-            run = paragraph.add_run(text.strip())
+            run = paragraph.add_run(cleaned_text)
             # 原文使用黑色字体
             run.font.color.rgb = RGBColor(0, 0, 0)
-            logger.info(f"添加原文: {text[:50]}...")
+            logger.info(f"添加原文: {cleaned_text[:50]}...")
         except Exception as e:
             logger.error(f"添加原文失败: {e}")
             self.document.add_paragraph(text.strip())
@@ -110,8 +114,10 @@ class BilingualDocumentGenerator:
             return
             
         try:
+            # 清理Markdown符号
+            cleaned_text = self._strip_inline_markdown(text.strip())
             paragraph = self.document.add_paragraph()
-            run = paragraph.add_run(text.strip())
+            run = paragraph.add_run(cleaned_text)
             # 译文使用灰色字体以便区分，统一不使用斜体，保证风格一致
             run.font.color.rgb = RGBColor(96, 96, 96)
             run.italic = False
@@ -121,7 +127,7 @@ class BilingualDocumentGenerator:
             paragraph.paragraph_format.space_before = Pt(6)
             paragraph.paragraph_format.space_after = Pt(12)
             
-            logger.info(f"添加译文: {text[:50]}...")
+            logger.info(f"添加译文: {cleaned_text[:50]}...")
         except Exception as e:
             logger.error(f"添加译文失败: {e}")
             paragraph = self.document.add_paragraph()
@@ -150,10 +156,12 @@ class BilingualDocumentGenerator:
             numbered: 是否为有序列表
         """
         try:
+            # 清理Markdown符号
+            cleaned_text = self._strip_inline_markdown(text.strip())
             if numbered:
-                self.document.add_paragraph(text.strip(), style='ListNumber')
+                self.document.add_paragraph(cleaned_text, style='ListNumber')
             else:
-                self.document.add_paragraph(text.strip(), style='ListBullet')
+                self.document.add_paragraph(cleaned_text, style='ListBullet')
         except Exception as e:
             logger.warning(f"添加列表项失败，使用普通段落: {e}")
             self.add_original_text(text)
@@ -197,6 +205,76 @@ class BilingualDocumentGenerator:
         except Exception as e:
             logger.error(f"保存文档失败: {e}")
             return False
+
+    @staticmethod
+    def _strip_inline_markdown(text: str) -> str:
+        """
+        移除常见的 Markdown 行内语法，避免原样进入 Word：
+        - 粗体/斜体: **text**, __text__, *text*, _text_
+        - 行内代码: `code`
+        - 链接: [text](url) -> text
+        - 图片标记: ![alt](path) -> alt
+        - 引用残留的转义符号
+        """
+        try:
+            import re
+            original_text = text or ""
+            s = original_text
+            
+            # 图片: ![alt](path) -> alt
+            s = re.sub(r"!\[([^\]]*)\]\([^\)]*\)", r"\1", s)
+            # 链接: [text](url) -> text
+            s = re.sub(r"\[([^\]]+)\]\([^\)]*\)", r"\1", s)
+            # 粗体/斜体包裹: **text** 或 __text__ 或 *text* 或 _text_
+            s = re.sub(r"\*\*([^*]+)\*\*", r"\1", s)
+            s = re.sub(r"__([^_]+)__", r"\1", s)
+            s = re.sub(r"\*([^*]+)\*", r"\1", s)
+            s = re.sub(r"_([^_]+)_", r"\1", s)
+            # 行内代码: `code`
+            s = re.sub(r"`([^`]+)`", r"\1", s)
+            # 数学: $...$ / \( ... \) / \[ ... \] -> 去除包裹符，只保留内部内容
+            s = re.sub(r"\$\s*([^$]+?)\s*\$", r"\1", s)
+            s = re.sub(r"\\\(\s*([^)]*?)\s*\\\)", r"\1", s)
+            s = re.sub(r"\\\[\s*([^]]*?)\s*\\\]", r"\1", s)
+            # 常见 LaTeX 语法清理: ^{...} / _{...} 去掉标记，保留内容
+            s = re.sub(r"\^\s*\{\s*([^}]*)\s*\}", r"\1", s)
+            s = re.sub(r"_\s*\{\s*([^}]*)\s*\}", r"\1", s)
+            # 特定数学符号替换: 改进对 \prime、\cdot、\mathsf 等命令的处理
+            # 处理带空格的命令，如 { \prime } 和 { \cdot }
+            s = re.sub(r"\\prime\s*", "′", s)  # 将 \prime 替换为 Unicode 撇号
+            s = re.sub(r"\{\s*\\prime\s*\}", "′", s)  # 将 { \prime } 替换为 Unicode 撇号
+            s = re.sub(r"\\cdot\s*", "·", s)   # 将 \cdot 替换为 Unicode 中点
+            s = re.sub(r"\{\s*\\cdot\s*\}", "·", s)   # 将 { \cdot } 替换为 Unicode 中点
+            s = re.sub(r"\\times\s*", "×", s)  # 将 \times 替换为 Unicode 乘号
+            s = re.sub(r"\\leq\s*", "≤", s)    # 将 \leq 替换为 Unicode 小于等于号
+            s = re.sub(r"\\geq\s*", "≥", s)    # 将 \geq 替换为 Unicode 大于等于号
+            s = re.sub(r"\\mathsf\s*\{?\s*([^}]*)\s*\}?", r"\1", s)  # 处理 \mathsf{L} 等格式
+            s = re.sub(r"\\mathrm\s*\{?\s*([^}]*)\s*\}?", r"\1", s)  # 处理 \mathrm{R} 等格式
+            # 处理更复杂的带空格花括号情况
+            s = re.sub(r"\{\s*′\s*\}", "′", s)   # 将 { ′ } 替换为 ′
+            s = re.sub(r"\{\s*·\s*\}", "·", s)   # 将 { · } 替换为 ·
+            # 处理单独的 ^ 和 _ 符号
+            s = re.sub(r"\^\s*", "", s)  # 去除单独的 ^ 符号
+            s = re.sub(r"_\s*", "", s)   # 去除单独的 _ 符号
+            # 处理商标符号 @ -> ®
+            s = s.replace('@', '®')
+            # 去除多余的反斜杠和花括号空格
+            s = s.replace("\\{", "{").replace("\\}", "}").replace("\\ ", " ")
+            # 规范连字符与空格: 避免 ' - ' 残留空格
+            s = re.sub(r"\s*-\s*", "-", s)
+            # 折叠多空格
+            s = re.sub(r"\s+", " ", s).strip()
+            # 剩余的转义反斜杠
+            s = s.replace("\\*", "*").replace("\\_", "_").replace("\\#", "#").replace("\\`", "`")
+            
+            # 记录文本清理操作
+            if s != original_text:
+                logger.debug(f"文本清理完成: '{original_text[:30]}...' -> '{s[:30]}...'")
+            
+            return s
+        except Exception as e:
+            logger.error(f"文本清理过程中出错: {e}")
+            return text or ""
 
 
 def create_bilingual_word_document(
@@ -379,7 +457,7 @@ def _sync_translate_single_text(text: str,
         async def _run_once() -> str:
             mapping = await translate_async(
                 text.strip(),
-                field=None,
+                field="通用",  # PDF翻译使用通用领域，跳过领域检测
                 stop_words=[],
                 custom_translations={},
                 source_language=source_language,
@@ -388,12 +466,34 @@ def _sync_translate_single_text(text: str,
             # translate_async 返回 {原文: 译文}
             if isinstance(mapping, dict):
                 # 优先精确匹配整行
-                if text.strip() in mapping:
-                    return mapping[text.strip()] or ""
-                # 退而求其次取第一个值
+                key = text.strip()
+                if key in mapping:
+                    return mapping[key] or ""
+                # 无精确匹配时，合并所有译文，避免只取首句
+                merged_values: list[str] = []
                 for _, v in mapping.items():
-                    return v or ""
-            return ""
+                    if isinstance(v, str) and v.strip():
+                        merged_values.append(v.strip())
+                if merged_values:
+                    return " ".join(merged_values)
+            # 降级重试：使用备用翻译器直译整段
+            try:
+                from app.function.image_ocr.translator import QwenTranslator
+                # 将内部语言代码映射为人类可读（备用翻译器提示词用）
+                def _map_lang_name(code: str) -> str:
+                    c = (code or "").lower()
+                    if c.startswith("zh") or c == "cn" or c == "chinese":
+                        return "中文"
+                    if c.startswith("en") or c == "english":
+                        return "英文"
+                    if c.startswith("ja") or c == "japanese":
+                        return "日文"
+                    return "英文" if c else "英文"
+                qt = QwenTranslator(target_language=_map_lang_name(target_language))
+                fallback = qt.translate_text(text.strip(), source_language=_map_lang_name(source_language))
+                return fallback or ""
+            except Exception:
+                return ""
 
         # 独立运行事件循环
         try:

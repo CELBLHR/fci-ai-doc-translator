@@ -2273,7 +2273,15 @@ def translate_pdf():
             for file in extracted_files:
                 if file.endswith('.md'):
                     md_file = os.path.join(pdf_output_dir, file)
-                    logger.info(f"找到markdown文件: {md_file}")
+                    logger.info(f"找到md文件: {md_file}")
+                    break
+        
+        # 2. 如果仍然没找到，查找md文件
+        if not md_file:
+            for file in extracted_files:
+                if file.endswith('.md'):
+                    md_file = os.path.join(pdf_output_dir, file)
+                    logger.info(f"找到md文件: {md_file}")
                     break
         
         # 3. 如果仍然没找到，查找txt文件
@@ -2386,8 +2394,12 @@ def translate_pdf():
                                 finally:
                                     loop.close()
                                 
-                                if translated_dict and line in translated_dict:
-                                    translated_text = translated_dict[line]
+                                # 使用PDF翻译工具中的文本清理方法
+                                from app.function.pdf_translation_utils import PDFTranslationUtils
+                                cleaned_line = PDFTranslationUtils._strip_inline_markdown(line)
+                                
+                                if translated_dict and cleaned_line in translated_dict:
+                                    translated_text = translated_dict[cleaned_line]
                                     if translated_text.strip() and not translated_text.startswith('[翻译错误:'):
                                         processed_lines.append("【译文】" + translated_text)
                                         logger.info(f"标题翻译完成: {line} -> {translated_text}")
@@ -2405,13 +2417,13 @@ def translate_pdf():
                                         translated_text = ""
                                         
                                         # 策略1: 精确匹配
-                                        if line in translated_dict:
-                                            translated_text = translated_dict[line]
+                                        if cleaned_line in translated_dict:
+                                            translated_text = translated_dict[cleaned_line]
                                             matched = True
                                         
                                         # 策略2: 去除空白字符后匹配
                                         if not matched:
-                                            line_stripped = line.strip()
+                                            line_stripped = cleaned_line.strip()
                                             for key in translated_dict.keys():
                                                 if key.strip() == line_stripped:
                                                     translated_text = translated_dict[key]
@@ -2422,8 +2434,8 @@ def translate_pdf():
                                         # 策略3: 如果原始文本包含多个句子，尝试分割后匹配
                                         if not matched:
                                             # 检查是否可以按句号分割
-                                            if '. ' in line and len(line) > 100:  # 长文本且包含句号
-                                                sentences = line.split('. ')
+                                            if '. ' in cleaned_line and len(cleaned_line) > 100:  # 长文本且包含句号
+                                                sentences = cleaned_line.split('. ')
                                                 # 重构句子（添加句号，除了最后一个）
                                                 sentences = [s + '.' if i < len(sentences) - 1 else s 
                                                            for i, s in enumerate(sentences)]
@@ -2449,7 +2461,7 @@ def translate_pdf():
                                         # 策略4: 模糊匹配（包含关系）
                                         if not matched:
                                             for key in translated_dict.keys():
-                                                if line.strip() in key.strip() or key.strip() in line.strip():
+                                                if cleaned_line.strip() in key.strip() or key.strip() in cleaned_line.strip():
                                                     translated_text = translated_dict[key]
                                                     matched = True
                                                     logger.info(f"通过模糊匹配找到翻译结果: {line[:30]}... -> {translated_text[:30]}...")
@@ -2480,7 +2492,7 @@ def translate_pdf():
                                             # 寻找最相似的键
                                             best_match_key = None
                                             best_match_score = 0
-                                            line_normalized = line.strip().lower()
+                                            line_normalized = cleaned_line.strip().lower()
                                             
                                             for key in translated_dict.keys():
                                                 key_normalized = key.strip().lower()
@@ -2500,7 +2512,7 @@ def translate_pdf():
                                         
                                         if matched and translated_text.strip() and not translated_text.startswith('[翻译错误:'):
                                             processed_lines.append("【译文】" + translated_text)
-                                            logger.info(f"标题翻译完成: {line} -> {translated_text}")
+                                            logger.info(f"标题翻译完成: {line[:30]}... -> {translated_text[:30]}...")
                                         else:
                                             processed_lines.append("【译文】[翻译失败]")
                                             logger.warning(f"标题翻译失败，无法匹配: {line}")
@@ -2527,8 +2539,12 @@ def translate_pdf():
                                 finally:
                                     loop.close()
                                 
-                                if translated_dict and line in translated_dict:
-                                    translated_text = translated_dict[line]
+                                # 使用PDF翻译工具中的文本清理方法
+                                from app.function.pdf_translation_utils import PDFTranslationUtils
+                                cleaned_line = PDFTranslationUtils._strip_inline_markdown(line)
+                                
+                                if translated_dict and cleaned_line in translated_dict:
+                                    translated_text = translated_dict[cleaned_line]
                                     if translated_text.strip() and not translated_text.startswith('[翻译错误:'):
                                         processed_lines.append("【译文】" + translated_text)
                                         logger.info(f"段落翻译完成: {line[:30]}... -> {translated_text[:30]}...")
@@ -2546,13 +2562,13 @@ def translate_pdf():
                                         translated_text = ""
                                         
                                         # 策略1: 精确匹配
-                                        if line in translated_dict:
-                                            translated_text = translated_dict[line]
+                                        if cleaned_line in translated_dict:
+                                            translated_text = translated_dict[cleaned_line]
                                             matched = True
                                         
                                         # 策略2: 去除空白字符后匹配
                                         if not matched:
-                                            line_stripped = line.strip()
+                                            line_stripped = cleaned_line.strip()
                                             for key in translated_dict.keys():
                                                 if key.strip() == line_stripped:
                                                     translated_text = translated_dict[key]
@@ -2563,8 +2579,8 @@ def translate_pdf():
                                         # 策略3: 如果原始文本包含多个句子，尝试分割后匹配
                                         if not matched:
                                             # 检查是否可以按句号分割
-                                            if '. ' in line and len(line) > 100:  # 长文本且包含句号
-                                                sentences = line.split('. ')
+                                            if '. ' in cleaned_line and len(cleaned_line) > 100:  # 长文本且包含句号
+                                                sentences = cleaned_line.split('. ')
                                                 # 重构句子（添加句号，除了最后一个）
                                                 sentences = [s + '.' if i < len(sentences) - 1 else s 
                                                            for i, s in enumerate(sentences)]
@@ -2590,7 +2606,7 @@ def translate_pdf():
                                         # 策略4: 模糊匹配（包含关系）
                                         if not matched:
                                             for key in translated_dict.keys():
-                                                if line.strip() in key.strip() or key.strip() in line.strip():
+                                                if cleaned_line.strip() in key.strip() or key.strip() in cleaned_line.strip():
                                                     translated_text = translated_dict[key]
                                                     matched = True
                                                     logger.info(f"通过模糊匹配找到翻译结果: {line[:30]}... -> {translated_text[:30]}...")
@@ -2621,7 +2637,7 @@ def translate_pdf():
                                             # 寻找最相似的键
                                             best_match_key = None
                                             best_match_score = 0
-                                            line_normalized = line.strip().lower()
+                                            line_normalized = cleaned_line.strip().lower()
                                             
                                             for key in translated_dict.keys():
                                                 key_normalized = key.strip().lower()

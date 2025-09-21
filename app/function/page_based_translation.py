@@ -322,14 +322,15 @@ class PageBasedTranslator:
 
             logger.info(f"开始翻译第 {slide_index + 1} 页内容...")
 
-            # 构造翻译参数
+            # 构造翻译参数，PPT翻译不需要清理Markdown
             translation_result = await translate_async(
                 text=translation_text,
                 field=field,
                 stop_words=[],  # 空的停止词列表
                 custom_translations={},  # 空的自定义翻译
                 source_language=source_language,
-                target_language=target_language
+                target_language=target_language,
+                clean_markdown=False  # PPT翻译不需要清理Markdown
             )
 
             if not translation_result:
