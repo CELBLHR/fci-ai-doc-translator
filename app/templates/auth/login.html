@@ -3,285 +3,46 @@
 {% block title %}登录{% endblock %}
 
 {% block content %}
-<div class="auth-container">
-    <div class="login-box">
-        <h1>登录</h1>
-{#                <form method="POST">#}
-{#            <div class="form-group">#}
-{#                <label for="username">用户名</label>#}
-{#                <input type="text" id="username" name="username" required>#}
-{#            </div>#}
-{#            <div class="form-group">#}
-{#                <label for="password">密码</label>#}
-{#                <input type="password" id="password" name="password" required>#}
-{#            </div>#}
-{#            <div class="form-group">#}
-{#                <button type="submit" class="login-btn">#}
-{#                    <span class="btn-text">登录</span>#}
-{#                    <span class="btn-icon">#}
-{#                        <i class="fas fa-sign-in-alt"></i>#}
-{#                    </span>#}
-{#                </button>#}
-{#            </div>#}
-{#        </form>#}
+<div class="auth-shell">
+    <div class="auth-card">
+        <div class="auth-card-header">
+            <span class="brand-badge">
+                <i class="fas fa-shield-check"></i>
+            </span>
+            <div>
+                <h1 class="auth-card-title">欢迎登录</h1>
+                <p class="auth-card-subtitle">统一账号接入 FrieslandCampina AI 平台</p>
+            </div>
+        </div>
 
-        <!-- SSO登录选项 -->
-        {% if sso_enabled %}
-        <div class="sso-section">
-            <div class="sso-login">
-                <a href="/auth/sso/login" class="sso-btn">
-                    <span class="sso-icon">
+        <div class="auth-body">
+            {% if sso_enabled %}
+            <div class="sso-stack">
+                <a href="/auth/sso/login" class="btn btn-primary sso-btn">
+                    <span class="icon">
                         {% if sso_provider == 'oauth2' %}
                             <i class="fab fa-openid"></i>
                         {% elif sso_provider == 'saml' %}
                             <i class="fas fa-shield-alt"></i>
                         {% else %}
-                            <i class="fas fa-sign-in-alt"></i>
+                            <i class="fas fa-user-lock"></i>
                         {% endif %}
                     </span>
-                    <span class="sso-text">使用SSO登录</span>
+                    <span class="btn-text">使用 SSO 登录</span>
+                    <span class="chevron"><i class="fas fa-arrow-right"></i></span>
                 </a>
+                <p class="sso-caption">系统与企业身份平台同步，使用公司账号即可进入系统。</p>
             </div>
+            {% else %}
+            <div class="sso-stack">
+                <p class="sso-caption">当前未启用统一登录，请联系系统管理员获取访问方式。</p>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
+
+        <div class="links">
+            <span>遇到问题？请联系系统管理员。</span>
+        </div>
     </div>
 </div>
-
-<style>
-.auth-container {
-    min-height: 100vh;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    box-sizing: border-box;
-}
-
-.login-box {
-    background: rgba(30, 39, 46, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 15px;
-    border: 1px solid rgba(0, 168, 255, 0.2);
-    box-shadow: 0 0 20px rgba(0, 168, 255, 0.1);
-    padding: 2rem;
-    width: 100%;
-    max-width: 400px;
-}
-
-.login-box h1 {
-    text-align: center;
-    margin-bottom: 2rem;
-    color: var(--primary-color);
-}
-
-.form-group {
-    margin-bottom: 1.5rem;
-}
-
-.login-btn {
-    width: 100%;
-    padding: 12px 24px;
-    background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
-    border: none;
-    border-radius: 5px;
-    color: white;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-}
-
-.login-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 168, 255, 0.3);
-}
-
-.login-btn:active {
-    transform: translateY(1px);
-}
-
-.btn-text {
-    position: relative;
-    z-index: 1;
-}
-
-.btn-icon {
-    position: relative;
-    z-index: 1;
-    opacity: 0;
-    transform: translateX(-10px);
-    transition: all 0.3s ease;
-}
-
-.login-btn:hover .btn-icon {
-    opacity: 1;
-    transform: translateX(0);
-}
-
-.login-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(45deg, var(--accent-color), var(--primary-color));
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.login-btn:hover::before {
-    opacity: 1;
-}
-
-.links {
-    text-align: center;
-    margin-top: 1.5rem;
-}
-
-.links a {
-    color: var(--primary-color);
-    text-decoration: none;
-    transition: all 0.3s ease;
-}
-
-.links a:hover {
-    color: var(--accent-color);
-    text-shadow: 0 0 8px rgba(0, 168, 255, 0.5);
-}
-
-/* 添加涟漪效果 */
-.login-btn {
-    position: relative;
-    overflow: hidden;
-}
-
-.ripple {
-    position: absolute;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    transform: scale(0);
-    animation: ripple-effect 1s linear;
-    pointer-events: none;
-}
-
-@keyframes ripple-effect {
-    to {
-        transform: scale(4);
-        opacity: 0;
-    }
-}
-
-/* SSO登录样式 */
-.sso-section {
-    margin-top: 2rem;
-}
-
-.divider {
-    text-align: center;
-    margin: 1.5rem 0;
-    position: relative;
-}
-
-.divider::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.divider span {
-    background: rgba(30, 39, 46, 0.95);
-    padding: 0 1rem;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 14px;
-    position: relative;
-    z-index: 1;
-}
-
-.sso-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 12px 0px;
-    background: linear-gradient(45deg, #4285f4, #34a853);
-    border: none;
-    border-radius: 5px;
-    color: white;
-    font-size: 16px;
-    font-weight: bold;
-    text-decoration: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    gap: 10px;
-}
-
-.sso-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(66, 133, 244, 0.3);
-    color: white;
-    text-decoration: none;
-}
-
-.sso-btn:active {
-    transform: translateY(1px);
-}
-
-.sso-icon {
-    font-size: 18px;
-}
-
-.sso-text {
-    font-weight: 500;
-}
-</style>
-
-<script>
-document.querySelector('form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    
-    // 表单验证
-    if (!username || !password) {
-        showModal('请填写所有字段');
-        return;
-    }
-    
-    // 如果验证通过，提交表单
-    this.submit();
-});
-
-// 添加按钮点击效果
-const loginBtn = document.querySelector('.login-btn');
-loginBtn.addEventListener('click', function(e) {
-    // 创建涟漪效果
-    const ripple = document.createElement('span');
-    ripple.classList.add('ripple');
-    this.appendChild(ripple);
-    
-    const rect = this.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    ripple.style.left = x + 'px';
-    ripple.style.top = y + 'px';
-    
-    setTimeout(() => {
-        ripple.remove();
-    }, 1000);
-});
-</script>
-{% endblock %} 
+{% endblock %}
