@@ -444,13 +444,25 @@
         <h3><i class="bi bi-gear"></i> {% if session.get('language') == 'en' %}Configuration{% else %}配置选项{% endif %}</h3>
         
         <div class="form-group">
+            <label for="sourceLanguage">
+                <i class="bi bi-translate"></i>
+                {% if session.get('language') == 'en' %}Source Language{% else %}源语言{% endif %}
+            </label>
+            <select class="form-control" id="sourceLanguage">
+                <option value="EN" {% if session.get('pdf_source_language', 'EN') == 'EN' %}selected{% endif %}>English</option>
+                <option value="ZH" {% if session.get('pdf_source_language', 'EN') == 'ZH' %}selected{% endif %}>中文</option>
+                <option value="JA" {% if session.get('pdf_source_language', 'EN') == 'JA' %}selected{% endif %}>日本語</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
             <label for="targetLanguage">
                 <i class="bi bi-translate"></i>
                 {% if session.get('language') == 'en' %}Target Language{% else %}目标语言{% endif %}
             </label>
             <select class="form-control" id="targetLanguage">
-                <option value="EN" {% if session.get('pdf_target_language', 'EN') == 'EN' %}selected{% endif %}>English</option>
-                <option value="ZH" {% if session.get('pdf_target_language', 'EN') == 'ZH' %}selected{% endif %}>中文</option>
+                <option value="EN" {% if session.get('language', 'zh') == 'en' %}selected{% endif %}>English</option>
+                <option value="ZH" {% if session.get('language', 'zh') != 'en' %}selected{% endif %}>中文</option>
                 <option value="JA" {% if session.get('pdf_target_language', 'EN') == 'JA' %}selected{% endif %}>日本語</option>
             </select>
         </div>
@@ -464,6 +476,23 @@
                 <option value="qwen" {% if session.get('pdf_model', 'qwen') == 'qwen' %}selected{% endif %}>Qwen</option>
                 <option value="deepseek" {% if session.get('pdf_model', 'qwen') == 'deepseek' %}selected{% endif %}>DeepSeek</option>
             </select>
+        </div>
+        
+        <div class="form-group">
+            <div class="form-check" style="display: flex; align-items: center;">
+                <input type="checkbox" class="form-check-input" id="enableImageOcr" checked style="margin-right: 8px;">
+                <label class="form-check-label" for="enableImageOcr" style="display: flex; align-items: center; margin-bottom: 0;">
+                    <i class="bi bi-image" style="margin-right: 5px;"></i>
+                    {% if session.get('language') == 'en' %}Enable Image OCR{% else %}启用图片OCR识别{% endif %}
+                </label>
+            </div>
+            <small class="form-text text-muted">
+                {% if session.get('language') == 'en' %}
+                    Enable OCR recognition for images in PDF (requires internet connection)
+                {% else %}
+                    对PDF中的图片启用OCR识别功能（需要网络连接）
+                {% endif %}
+            </small>
         </div>
     </div>
 
@@ -622,15 +651,19 @@
         document.getElementById('pdfResultContainer').style.display = 'none';
         updateProgress(0, currentLanguage === 'en' ? 'Starting translation...' : '开始翻译...');
         
-        // 获取目标语言和模型选择
+        // 获取源语言、目标语言和模型选择
+        const sourceLanguage = document.getElementById('sourceLanguage').value;
         const targetLanguage = document.getElementById('targetLanguage').value;
         const model = document.getElementById('modelSelect').value;
+        const enableImageOcr = document.getElementById('enableImageOcr').checked;
         
         // 创建FormData对象
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('target_language', targetLanguage);
+        formData.append('source_lang', sourceLanguage);
+        formData.append('target_lang', targetLanguage);
         formData.append('model', model);
+        formData.append('enable_image_ocr', enableImageOcr);
         
         // 发送请求到后端
         fetch('/translate_pdf', {

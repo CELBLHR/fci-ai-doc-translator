@@ -10,8 +10,118 @@ from pptx.shapes.picture import Picture
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 import sys
 import os
+import re
 sys.path.insert(0, os.path.dirname(__file__))
 
+# 添加QwenTranslator导入
+from .translator import QwenTranslator
+
+def perform_ocr_on_image(image_path: str, api_key: str) -> Optional[Dict]:
+    """
+    对单个图片执行OCR识别
+    
+    Args:
+        image_path: 图片路径
+        api_key: OCR API密钥
+        
+    Returns:
+        OCR结果字典或None
+    """
+    logger.info(f"[OCR识别] 开始对图片执行OCR识别: {image_path}")
+    logger.info(f"[OCR识别] 图片文件大小: {os.path.getsize(image_path) if os.path.exists(image_path) else '文件不存在'} 字节")
+    
+    try:
+        # 检查文件是否存在
+        if not os.path.exists(image_path):
+            logger.error(f"[OCR识别] 图片文件不存在: {image_path}")
+            return None
+            
+        # 检查API密钥
+        if not api_key:
+            logger.error("[OCR识别] API密钥未提供")
+            return None
+            
+        # 读取图片文件
+        with open(image_path, 'rb') as f:
+            image_data = f.read()
+            
+        logger.info(f"[OCR识别] 成功读取图片数据，大小: {len(image_data)} 字节")
+        
+        # 调用OCR API
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/octet-stream'
+        }
+        
+        # 根据文件扩展名确定OCR类型
+        _, ext = os.path.splitext(image_path)
+        ext = ext.lower()
+        
+        if ext in ['.pdf']:
+            ocr_type = 'pdf'
+        elif ext in ['.png', '.jpg', '.jpeg', '.bmp', '.gif']:
+            ocr_type = 'image'
+        else:
+            ocr_type = 'image'  # 默认为图片
+            
+        logger.info(f"[OCR识别] 图片类型: {ext}, OCR类型: {ocr_type}")
+        
+        # 构造API URL
+        api_url = "https://dashscope.aliyuncs.com/api/v1/services/ocr/general"
+        params = {'ocr_type': ocr_type}
+        
+        logger.info(f"[OCR识别] 调用OCR API: {api_url}")
+        logger.info(f"[OCR识别] 请求参数: {params}")
+        
+        # 发送请求
+        response = requests.post(
+            api_url,
+            headers=headers,
+            params=params,
+            data=image_data,
+            timeout=300  # 5分钟超时
+        )
+        
+        logger.info(f"[OCR识别] OCR API响应状态码: {response.status_code}")
+        
+        # 检查响应
+        if response.status_code == 200:
+            result = response.json()
+            logger.info(f"[OCR识别] OCR API响应成功")
+            logger.info(f"[OCR识别] OCR结果结构: {list(result.keys()) if isinstance(result, dict) else '非字典结构'}")
+            
+            # 提取文本信息
+            if 'output' in result and 'recognized_texts' in result['output']:
+                texts = result['output']['recognized_texts']
+                logger.info(f"[OCR识别] 识别到 {len(texts)} 个文本块")
+                
+                # 构造返回结果
+                extracted_texts = {}
+                for i, text_info in enumerate(texts):
+                    if isinstance(text_info, dict) and 'text' in text_info:
+                        text_key = f"text_{i+1:03d}"
+                        extracted_texts[text_key] = text_info['text']
+                        logger.info(f"[OCR识别] 文本 {text_key}: {text_info['text'][:50]}...")
+                
+                return {
+                    'texts': extracted_texts,
+                    'raw_result': result
+                }
+            else:
+                logger.warning(f"[OCR识别] OCR结果格式不符合预期: {list(result.keys()) if isinstance(result, dict) else '非字典结构'}")
+                return {
+                    'texts': {},
+                    'raw_result': result
+                }
+        else:
+            logger.error(f"[OCR识别] OCR API调用失败，状态码: {response.status_code}")
+            logger.error(f"[OCR识别] 错误响应: {response.text}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"[OCR识别] OCR识别过程中出错: {str(e)}")
+        logger.exception("[OCR识别] 详细错误信息")
+        return None
 # 导入日志系统
 from logger_config_ocr import get_logger
 
@@ -26,6 +136,290 @@ from translator import TranslationManager
 
 # 获取日志记录器
 logger = get_logger("ocr_controller")
+
+
+def _extract_image_paths_from_markdown(markdown_content: str, markdown_dir: str) -> List[str]:
+    """
+    从Markdown内容中提取图片路径
+    
+    Args:
+        markdown_content: Markdown内容
+        markdown_dir: Markdown文件所在目录
+        
+    Returns:
+        图片路径列表
+    """
+    logger.info("[图片提取] 开始从Markdown内容中提取图片路径")
+    logger.info(f"[图片提取] Markdown目录: {markdown_dir}")
+    logger.info(f"[图片提取] Markdown内容长度: {len(markdown_content)}")
+    
+    # 匹配Markdown图片语法: ![alt](path)
+    image_pattern = r'!\[.*?\]\((.*?)\)'
+    matches = re.findall(image_pattern, markdown_content)
+    
+    logger.info(f"[图片提取] 找到 {len(matches)} 个图片引用")
+    for i, match in enumerate(matches):
+        logger.info(f"[图片提取] 图片引用 {i+1}: {match}")
+    
+    image_paths = []
+    for match in matches:
+        # 处理相对路径
+        if match.startswith('images/'):
+            # 相对于markdown文件的images目录
+            image_path = os.path.join(markdown_dir, match)
+        elif match.startswith('./images/'):
+            # 相对于markdown文件的images目录
+            image_path = os.path.join(markdown_dir, match[2:])  # 去掉 ./
+        elif not os.path.isabs(match):
+            # 其他相对路径
+            image_path = os.path.join(markdown_dir, match)
+        else:
+            # 绝对路径
+            image_path = match
+            
+        logger.info(f"[图片提取] 处理图片路径: {match} -> {image_path}")
+        
+        # 检查文件是否存在
+        if os.path.exists(image_path):
+            image_paths.append(image_path)
+            logger.info(f"[图片提取] 图片文件存在: {image_path}")
+        else:
+            logger.warning(f"[图片提取] 图片文件不存在: {image_path}")
+    
+    logger.info(f"[图片提取] 最终提取到 {len(image_paths)} 个有效图片路径")
+    for i, path in enumerate(image_paths):
+        logger.info(f"[图片提取] 有效图片 {i+1}: {path}")
+        
+    return image_paths
+
+
+def _create_image_mapping(image_paths: List[str]) -> Dict:
+    """
+    创建图片映射数据结构
+    
+    Args:
+        image_paths: 图片路径列表
+        
+    Returns:
+        图片映射字典
+    """
+    mapping = {"slide_1": {"slide_number": 1, "images": []}}
+    
+    for i, image_path in enumerate(image_paths):
+        filename = os.path.basename(image_path)
+        image_info = {
+            "filename": filename,
+            "filepath": image_path,
+            "shape_id": i,
+            "left": 0,
+            "top": 0,
+            "width": 0,
+            "height": 0,
+            "content_type": "",
+            "original_format": "",
+            "file_size": os.path.getsize(image_path) if os.path.exists(image_path) else 0
+        }
+        mapping["slide_1"]["images"].append(image_info)
+    
+    return mapping
+
+
+def _translate_text(text: str, target_language: str, source_language: str) -> str:
+    """
+    翻译文本
+    
+    Args:
+        text: 待翻译文本
+        target_language: 目标语言
+        source_language: 源语言
+        
+    Returns:
+        翻译后的文本，如果翻译失败返回None
+    """
+    try:
+        # 使用QwenTranslator进行翻译
+        translator = QwenTranslator(target_language=target_language)
+        translated = translator.translate_text(text, source_language=source_language)
+        # 只有当翻译结果与原文不同时才返回翻译结果，否则返回None表示翻译失败
+        if translated and translated.strip() and translated.strip() != text.strip():
+            return translated
+        else:
+            return None
+    except Exception as e:
+        logger.error(f"翻译文本时出错: {str(e)}")
+        logger.exception("翻译错误详情")
+        return None
+
+
+def process_markdown_images_ocr_and_translate(
+    markdown_content: str,
+    markdown_dir: str,
+    target_language: str = "zh",
+    source_language: str = "en"
+) -> List[Dict]:
+    """
+    处理Markdown中的图片OCR识别和翻译
+    
+    Args:
+        markdown_content: Markdown内容
+        markdown_dir: Markdown文件所在目录
+        target_language: 目标语言
+        source_language: 源语言
+        
+    Returns:
+        List of OCR结果字典，每个字典包含:
+        {
+            "success": bool,
+            "image_path": str,
+            "ocr_text_combined": str,
+            "translation_text_combined": str
+        }
+    """
+    logger.info("[Markdown OCR] 开始处理Markdown中的图片OCR识别和翻译")
+    logger.info(f"[Markdown OCR] Markdown目录: {markdown_dir}")
+    logger.info(f"[Markdown OCR] 目标语言: {target_language}, 源标语言: {source_language}")
+    logger.info(f"[Markdown OCR] Markdown内容长度: {len(markdown_content)} 字符")
+    
+    results = []
+    
+    try:
+        # 创建临时目录用于处理
+        with tempfile.TemporaryDirectory(prefix="md_ocr_") as temp_dir:
+            logger.info(f"[Markdown OCR] 创建临时目录: {temp_dir}")
+            
+            # 提取Markdown中的图片链接
+            image_paths = _extract_image_paths_from_markdown(markdown_content, markdown_dir)
+            logger.info(f"[Markdown OCR] 找到 {len(image_paths)} 个图片路径")
+            
+            if not image_paths:
+                logger.info("[Markdown OCR] 未找到任何图片，跳过OCR处理")
+                return results
+            
+            # 复制图片到临时目录
+            temp_image_paths = []
+            for i, image_path in enumerate(image_paths):
+                if os.path.exists(image_path):
+                    # 生成新的文件名
+                    ext = os.path.splitext(image_path)[1]
+                    new_filename = f"image_{i+1:04d}{ext}"
+                    temp_image_path = os.path.join(temp_dir, new_filename)
+                    
+                    # 复制文件
+                    shutil.copy2(image_path, temp_image_path)
+                    temp_image_paths.append(temp_image_path)
+                    logger.info(f"[Markdown OCR] 已复制图片: {os.path.basename(image_path)} -> {new_filename}")
+                else:
+                    logger.warning(f"[Markdown OCR] 图片文件不存在: {image_path}")
+            
+            if not temp_image_paths:
+                logger.warning("[Markdown OCR] 没有有效的图片文件，跳过OCR处理")
+                return results
+            
+            logger.info(f"[Markdown OCR] 成功复制 {len(temp_image_paths)} 个图片文件到临时目录")
+            
+            # 创建图片映射JSON文件
+            image_mapping = _create_image_mapping(temp_image_paths)
+            json_path = os.path.join(temp_dir, "image_mapping.json")
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(image_mapping, f, ensure_ascii=False, indent=2)
+            logger.info(f"[Markdown OCR] 已创建图片映射文件: {json_path}")
+            logger.info(f"[Markdown OCR] 图片映射内容: {json.dumps(image_mapping, ensure_ascii=False, indent=2)}")
+            
+            # 执行OCR识别
+            API_KEY = os.getenv("QWEN_API_KEY")
+            if not API_KEY:
+                logger.error("[Markdown OCR] 未设置QWEN_API_KEY环境变量，无法执行OCR识别")
+                return results
+            
+            logger.info("[Markdown OCR] 开始执行OCR识别")
+            process_folder_with_mapping(temp_dir, json_path, API_KEY)
+            logger.info("[Markdown OCR] OCR识别完成")
+            
+            # 读取OCR结果
+            if os.path.exists(json_path):
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    updated_mapping = json.load(f)
+                
+                logger.info(f"[Markdown OCR] OCR结果文件加载成功")
+                logger.info(f"[Markdown OCR] OCR结果内容: {json.dumps(updated_mapping, ensure_ascii=False, indent=2)}")
+                
+                # 处理每个图片的OCR结果
+                for slide_key, slide_data in updated_mapping.items():
+                    if 'images' not in slide_data:
+                        logger.warning(f"[Markdown OCR] Slide数据中没有images字段: {slide_key}")
+                        continue
+                    
+                    for image_info in slide_data['images']:
+                        result = {
+                            "image_path": image_info.get("filepath", ""),
+                            "success": False,
+                            "ocr_text_combined": "",
+                            "translation_text_combined": ""
+                        }
+                        
+                        # 获取OCR文本
+                        all_text = image_info.get('all_text', {})
+                        logger.info(f"[Markdown OCR] 图片 {os.path.basename(result['image_path'])} 的OCR文本: {all_text}")
+                        
+                        if all_text:
+                            # 合并所有OCR文本
+                            ocr_texts = [text.strip() for text in all_text.values() if text.strip()]
+                            result["ocr_text_combined"] = '\n'.join(ocr_texts)
+                            result["success"] = True
+                            logger.info(f"[Markdown OCR] 图片OCR识别成功: {os.path.basename(result['image_path'])}, 文本长度: {len(result['ocr_text_combined'])}")
+                        else:
+                            logger.info(f"[Markdown OCR] 图片未识别到文本: {os.path.basename(result['image_path'])}")
+                        
+                        # 翻译OCR文本
+                        if all_text:
+                            try:
+                                # 翻译所有文本
+                                translated_texts = {}
+                                for text_key, text_value in all_text.items():
+                                    if text_value and text_value.strip():
+                                        logger.info(f"[Markdown OCR] 翻译文本: {text_key} = {text_value.strip()}")
+                                        translated = _translate_text(text_value.strip(), target_language, source_language)
+                                        # 检查翻译是否成功
+                                        if translated is not None:
+                                            translated_texts[text_key] = translated
+                                            logger.info(f"[Markdown OCR] 翻译结果: {text_key} = {translated}")
+                                        else:
+                                            logger.warning(f"[Markdown OCR] 翻译失败或结果与原文相同，跳过该文本段: {text_key}")
+                                
+                                # 合并所有翻译文本（包括未翻译的原文）
+                                translation_texts = []
+                                for text_key, text_value in all_text.items():
+                                    if text_key in translated_texts:
+                                        translation_texts.append(translated_texts[text_key].strip())
+                                    elif text_value and text_value.strip():
+                                        # 如果没有翻译成功，则使用原文
+                                        translation_texts.append(text_value.strip())
+                                
+                                if translation_texts:
+                                    result["translation_text_combined"] = '\n'.join(translation_texts)
+                                    logger.info(f"[Markdown OCR] 图片翻译成功: {os.path.basename(result['image_path'])}, 翻译文本长度: {len(result['translation_text_combined'])}")
+                                
+                            except Exception as e:
+                                logger.error(f"[Markdown OCR] 翻译图片文本时出错: {e}")
+                                logger.exception("[Markdown OCR] 翻译错误详情")
+                        
+                        results.append(result)
+                
+                logger.info(f"[Markdown OCR] 处理完成，共处理 {len(results)} 个图片")
+                for i, result in enumerate(results):
+                    logger.info(f"[Markdown OCR] 结果 {i+1}: 成功={result['success']}, "
+                              f"图片={os.path.basename(result['image_path'])}, "
+                              f"OCR文本长度={len(result['ocr_text_combined'])}, "
+                              f"翻译文本长度={len(result['translation_text_combined'])}")
+            else:
+                logger.error(f"[Markdown OCR] OCR结果文件不存在: {json_path}")
+            
+            return results
+            
+    except Exception as e:
+        logger.error(f"[Markdown OCR] 处理Markdown图片OCR和翻译时出错: {str(e)}")
+        logger.exception("[Markdown OCR] 详细错误信息")
+        return results
 
 
 class TextLineSplitter:

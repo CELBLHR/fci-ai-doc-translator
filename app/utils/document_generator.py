@@ -256,6 +256,8 @@ class BilingualDocumentGenerator:
             # 处理单独的 ^ 和 _ 符号
             s = re.sub(r"\^\s*", "", s)  # 去除单独的 ^ 符号
             s = re.sub(r"_\s*", "", s)   # 去除单独的 _ 符号
+            # 特别处理百分号前的反斜杠，如30 \%
+            s = re.sub(r"\\%", "%", s)
             # 处理商标符号 @ -> ®
             s = s.replace('@', '®')
             # 去除多余的反斜杠和花括号空格

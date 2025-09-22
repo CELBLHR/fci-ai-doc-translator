@@ -219,6 +219,11 @@ class PDFTranslationUtils:
 
         text = text.strip()
 
+        # 跳过图片标记
+        if text.startswith('![') and '](' in text and text.endswith(')'):
+            logger.debug(f"跳过图片标记: '{text}'")
+            return False
+
         # 跳过纯数字（包括小数点、百分号、连字符等）
         if re.match(r'^[\d\s\.,\-%/]+$', text):
             logger.debug(f"跳过纯数字: '{text}'")
@@ -262,6 +267,13 @@ class PDFTranslationUtils:
             original_text = text or ""
             s = original_text
             
+            # 如果是纯图片标记，直接返回空字符串
+            if s.strip().startswith('![') and '](' in s and s.strip().endswith(')'):
+                # 检查是否只有图片标记，没有其他内容
+                if s.strip() == s:
+                    logger.debug(f"检测到纯图片标记，跳过清理: '{s[:50]}...'")
+                    return ""
+            
             # 图片: ![alt](path) -> alt
             s = re.sub(r"!\[([^\]]*)\]\([^\)]*\)", r"\1", s)
             # 链接: [text](url) -> text
@@ -301,6 +313,8 @@ class PDFTranslationUtils:
             s = s.replace("\\{", "{").replace("\\}", "}").replace("\\ ", " ")
             # 规范连字符与空格: 避免 ' - ' 残留空格
             s = re.sub(r"\s*-\s*", "-", s)
+            # 特别处理百分号前的反斜杠，如30 \%
+            s = re.sub(r"\\%", "%", s)
             # 折叠多空格
             s = re.sub(r"\s+", " ", s).strip()
             # 剩余的转义反斜杠

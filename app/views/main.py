@@ -2332,6 +2332,93 @@ def translate_pdf():
                 logger.error(f"读取内容文件失败: {e}")
                 return jsonify({'success': False, 'error': '读取提取内容失败'}), 500
 
+            # 检查是否启用图片OCR功能
+            enable_image_ocr = request.form.get('enable_image_ocr', 'false').lower() == 'true'
+            logger.info(f"图片OCR功能启用状态: {enable_image_ocr}")
+
+            # 如果启用了图片OCR，则处理图片
+            if enable_image_ocr:
+                try:
+                    from app.function.image_ocr.ocr_controller import process_markdown_images_ocr_and_translate
+                    logger.info("开始处理Markdown中的图片OCR和翻译")
+                    logger.info(f"Markdown目录: {os.path.dirname(md_file)}")
+                    
+                    # 提取原始Markdown中的图片路径，用于后续匹配
+                    original_image_paths = []
+                    md_dir = os.path.dirname(md_file)
+                    import re
+                    image_pattern = r'!\[.*?\]\((.*?)\)'
+                    matches = re.findall(image_pattern, content)
+                    for match in matches:
+                        if match.startswith('images/'):
+                            image_path = os.path.join(md_dir, match)
+                        elif match.startswith('./images/'):
+                            image_path = os.path.join(md_dir, match[2:])
+                        elif not os.path.isabs(match):
+                            image_path = os.path.join(md_dir, match)
+                        else:
+                            image_path = match
+                        if os.path.exists(image_path):
+                            original_image_paths.append((match, image_path))  # (markdown中的路径, 实际文件路径)
+                    
+                    logger.info(f"找到 {len(original_image_paths)} 个原始图片路径用于匹配")
+                    for orig_path, actual_path in original_image_paths:
+                        logger.info(f"原始路径: {orig_path} -> 实际路径: {actual_path}")
+                    
+                    # 调用OCR处理函数
+                    ocr_results = process_markdown_images_ocr_and_translate(
+                        content, 
+                        os.path.dirname(md_file),
+                        target_language='zh',
+                        source_language='en'
+                    )
+                    
+                    logger.info(f"OCR处理完成，结果数量: {len(ocr_results) if ocr_results else 0}")
+                    
+                    if ocr_results:
+                        # 创建重命名图片到原始图片的映射关系
+                        image_name_mapping = {}
+                        for i, (orig_path, actual_path) in enumerate(original_image_paths):
+                            new_filename = f"image_{i+1:04d}{os.path.splitext(actual_path)[1]}"
+                            image_name_mapping[new_filename] = orig_path
+                            logger.info(f"映射: {new_filename} -> {orig_path}")
+                        
+                        # 在内容中插入OCR结果
+                        for i, ocr_result in enumerate(ocr_results):
+                            if ocr_result.get("success"):
+                                image_path = ocr_result.get("image_path", "")
+                                ocr_text = ocr_result.get("ocr_text_combined", "")
+                                translation_text = ocr_result.get("translation_text_combined", "")
+                                
+                                logger.info(f"OCR结果 {i+1}: 图片={os.path.basename(image_path)}, "
+                                          f"OCR文本长度={len(ocr_text)}, 翻译文本长度={len(translation_text)}")
+                                
+                                # 使用映射关系找到原始图片路径
+                                image_filename = os.path.basename(image_path)
+                                if image_filename in image_name_mapping:
+                                    original_image_marker = f"![]({image_name_mapping[image_filename]})"
+                                    
+                                    if ocr_text or translation_text:
+                                        # 构造OCR结果插入内容
+                                        ocr_insertion = f"\n\n[OCR识别结果]:\n{ocr_text}\n\n[OCR翻译结果]:\n{translation_text}\n"
+                                        content = content.replace(original_image_marker, original_image_marker + ocr_insertion)
+                                        logger.info(f"已将OCR结果插入到图片 {image_name_mapping[image_filename]} 位置")
+                                    else:
+                                        logger.info(f"图片 {image_name_mapping[image_filename]} 未识别到文本内容")
+                                else:
+                                    logger.warning(f"未找到图片 {image_filename} 的原始路径映射")
+                            else:
+                                image_path = ocr_result.get("image_path", "")
+                                logger.warning(f"图片OCR处理失败: {os.path.basename(image_path)}")
+                    else:
+                        logger.info("未找到需要OCR处理的图片")
+                except Exception as ocr_e:
+                    logger.error(f"处理图片OCR时出错: {ocr_e}")
+                    import traceback
+                    logger.error(f"OCR错误详情: {traceback.format_exc()}")
+            else:
+                logger.info("图片OCR功能未启用，跳过图片处理")
+
             # 如果配置了翻译API，则进行翻译
             qwen_api_key = os.getenv('QWEN_API_KEY')
             logger.info(f"检查Qwen API密钥: {'已配置' if qwen_api_key else '未配置'}")
@@ -2355,6 +2442,9 @@ def translate_pdf():
                         source_lang, target_lang = 'Chinese', 'English'
                     
                     logger.info(f"翻译语言设置 - 源语言: {source_lang}, 目标语言: {target_lang}")
+                    
+                    # 初始化翻译字典
+                    translated_dict = {}
                     
                     # 使用PPT模块中的Qwen异步翻译功能
                     from app.function.local_qwen_async import translate_async
@@ -2510,152 +2600,11 @@ def translate_pdf():
                                                 matched = True
                                                 logger.info(f"通过部分匹配找到翻译结果: {line[:30]}... -> {translated_text[:30]}... (相似度: {best_match_score:.2f})")
                                         
-                                        if matched and translated_text.strip() and not translated_text.startswith('[翻译错误:'):
-                                            processed_lines.append("【译文】" + translated_text)
-                                            logger.info(f"标题翻译完成: {line[:30]}... -> {translated_text[:30]}...")
-                                        else:
-                                            processed_lines.append("【译文】[翻译失败]")
-                                            logger.warning(f"标题翻译失败，无法匹配: {line}")
-                                    else:
-                                        processed_lines.append("【译文】[翻译失败]")
-                                        logger.warning(f"翻译结果为空: {line}")
-                            except Exception as e:
-                                logger.error(f"标题翻译出错: {e}")
-                                processed_lines.append("【译文】[翻译出错]")
-                        
-                        # 检查是否为普通段落（非空且非标题）
-                        elif line:
-                            logger.info(f"检测到段落: {line[:50]}...")
-                            # 翻译段落
-                            try:
-                                # 创建新的事件循环来运行异步翻译任务
-                                import asyncio
-                                loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(loop)
-                                try:
-                                    translated_dict = loop.run_until_complete(
-                                        translate_async(line, "通用", [], {}, source_lang, target_lang)
-                                    )
-                                finally:
-                                    loop.close()
-                                
-                                # 使用PDF翻译工具中的文本清理方法
-                                from app.function.pdf_translation_utils import PDFTranslationUtils
-                                cleaned_line = PDFTranslationUtils._strip_inline_markdown(line)
-                                
-                                if translated_dict and cleaned_line in translated_dict:
-                                    translated_text = translated_dict[cleaned_line]
-                                    if translated_text.strip() and not translated_text.startswith('[翻译错误:'):
-                                        processed_lines.append("【译文】" + translated_text)
-                                        logger.info(f"段落翻译完成: {line[:30]}... -> {translated_text[:30]}...")
-                                    else:
-                                        processed_lines.append("【译文】[翻译失败]")
-                                        logger.warning(f"段落翻译失败: {line[:50]}...")
-                                else:
-                                    # 增加更智能的匹配逻辑
-                                    if translated_dict:
-                                        logger.warning(f"段落未找到翻译结果: {line[:50]}...")
-                                        logger.warning(f"翻译字典键列表: {list(translated_dict.keys())}")
-                                        
-                                        # 尝试多种匹配策略
-                                        matched = False
-                                        translated_text = ""
-                                        
-                                        # 策略1: 精确匹配
-                                        if cleaned_line in translated_dict:
-                                            translated_text = translated_dict[cleaned_line]
-                                            matched = True
-                                        
-                                        # 策略2: 去除空白字符后匹配
-                                        if not matched:
-                                            line_stripped = cleaned_line.strip()
-                                            for key in translated_dict.keys():
-                                                if key.strip() == line_stripped:
-                                                    translated_text = translated_dict[key]
-                                                    matched = True
-                                                    logger.info(f"通过去除空白字符匹配成功: {line[:30]}...")
-                                                    break
-                                        
-                                        # 策略3: 如果原始文本包含多个句子，尝试分割后匹配
-                                        if not matched:
-                                            # 检查是否可以按句号分割
-                                            if '. ' in cleaned_line and len(cleaned_line) > 100:  # 长文本且包含句号
-                                                sentences = cleaned_line.split('. ')
-                                                # 重构句子（添加句号，除了最后一个）
-                                                sentences = [s + '.' if i < len(sentences) - 1 else s 
-                                                           for i, s in enumerate(sentences)]
-                                                
-                                                matched_fragments = []
-                                                for sentence in sentences:
-                                                    sentence_stripped = sentence.strip()
-                                                    if sentence_stripped:
-                                                        for key in translated_dict.keys():
-                                                            # 精确匹配或包含关系
-                                                            if (key.strip() == sentence_stripped or 
-                                                                sentence_stripped in key.strip() or
-                                                                key.strip() in sentence_stripped):
-                                                                matched_fragments.append(translated_dict[key])
-                                                                break
-                                                
-                                                # 如果所有片段都匹配成功
-                                                if len(matched_fragments) == len([s for s in sentences if s.strip()]):
-                                                    translated_text = ''.join(matched_fragments)
-                                                    matched = True
-                                                    logger.info(f"通过句子分割匹配成功: {line[:30]}...")
-                                        
-                                        # 策略4: 模糊匹配（包含关系）
-                                        if not matched:
-                                            for key in translated_dict.keys():
-                                                if cleaned_line.strip() in key.strip() or key.strip() in cleaned_line.strip():
-                                                    translated_text = translated_dict[key]
-                                                    matched = True
-                                                    logger.info(f"通过模糊匹配找到翻译结果: {line[:30]}... -> {translated_text[:30]}...")
-                                                    break
-                                        
-                                        # 策略5: 部分匹配（最长公共子串）
-                                        if not matched:
-                                            def longest_common_substring(s1, s2):
-                                                # 简单的最长公共子串计算
-                                                # 返回公共子串的长度
-                                                m = len(s1)
-                                                n = len(s2)
-                                                # 创建二维数组来存储长度
-                                                LCSuff = [[0 for k in range(n+1)] for l in range(m+1)]
-                                                result = 0
-                                                
-                                                for i in range(m + 1):
-                                                    for j in range(n + 1):
-                                                        if (i == 0 or j == 0):
-                                                            LCSuff[i][j] = 0
-                                                        elif (s1[i-1] == s2[j-1]):
-                                                            LCSuff[i][j] = LCSuff[i-1][j-1] + 1
-                                                            result = max(result, LCSuff[i][j])
-                                                        else:
-                                                            LCSuff[i][j] = 0
-                                                return result
-                                            
-                                            # 寻找最相似的键
-                                            best_match_key = None
-                                            best_match_score = 0
-                                            line_normalized = cleaned_line.strip().lower()
-                                            
-                                            for key in translated_dict.keys():
-                                                key_normalized = key.strip().lower()
-                                                # 计算相似度（公共子串长度/较长字符串长度）
-                                                common_len = longest_common_substring(line_normalized, key_normalized)
-                                                max_len = max(len(line_normalized), len(key_normalized))
-                                                if max_len > 0:
-                                                    similarity = common_len / max_len
-                                                    if similarity > best_match_score and similarity > 0.8:  # 相似度阈值
-                                                        best_match_score = similarity
-                                                        best_match_key = key
-                                            
-                                            if best_match_key:
-                                                translated_text = translated_dict[best_match_key]
-                                                matched = True
-                                                logger.info(f"通过部分匹配找到翻译结果: {line[:30]}... -> {translated_text[:30]}... (相似度: {best_match_score:.2f})")
-                                        
-                                        if matched and translated_text.strip() and not translated_text.startswith('[翻译错误:'):
+                                        # 检查是否是图片标记，如果是则跳过翻译
+                                        if line.strip().startswith('![') and '](' in line and line.strip().endswith(')'):
+                                            processed_lines.append(line)  # 保留原图片标记
+                                            logger.info(f"跳过图片标记的翻译: {line[:50]}...")
+                                        elif matched and translated_text.strip() and not translated_text.startswith('[翻译错误:'):
                                             processed_lines.append("【译文】" + translated_text)
                                             logger.info(f"段落翻译完成: {line[:30]}... -> {translated_text[:30]}...")
                                         else:
@@ -2673,6 +2622,10 @@ def translate_pdf():
                     # 重新组合内容
                     content = '\n'.join(processed_lines)
                     logger.info("逐行扫描和翻译处理完成")
+                    
+                    # 确保translated_dict已定义
+                    if 'translated_dict' not in locals():
+                        translated_dict = {}
                     
                     # 使用新的双语文档生成器创建Word文档
                     try:
@@ -2997,13 +2950,62 @@ def translate_pdf():
                                 image_path = line[start:end]
                                 
                                 # 添加图片到文档
-                                if os.path.exists(image_path):
-                                    doc.add_picture(image_path, width=Inches(6))  # 设置图片宽度
-                                    logger.info(f"添加图片到文档: {image_path}")
+                                full_image_path = None
+                                if os.path.isabs(image_path):
+                                    full_image_path = image_path
                                 else:
-                                    logger.warning(f"图片文件不存在: {image_path}")
+                                    # 相对于Markdown文件的路径
+                                    full_image_path = os.path.join(os.path.dirname(md_file), image_path)
+                                
+                                if os.path.exists(full_image_path):
+                                    doc.add_picture(full_image_path, width=Inches(6))  # 设置图片宽度
+                                    logger.info(f"添加图片到文档: {full_image_path}")
+                                else:
+                                    logger.warning(f"图片文件不存在: {full_image_path}")
                                     # 添加图片路径作为文本占位符
                                     doc.add_paragraph(f"[图片: {os.path.basename(image_path)}]")
+                                    
+                                # 检查下一行是否为OCR结果
+                                if i + 1 < len(lines):
+                                    next_line = lines[i + 1].strip()
+                                    if next_line.startswith('[OCR识别结果]:'):
+                                        # 添加OCR识别结果
+                                        doc.add_heading('OCR识别结果', level=3)
+                                        ocr_start = i + 2
+                                        ocr_end = ocr_start
+                                        # 查找OCR翻译结果或下一个图片标记
+                                        while ocr_end < len(lines):
+                                            if lines[ocr_end].strip().startswith('[OCR翻译结果]:') or \
+                                               (ocr_end + 1 < len(lines) and lines[ocr_end + 1].strip().startswith('![') and '](' in lines[ocr_end + 1] and lines[ocr_end + 1].strip().endswith(')')):
+                                                break
+                                            ocr_end += 1
+                                        
+                                        # 添加OCR识别文本
+                                        ocr_text = '\n'.join(lines[ocr_start:ocr_end]).strip()
+                                        if ocr_text:
+                                            doc.add_paragraph(ocr_text)
+                                        
+                                        # 检查是否有OCR翻译结果
+                                        if ocr_end < len(lines) and lines[ocr_end].strip().startswith('[OCR翻译结果]:'):
+                                            doc.add_heading('OCR翻译结果', level=3)
+                                            trans_start = ocr_end + 1
+                                            trans_end = trans_start
+                                            # 查找下一个图片标记
+                                            while trans_end < len(lines):
+                                                if trans_end + 1 < len(lines) and lines[trans_end + 1].strip().startswith('![') and '](' in lines[trans_end + 1] and lines[trans_end + 1].strip().endswith(')'):
+                                                    break
+                                                trans_end += 1
+                                            
+                                            # 添加OCR翻译文本
+                                            trans_text = '\n'.join(lines[trans_start:trans_end]).strip()
+                                            if trans_text:
+                                                doc.add_paragraph(trans_text)
+                                            
+                                            i = trans_end  # 更新索引
+                                        else:
+                                            i = ocr_end  # 更新索引
+                                        continue  # 继续下一次循环
+                                        
                             except Exception as img_error:
                                 logger.error(f"处理图片时出错: {img_error}")
                                 # 添加图片路径作为文本占位符
@@ -3016,26 +3018,6 @@ def translate_pdf():
                         elif line.strip() == '':
                             # 空行跳过，但确保段落分隔
                             i += 1
-                        else:
-                            # 普通段落
-                            if line:
-                                # 添加原文段落
-                                doc.add_paragraph(line)
-                                
-                                # 检查下一行是否为该段落的译文
-                                if i + 1 < len(lines) and lines[i + 1].strip().startswith('【译文】'):
-                                    # 添加译文段落，使用灰色字体以便区分
-                                    from docx.shared import RGBColor
-                                    paragraph = doc.add_paragraph()
-                                    run = paragraph.add_run(lines[i + 1].strip()[5:].strip())  # 去掉"【译文】"前缀
-                                    run.font.color.rgb = RGBColor(128, 128, 128)  # 灰色字体
-                                    i += 2  # 跳过原文和译文两行
-                                else:
-                                    i += 1  # 只跳过原文行
-                            else:
-                                i += 1
-                    
-                    doc.save(docx_path)
                     conversion_success = True
                     logger.info("python-docx转换成功")
                 except Exception as e2:
