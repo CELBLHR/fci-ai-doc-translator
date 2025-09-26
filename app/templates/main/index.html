@@ -4,51 +4,52 @@
 
 {% block styles %}
 <style>
-    /* 重写容器样式 - 固定比例布局 */
+    /* 重写容器样式 - 适配顶部导航与温暖商务风 */
     .container {
-        margin-left: 17vw !important; /* 与侧边栏宽度一致 */
-        width: 83vw !important; /* 占据剩余视口宽度 */
-        background-color: #f8f9fa;
-        color: rgb(110,111,114);
+        width: 100%;
+        background-color: var(--bg-color);
+        color: var(--text-color);
         line-height: 1.6;
-        padding: 1.4vw; /* 使用视口单位 */
-        min-height: 100vh;
+        padding: 1.5rem;
+        min-height: calc(100vh - 60px);
         box-sizing: border-box;
+        max-width: 1120px;
+        margin: 0 auto;
     }
 
-    /* 页面头部 - 响应式尺寸 */
+    /* 页面头部 - 改为与词库页相同的标题风格（非卡片） */
     .page-header {
         display: flex;
         align-items: center;
-        margin-bottom: 2.1vw;
-        background: white;
-        padding: 1.4vw 2.1vw;
-        border-radius: 0.8vw;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        margin-bottom: 24px;
+        background: transparent;
+        padding: 0;
+        border-radius: 0;
+        box-shadow: none;
     }
 
     .header-icon {
-        width: 2.8vw;
-        height: 2.8vw;
-        min-width: 32px;
-        min-height: 32px;
-        background: rgb(0,148,217);
-        border-radius: 0.6vw;
+        width: auto;
+        height: auto;
+        min-width: 0;
+        min-height: 0;
+        background: transparent;
+        border-radius: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-right: 1vw;
+        margin-right: 8px;
     }
 
     .header-icon i {
-        color: white;
-        font-size: 1.4rem;
+        color: var(--primary-color);
+        font-size: 1.6rem;
     }
 
     .header-title {
         font-size: 2rem;
         font-weight: 600;
-        color: rgb(0,148,217);
+        color: var(--primary-color);
     }
 
     .header-actions {
@@ -72,31 +73,31 @@
     }
 
     .btn-secondary {
-        background: #f8f9fa;
-        color: rgb(110,111,114);
-        border: 1px solid #dee2e6;
+        background: #fef7ed;
+        color: var(--text-color);
+        border: 1px solid rgba(255,107,53,0.25);
     }
 
     .btn-secondary:hover {
-        background: #e9ecef;
+        background: rgba(255,107,53,0.1);
     }
 
     .btn-outline {
-        background: white;
-        color: #dc3545;
-        border: 1px solid #dc3545;
+        background: #ffffff;
+        color: var(--primary-color);
+        border: 1px solid var(--primary-color);
     }
 
     .btn-outline:hover {
-        background: #dc3545;
-        color: white;
+        background: var(--primary-color);
+        color: #ffffff;
     }
 
     /* 主内容区域 - 调整比例 */
     .main-content {
         display: grid;
-        grid-template-columns: 15vw 1fr; /* 左侧缩小到15%，右侧更宽 */
-        gap: 1.5vw;
+        grid-template-columns: 300px 1fr;
+        gap: 20px;
         align-items: start;
         width: 100%;
         max-width: none;
@@ -104,22 +105,22 @@
 
     /* 左侧配置面板 - 更紧凑的设计 */
     .config-panel {
-        background: white;
-        border-radius: 0.8vw;
-        padding: 1.0vw; /* 减少内边距 */
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 14px;
+        box-shadow: 0 4px 16px rgba(255,107,53,0.08);
         position: sticky;
-        top: 1.4vw;
+        top: 84px;
     }
 
     .config-panel h3 {
-        font-size: 1.2rem; /* 稍微缩小标题 */
+        font-size: 1.1rem;
         font-weight: 600;
-        color: rgb(0,148,217);
-        margin-bottom: 1.0vw; /* 减少底部间距 */
+        color: var(--primary-color);
+        margin-bottom: 12px;
         display: flex;
         align-items: center;
-        gap: 0.6vw;
+        gap: 8px;
     }
 
     .form-group {
@@ -128,27 +129,27 @@
 
     .form-group label {
         display: block;
-        margin-bottom: 0.3vw; /* 减少标签间距 */
-        font-size: 0.9rem; /* 缩小标签字体 */
+        margin-bottom: 6px;
+        font-size: 0.9rem;
         font-weight: 500;
-        color: rgb(110,111,114);
+        color: var(--text-color);
     }
 
     .form-control {
         width: 100%;
-        padding: 0.6vw 0.8vw; /* 减少输入框内边距 */
-        border: 1px solid #dee2e6;
-        border-radius: 0.5vw;
-        font-size: 0.9rem; /* 缩小字体 */
-        color: rgb(110,111,114);
-        background: white;
+        padding: 10px 12px;
+        border: 1px solid #e7e1db;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        color: var(--text-color);
+        background: #ffffff;
         transition: all 0.2s ease;
     }
 
     .form-control:focus {
         outline: none;
-        border-color: rgb(0,148,217);
-        box-shadow: 0 0 0 3px rgba(0,148,217,0.1);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(255,107,53,0.15);
     }
 
     .form-text {
@@ -167,17 +168,18 @@
 
     /* PPT翻译卡片 */
     .upload-card {
-        background: white;
+        background: #ffffff;
         border-radius: 12px;
-        padding: 30px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        padding: 24px;
+        box-shadow: 0 4px 16px rgba(255,107,53,0.08);
+        border: 1px solid rgba(255,107,53,0.08);
     }
 
     .upload-card h2 {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 600;
-        color: rgb(0,148,217);
-        margin-bottom: 25px;
+        color: var(--primary-color);
+        margin-bottom: 18px;
     }
 
     .upload-zone {
@@ -191,8 +193,8 @@
     }
 
     .upload-zone.dragover {
-        border-color: rgb(0,148,217);
-        background: rgba(0,148,217,0.02);
+        border-color: var(--primary-color);
+        background: rgba(255,107,53,0.04);
     }
 
     .upload-zone-content {
@@ -204,42 +206,44 @@
 
     .upload-text {
         font-size: 16px;
-        color: rgb(110,111,114);
+        color: var(--text-color);
     }
 
     .upload-btn {
-        background: rgb(0,148,217);
-        color: white;
-        padding: 12px 30px;
-        border-radius: 25px;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: #ffffff;
+        padding: 10px 24px;
+        border-radius: 24px;
         font-size: 14px;
-        font-weight: 500;
+        font-weight: 600;
         transition: all 0.2s ease;
         border: none;
         cursor: pointer;
+        box-shadow: 0 6px 16px rgba(255,107,53,0.25);
     }
 
     .upload-btn:hover {
-        background: rgb(0,130,190);
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(255,107,53,0.35);
     }
 
     /* 历史记录表格 - 优化行高和列宽 */
     .history-card {
-        background: white;
-        border-radius: 0.8vw;
-        padding: 2.1vw;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 16px rgba(255,107,53,0.08);
+        border: 1px solid rgba(255,107,53,0.08);
     }
 
     .history-card h3 {
-        font-size: 1.4rem;
+        font-size: 1.2rem;
         font-weight: 600;
-        color: rgb(0,148,217);
-        margin-bottom: 1.6vw;
+        color: var(--primary-color);
+        margin-bottom: 16px;
         display: flex;
         align-items: center;
-        gap: 0.7vw;
+        gap: 8px;
     }
     
     .refresh-btn-header {
@@ -304,12 +308,12 @@
     }
 
     .history-table th {
-        padding: 0.8vw 0.7vw; /* 减少行高 */
+        padding: 12px 10px;
         text-align: left;
         font-weight: 600;
-        color: rgb(110,111,114);
+        color: var(--text-color);
         border-bottom: 2px solid #f1f3f4;
-        background: #fafbfc;
+        background: #faf3ec;
         font-size: 0.9rem;
     }
 
@@ -322,9 +326,9 @@
     }
 
     .history-table td {
-        padding: 0.8vw 0.7vw; /* 减少行高 */
+        padding: 12px 10px;
         border-bottom: 1px solid #f1f3f4;
-        color: rgb(110,111,114);
+        color: var(--text-color);
         font-size: 0.9rem;
         vertical-align: middle;
     }
@@ -342,7 +346,7 @@
     }
 
     .history-table tr:hover {
-        background: #fafbfc;
+        background: #fff3ec;
     }
 
     /* 状态样式 */
@@ -396,12 +400,12 @@
     }
 
     .action-btn.download {
-        background: rgb(0,148,217);
-        color: white;
+        background: var(--primary-color);
+        color: #ffffff;
     }
 
     .action-btn.download:hover {
-        background: rgb(0,130,190);
+        background: var(--secondary-color);
         transform: scale(1.05);
     }
 
@@ -1765,9 +1769,9 @@ async function startTranslation() {
         modal.innerHTML = `
             <div style="padding: 20px; flex: 1; overflow-y: auto;">
                 <h4 style="margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; color: #333;">${currentLanguage === 'en' ? 'Vocabulary Configuration' : '词汇表配置'}</h4>
-                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-                    <input type="text" id="vocabularySearch" placeholder="${currentLanguage === 'en' ? 'Search vocabulary...' : '搜索词汇...'}" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <button id="searchBtn" style="padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">${currentLanguage === 'en' ? 'Search' : '搜索'}</button>
+            <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                    <input type="text" id="vocabularySearch" placeholder="${currentLanguage === 'en' ? 'Search vocabulary...' : '搜索词汇...'}" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 10px;">
+                    <button id="searchBtn" class="btn btn-primary" style="padding: 10px 16px; border-radius: 24px;">${currentLanguage === 'en' ? 'Search' : '搜索'}</button>
                 </div>
                 <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
                     <select id="categoryFilter" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">

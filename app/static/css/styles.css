@@ -1,15 +1,18 @@
 :root {
-    --primary-color: #00a8ff;
-    --secondary-color: #0097e6;
-    --text-color: #f5f6fa;
-    --bg-color: #2f3640;
-    --nav-bg-color: #353b48;
-    --brand-color: #00a8ff;
-    --hover-color: rgba(0, 168, 255, 0.1);
-    --active-color: rgba(0, 168, 255, 0.2);
-    --active-text-color: #00a8ff;
-    --error-color: #e84118;
-    --success-color: #4cd137;
+    /* 温暖商务风配色 */
+    --primary-color: #ff6b35;
+    --secondary-color: #f7931e;
+    --text-color: #2c3e50;
+    --bg-color: #fff8f0;
+    --nav-bg-color: #ff6b35;
+    --brand-color: #ff6b35;
+    --hover-color: rgba(255, 107, 53, 0.1);
+    --active-color: rgba(255, 107, 53, 0.2);
+    --active-text-color: #ff6b35;
+    --error-color: #e74c3c;
+    --success-color: #27ae60;
+    --warning-color: #f39c12;
+    --info-color: #3498db;
 }
 
 * {
@@ -24,12 +27,17 @@ body {
     color: var(--text-color);
     line-height: 1.6;
     padding-top: 60px;
+    padding-left: 0;
+    margin: 0;
 }
 
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
+    width: 100%;
+    margin: 0;
+    padding: 1.5rem;
+    background-color: var(--bg-color);
+    min-height: calc(100vh - 60px);
+    box-sizing: border-box;
 }
 
 h1 {
@@ -176,6 +184,19 @@ input[type="text"]:focus {
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+/* 统一主按钮样式（温暖商务风） */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: #ffffff;
+    border: 1px solid var(--primary-color);
+    box-shadow: 0 6px 16px rgba(255,107,53,0.25);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255,107,53,0.35);
 }
 
 /* 系统监控页面样式 */

@@ -4,46 +4,48 @@
 
 {% block styles %}
 <style>
-    /* 重写容器样式 */
+/* 重写容器样式 - 适配顶部导航与温暖商务风，并整体居中收窄 */
 .container {
-    margin-left: 17vw !important;
-    width: 83vw !important;
-    background-color: #f8f9fa;
-    color: rgb(110,111,114);
+    width: 100%;
+    background-color: var(--bg-color);
+    color: var(--text-color);
     line-height: 1.6;
-    padding: 1.4vw;
-    min-height: 100vh;
+    padding: 1.5rem;
+    min-height: calc(100vh - 60px);
     box-sizing: border-box;
+    max-width: 1120px;
+    margin: 0 auto;
 }
 
 /* 页面标题 */
 h1 {
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 600;
-    color: rgb(0,148,217);
-    margin-bottom: 2.1vw;
+    color: var(--primary-color);
+    margin-bottom: 24px;
     display: flex;
     align-items: center;
-    gap: 0.7vw;
+    gap: 12px;
 }
 
 h2 {
-    font-size: 1.4rem;
+    font-size: 1.2rem;
     font-weight: 600;
-    color: rgb(0,148,217);
-    margin-bottom: 1.4vw;
+    color: var(--primary-color);
+    margin-bottom: 16px;
 }
 
 /* 统计信息区域 */
 .stats-section {
-    background: white;
-    border-radius: 0.8vw;
-    padding: 1.8vw;
-    margin-bottom: 2.1vw;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
     display: flex;
     align-items: center;
-    gap: 2.8vw;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    gap: 28px;
+    box-shadow: 0 4px 16px rgba(255,107,53,0.08);
+    border: 1px solid rgba(255,107,53,0.08);
 }
 
 .stats-item {
@@ -52,24 +54,25 @@ h2 {
 }
 
 .stats-value {
-    font-size: 2rem;
+    font-size: 1.6rem;
     font-weight: 700;
-    color: rgb(0,148,217);
-    margin-bottom: 0.4vw;
+    color: var(--primary-color);
+    margin-bottom: 6px;
 }
 
 .stats-label {
-    font-size: 1rem;
-    color: rgb(110,111,114);
+    font-size: 0.95rem;
+    color: var(--text-color);
 }
 
 /* 停翻词管理 */
 .stop-words-section {
-    background: white;
-    border-radius: 0.8vw;
-    padding: 1.8vw;
-    margin-bottom: 2.1vw;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 16px rgba(255,107,53,0.08);
+    border: 1px solid rgba(255,107,53,0.08);
 }
 
 .stop-words-input-group {
@@ -80,35 +83,37 @@ h2 {
 
 .stop-words-input-group input {
     flex: 1;
-    padding: 0.8vw 1.2vw;
-    border: 1px solid #dee2e6;
-    border-radius: 0.4vw;
+    padding: 10px 12px;
+    border: 1px solid #e7e1db;
+    border-radius: 10px;
     font-size: 1rem;
     transition: all 0.2s ease;
 }
 
 .stop-words-input-group input:focus {
     outline: none;
-    border-color: rgb(0,148,217);
-    box-shadow: 0 0 0 0.2vw rgba(0,148,217,0.2);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(255,107,53,0.15);
 }
 
 .stop-words-input-group button {
-    padding: 0.8vw 1.4vw;
-    background: rgb(0,148,217);
-    color: white;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: #ffffff;
     border: none;
-    border-radius: 0.4vw;
+    border-radius: 24px;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 0.4vw;
+    gap: 8px;
     transition: all 0.2s ease;
-    font-size: 1rem;
+    font-size: 0.95rem;
+    box-shadow: 0 6px 16px rgba(255,107,53,0.25);
 }
 
 .stop-words-input-group button:hover {
-    background: rgb(0,120,180);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255,107,53,0.35);
 }
 
 .stop-words-list {
@@ -120,9 +125,9 @@ h2 {
 .stop-word-item {
     display: flex;
     align-items: center;
-    background: #e9ecef;
-    border-radius: 1rem;
-    padding: 0.4vw 0.8vw;
+    background: #fff3ec;
+    border-radius: 16px;
+    padding: 6px 10px;
     font-size: 0.9rem;
 }
 
@@ -132,11 +137,12 @@ h2 {
 
 /* 添加翻译 */
 .add-section {
-    background: white;
-    border-radius: 0.8vw;
-    padding: 1.8vw;
-    margin-bottom: 2.1vw;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 16px rgba(255,107,53,0.08);
+    border: 1px solid rgba(255,107,53,0.08);
 }
 
 .input-group {
@@ -148,45 +154,48 @@ h2 {
 
 .input-group input {
     flex: 1;
-    min-width: 120px;
-    padding: 0.8vw 1.2vw;
-    border: 1px solid #dee2e6;
-    border-radius: 0.4vw;
+    min-width: 160px;
+    padding: 10px 12px;
+    border: 1px solid #e7e1db;
+    border-radius: 10px;
     font-size: 1rem;
     transition: all 0.2s ease;
 }
 
 .input-group input:focus {
     outline: none;
-    border-color: rgb(0,148,217);
-    box-shadow: 0 0 0 0.2vw rgba(0,148,217,0.2);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(255,107,53,0.15);
 }
 
 .input-group button {
-    padding: 0.8vw 1.4vw;
-    background: rgb(0,148,217);
-    color: white;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: #ffffff;
     border: none;
-    border-radius: 0.4vw;
+    border-radius: 24px;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 0.4vw;
+    gap: 8px;
     transition: all 0.2s ease;
-    font-size: 1rem;
+    font-size: 0.95rem;
+    box-shadow: 0 6px 16px rgba(255,107,53,0.25);
 }
 
 .input-group button:hover {
-    background: rgb(0,120,180);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255,107,53,0.35);
 }
 
 /* 搜索栏 */
 .search-section {
-    background: white;
-    border-radius: 0.8vw;
-    padding: 1.8vw;
-    margin-bottom: 2.1vw;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 16px rgba(255,107,53,0.08);
+    border: 1px solid rgba(255,107,53,0.08);
 }
 
 .search-container {
@@ -196,44 +205,47 @@ h2 {
 
 .search-container input {
     flex: 1;
-    padding: 0.8vw 1.2vw;
-    border: 1px solid #dee2e6;
-    border-radius: 0.4vw;
+    padding: 10px 12px;
+    border: 1px solid #e7e1db;
+    border-radius: 10px;
     font-size: 1rem;
     transition: all 0.2s ease;
 }
 
 .search-container input:focus {
     outline: none;
-    border-color: rgb(0,148,217);
-    box-shadow: 0 0 0 0.2vw rgba(0,148,217,0.2);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(255,107,53,0.15);
 }
 
 .search-container button {
-    padding: 0.8vw 1.4vw;
-    background: rgb(0,148,217);
-    color: white;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: #ffffff;
     border: none;
-    border-radius: 0.4vw;
+    border-radius: 24px;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 0.4vw;
+    gap: 8px;
     transition: all 0.2s ease;
-    font-size: 1rem;
+    font-size: 0.95rem;
+    box-shadow: 0 6px 16px rgba(255,107,53,0.25);
 }
 
 .search-container button:hover {
-    background: rgb(0,120,180);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255,107,53,0.35);
 }
 
 /* 词库表格 */
 .table-section {
-    background: white;
-    border-radius: 0.8vw;
-    padding: 1.8vw;
-    margin-bottom: 2.1vw;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 16px rgba(255,107,53,0.08);
+    border: 1px solid rgba(255,107,53,0.08);
 }
 
 .table-controls {
@@ -247,8 +259,8 @@ h2 {
 
 .view-toggle {
     display: flex;
-    background: #e9ecef;
-    border-radius: 0.4vw;
+    background: #fff3ec;
+    border-radius: 10px;
     overflow: hidden;
 }
 
@@ -262,8 +274,8 @@ h2 {
 }
 
 .view-toggle button.active {
-    background: rgb(0,148,217);
-    color: white;
+    background: var(--primary-color);
+    color: #ffffff;
 }
 
 .view-toggle button:not(.active):hover {
@@ -281,21 +293,21 @@ table {
 }
 
 th, td {
-    padding: 0.8vw 1vw;
+    padding: 12px 10px;
     text-align: left;
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid #f1f3f4;
 }
 
 th {
-    background: #f8f9fa;
+    background: #faf3ec;
     font-weight: 600;
-    color: #495057;
+    color: var(--text-color);
     position: sticky;
     top: 0;
 }
 
 tr:hover {
-    background: #f8f9fa;
+    background: #fff3ec;
 }
 
 .action-btn {
@@ -310,8 +322,8 @@ tr:hover {
 }
 
 .action-btn:hover {
-    color: rgb(0,148,217);
-    background: rgba(0,148,217,0.1);
+    color: var(--primary-color);
+    background: rgba(255,107,53,0.1);
 }
 
 /* 分页 */
@@ -323,39 +335,39 @@ tr:hover {
 }
 
 .pagination button {
-    padding: 0.6vw 1.2vw;
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 0.4vw;
-    color: rgb(110,111,114);
+    padding: 10px 14px;
+    background: #ffffff;
+    border: 1px solid #f1f3f4;
+    border-radius: 10px;
+    color: var(--text-color);
     cursor: pointer;
     transition: all 0.2s ease;
-    font-size: 1rem;
+    font-size: 0.95rem;
 }
 
 .pagination button:hover {
-    background: rgba(0,148,217,0.1);
-    border-color: rgb(0,148,217);
-    color: rgb(0,148,217);
+    background: rgba(255,107,53,0.1);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
 }
 
 .pagination button.active {
-    background: rgb(0,148,217);
-    color: white;
-    border-color: rgb(0,148,217);
+    background: var(--primary-color);
+    color: #ffffff;
+    border-color: var(--primary-color);
 }
 
 /* 空状态 */
 .empty-state {
     text-align: center;
-    padding: 2.8vw;
-    color: rgb(110,111,114);
+    padding: 28px;
+    color: var(--text-color);
 }
 
 .empty-state i {
     font-size: 3rem;
-    color: rgba(0,148,217,0.5);
-    margin-bottom: 1.4vw;
+    color: rgba(255,107,53,0.5);
+    margin-bottom: 16px;
 }
 </style>
 {% endblock %}

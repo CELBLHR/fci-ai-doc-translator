@@ -1,13 +1,14 @@
 :root {
-    --primary-color: #0094d9;
-    --primary-hover-color: #007bb6;
-    --accent-color: #005f99;
-    --background-color: #f3f7fb;
+    /* 温暖商务风主题（与主站统一） */
+    --primary-color: #ff6b35;
+    --primary-hover-color: #e55a2b;
+    --accent-color: #f7931e;
+    --background-color: #fff8f0;
     --card-background: #ffffff;
-    --text-color: #1f2a37;
-    --muted-text-color: #6b7280;
-    --border-color: #dbe7f5;
-    --shadow-color: rgba(15, 23, 42, 0.08);
+    --text-color: #2c3e50;
+    --muted-text-color: #7f8c8d;
+    --border-color: #f1e4d8;
+    --shadow-color: rgba(255, 107, 53, 0.12);
     --success-color: #28a745;
     --error-color: #d90429;
 }
@@ -21,8 +22,8 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: var(--text-color);
     background:
-        radial-gradient(circle at top left, rgba(0, 148, 217, 0.18), transparent 55%),
-        radial-gradient(circle at bottom right, rgba(0, 148, 217, 0.12), transparent 60%),
+        radial-gradient(circle at top left, rgba(255, 107, 53, 0.18), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(255, 107, 53, 0.12), transparent 60%),
         var(--background-color);
     min-height: 100vh;
     display: flex;
@@ -53,7 +54,7 @@ body {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(130deg, rgba(0, 148, 217, 0.08), transparent 55%);
+    background: linear-gradient(130deg, rgba(255, 107, 53, 0.08), transparent 55%);
     pointer-events: none;
 }
 
@@ -64,7 +65,7 @@ body {
     width: 220px;
     height: 220px;
     border-radius: 50%;
-    background: rgba(0, 148, 217, 0.08);
+    background: rgba(255, 107, 53, 0.08);
     top: -120px;
     right: -80px;
     pointer-events: none;
@@ -160,35 +161,35 @@ body {
 }
 
 .btn:focus-visible {
-    outline: 3px solid rgba(0, 148, 217, 0.35);
+    outline: 3px solid rgba(255, 107, 53, 0.35);
     outline-offset: 2px;
 }
 
 .btn-primary {
     background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
     color: #ffffff;
-    box-shadow: 0 12px 24px rgba(0, 148, 217, 0.18);
+    box-shadow: 0 12px 24px rgba(255, 107, 53, 0.25);
 }
 
 .btn-primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 16px 32px rgba(0, 148, 217, 0.25);
+    box-shadow: 0 16px 32px rgba(255, 107, 53, 0.35);
     background: linear-gradient(135deg, var(--primary-hover-color), var(--accent-color));
 }
 
 .btn-primary:active {
     transform: translateY(1px);
-    box-shadow: 0 8px 16px rgba(0, 148, 217, 0.2);
+    box-shadow: 0 8px 16px rgba(255, 107, 53, 0.25);
 }
 
 .btn-secondary {
-    background: rgba(0, 148, 217, 0.12);
+    background: rgba(255, 107, 53, 0.12);
     color: var(--primary-color);
-    border: 1px solid rgba(0, 148, 217, 0.2);
+    border: 1px solid rgba(255, 107, 53, 0.25);
 }
 
 .btn-secondary:hover {
-    background: rgba(0, 148, 217, 0.18);
+    background: rgba(255, 107, 53, 0.18);
 }
 
 .btn-text {
@@ -332,6 +333,18 @@ body {
     text-align: center;
     color: var(--text-color);
     transition: opacity 0.25s ease;
+}
+
+/* 修复：确保模态文本始终为深色可读 */
+.modal-content,
+.modal-content p,
+.modal-content #modalMessage {
+    color: var(--text-color) !important;
+}
+
+/* 保持按钮文字为白色，避免被上面的颜色覆盖 */
+.modal-content .btn {
+    color: #ffffff !important;
 }
 
 .close-button {

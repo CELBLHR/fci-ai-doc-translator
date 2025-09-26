@@ -1,0 +1,141 @@
+/* 顶部导航栏样式 - 温暖商务风 */
+.top-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  box-shadow: 0 2px 18px rgba(255, 107, 53, 0.25);
+  display: flex;
+  align-items: center;
+  padding: 0 2rem;
+  z-index: 1000;
+}
+
+.navbar-nav {
+  display: flex;
+  gap: 0.8rem;
+  margin-left: 1.25rem;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.1rem;
+  color: rgba(255, 255, 255, 0.95);
+  text-decoration: none;
+  border-radius: 24px;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.nav-item.active {
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.nav-item i {
+  font-size: 1.15rem;
+}
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.language-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.language-switch:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: white;
+}
+
+.user-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.logout-btn, .login-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  text-decoration: none;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.logout-btn:hover, .login-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .top-navbar {
+    padding: 0 1rem;
+    height: 64px;
+  }
+  
+  .navbar-nav {
+    display: none; /* 移动端隐藏导航菜单 */
+  }
+  
+  .nav-item span {
+    display: none; /* 移动端只显示图标 */
+  }
+  
+  .nav-item {
+    padding: 0.5rem;
+  }
+}
+
+/* 确保主内容不被遮挡 */
+body {
+  padding-top: 60px;
+  padding-left: 0;
+}
+
+.container {
+  margin-left: 0;
+  width: 100%;
+  padding: 1.5rem;
+  background-color: #fff8f0;
+  min-height: calc(100vh - 60px);
+  box-sizing: border-box;
+}

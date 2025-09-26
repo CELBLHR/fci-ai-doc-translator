@@ -11,11 +11,27 @@
             </span>
             <div>
                 <h1 class="auth-card-title">欢迎登录</h1>
-                <p class="auth-card-subtitle">统一账号接入 FrieslandCampina AI 平台</p>
+                <p class="auth-card-subtitle">统一账号接入 AI 平台</p>
             </div>
         </div>
 
         <div class="auth-body">
+            <!-- 本地账号密码登录 -->
+            <form method="POST" style="margin-bottom: 16px;">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;">
+                    <span class="btn-text">登录</span>
+                    <span class="btn-icon"><i class="fas fa-sign-in-alt"></i></span>
+                </button>
+            </form>
+
             {% if sso_enabled %}
             <div class="sso-stack">
                 <a href="/auth/sso/login" class="btn btn-primary sso-btn">
@@ -31,7 +47,7 @@
                     <span class="btn-text">使用 SSO 登录</span>
                     <span class="chevron"><i class="fas fa-arrow-right"></i></span>
                 </a>
-                <p class="sso-caption">系统与企业身份平台同步，使用公司账号即可进入系统。</p>
+                <p class="sso-caption">系统已接入统一身份平台，使用企业账号即可进入系统。</p>
             </div>
             {% else %}
             <div class="sso-stack">
