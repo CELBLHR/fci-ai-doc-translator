@@ -11,38 +11,48 @@
 
 ## 效果
 
-下方全部为**合成演示数据**（虚构公司 *Northwind Labs*、虚构指标），不含任何客户内容。演示刻意让中文字符数明显多于英文——这正是通用机翻最容易把版式撑坏的情形——可以看到：文本框位置、卡片边界、主题色与字体层级全部保持原样，只有文字自身换行。
+下方全部为**合成演示数据**（虚构公司 *Northwind Labs*、虚构指标），不含任何客户内容。
+
+演示刻意让中文字符数明显多于英文——这正是通用机翻最容易把版式撑坏的情形。每组图给出两张：**左为英文原文，右为中英双语输出（中文在上、英文在下）**，可以看到文本框位置、卡片边界、强调色块、表格底纹与字体层级都保持原样，只有文字自身按原有宽度重新换行。
 
 ### Slide 1 · 标题页与数据卡片
 
-![slide 1 comparison](docs/images/demo-1-compare.png)
+| 英文原文 | 中英双语输出（上中下英） |
+| :---: | :---: |
+| ![en slide 1](docs/images/en-slide1.png) | ![bilingual slide 1](docs/images/bi-slide1.png) |
 
-英文字幕换行位置在中文里变成单行、卡片内"3 core products"变成两行，但卡片尺寸、圆角、配色和字体层级没有变化。
+中文标题比英文长，卡片内 "3 core products" → "3 条核心产品线" 发生换行，但卡片尺寸、描边、配色与字号层级完全不变。
 
 ### Slide 2 · 多行正文与强调色块
 
-![slide 2 comparison](docs/images/demo-2-compare.png)
+| 英文原文 | 中英双语输出（上中下英） |
+| :---: | :---: |
+| ![en slide 2](docs/images/en-slide2.png) | ![bilingual slide 2](docs/images/bi-slide2.png) |
 
-横幅色块（琥珀色竖条）宽度与位置不动，正文的粗体/斜体样式在译文里被完整继承。
+琥珀色竖条的位置与高度不动；正文的粗体/斜体样式在双语版本里由中英两行共同继承。
 
 ### Slide 3 · 表格单元格
 
-![slide 3 comparison](docs/images/demo-3-compare.png)
+| 英文原文 | 中英双语输出（上中下英） |
+| :---: | :---: |
+| ![en slide 3](docs/images/en-slide3.png) | ![bilingual slide 3](docs/images/bi-slide3.png) |
 
-表头底纹、隔行底色、列宽与单元格内边距保持不变；右侧要点文本按原有文本框宽度重新换行。
+表头底纹、隔行底色、列宽与单元格内边距保持不变；每个单元格内中英文上下排布，右侧要点同样按原文本框宽度重排。
 
-> 完整 PDF：[`docs/translation-comparison.pdf`](docs/translation-comparison.pdf)
-> 演示源文件：[`docs/demo/demo-original-en.pptx`](docs/demo/demo-original-en.pptx) / [`docs/demo/demo-translated-zh.pptx`](docs/demo/demo-translated-zh.pptx)
+> 📄 三页对比合集：[`docs/demo-en-vs-bilingual.pdf`](docs/demo-en-vs-bilingual.pdf)
+> 📎 演示源文件（可直接打开编辑）：[`docs/demo/demo-original-en.pptx`](docs/demo/demo-original-en.pptx) · [`docs/demo/demo-bilingual-zh-en.pptx`](docs/demo/demo-bilingual-zh-en.pptx) · [`docs/demo/demo-translated-zh.pptx`](docs/demo/demo-translated-zh.pptx)
 
 <details>
-<summary>如何复现这组对比图（<code>tools/</code>）</summary>
+<summary>如何复现这组图（<code>tools/</code>）</summary>
 
 ```bash
-pip install python-pptx pymupdf
-python tools/make_demo.py                      # 生成两份合成 PPT 到 tools/_out/
-soffice --headless --convert-to pdf --outdir tools/_out tools/_out/*.pptx
-python tools/render.py                         # 合成对比图到 tools/figures/
+pip install python-pptx pillow
+
+python tools/make_demo.py          # 生成 3 份合成 PPT 到 tools/_out/
+python tools/render_pptx.py        # 渲染出 en-slide*.png / bi-slide*.png 与对比 PDF
 ```
+
+`render_pptx.py` 是一个自包含的 PPTX 渲染器（python-pptx 读形状 + Pillow 绘制），不依赖 LibreOffice 或任何外部转换工具，字体在 Windows / macOS / Linux 上会自动回退。
 
 之所以用合成数据而不是真实文档：客户内部资料不能公开，而本项目的展示重点恰好是**版式对文本内容不敏感**——用虚构内容演示，结论相同且零风险。
 

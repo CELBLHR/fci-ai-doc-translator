@@ -1,14 +1,24 @@
 # -*- coding: utf-8 -*-
 """
-Generate a synthetic demo deck pair (EN original / ZH translated) and a
-side-by-side comparison figure. 100% fabricated content - no client data.
+Generate synthetic demo decks for the FCI AI translation showcase.
+
+Modes
+-----
+en        English-only deck (the "source" document)
+zh        Chinese-only deck (translation only)
+bilingual ZH paragraph above, EN paragraph below ("上中下英")
+
+All content is fabricated (fictional company "Northwind Labs", invented
+metrics). No client data is used anywhere.
 """
 import os
 import sys
+
 from pptx import Presentation
-from pptx.util import Inches, Pt, Emu
+from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.enum.shapes import MSO_SHAPE
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_out")
 os.makedirs(OUT, exist_ok=True)
@@ -20,13 +30,21 @@ GRAY = RGBColor(0x5A, 0x62, 0x70)
 LIGHT = RGBColor(0xF2, 0xF5, 0xF9)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 DARKTXT = RGBColor(0x22, 0x28, 0x33)
+SUBTXT = RGBColor(0xC9, 0xD6, 0xEA)
 
 EN = "English"
 ZH = "Chinese"
 
+MODE = "en"           # en | zh | bilingual
+BI_SCALE = 0.72       # bilingual needs two lines per paragraph
+
+
+def S(x):
+    """Scale a font size for the current mode."""
+    return x * BI_SCALE if MODE == "bilingual" else x
+
+
 # ---------------------------------------------------------------- demo content
-# Deliberately: every English string sits tight in its box, the Chinese
-# translation is LONGER, so the original layout breaks - that is the point.
 SLIDES = [
     {
         "title": "Northwind Labs \u00b7 Portfolio Review",
@@ -66,7 +84,7 @@ SLIDES = [
     },
 ]
 
-# fake but plausible translations (longer than original on purpose)
+# fabricated translations; deliberately longer than the English
 TR = {
     "Northwind Labs \u00b7 Portfolio Review": "Northwind 实验室内 \u00b7 产品组合复盘",
     "Q3 Product Performance and FY26 Roadmap Direction":
@@ -89,9 +107,6 @@ TR = {
     "Quarterly Metrics": "各季度关键指标",
     "Metric": "指标", "Q1": "一季度", "Q2": "二季度", "Q3": "三季度",
     "Active teams": "活跃团队数", "Retention": "留存率", "Support load": "支持负载",
-    "1,240": "1,240", "1,580": "1,580", "2,010": "2,010",
-    "81%": "81%", "86%": "86%", "89%": "89%",
-    "3.2k": "3.2k", "2.7k": "2.7k", "2.1k": "2.1k",
     "Retention is the clearest signal of product fit.":
         "留存率是产品与需求匹配程度最清晰的信号。",
     "Support load fell while accounts doubled.":
@@ -101,46 +116,28 @@ TR = {
 }
 
 
-def set_font(run, size, bold=False, color=DARKTXT, name="Segoe UI", lang=EN,
-             italic=False):
+# ---------------------------------------------------------------- primitives
+def set_font(run, size, bold=False, color=DARKTXT, lang=EN, italic=False):
     f = run.font
     f.size = Pt(size)
     f.bold = bold
     f.italic = italic
-    f.name = name
+    f.name = "Segoe UI"
     f.color.rgb = color
-    rpr = run._r.get_or_add_rPr()
-    rpr.set("lang", "zh-CN" if lang == ZH else "en-US")
+    run._r.get_or_add_rPr().set("lang", "zh-CN" if lang == ZH else "en-US")
 
 
-def add_box(slide, x, y, w, h, shape_rect=False, fill=None, line=None):
-    from pptx.enum.shapes import MSO_SHAPE
-    if shape_rect:
-        shp = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y, w, h)
-        if fill is None:
-            shp.fill.background()
-        else:
-            shp.fill.solid()
-            shp.fill.fore_color.rgb = fill
-        if line is None:
-            shp.line.fill.background()
-        else:
-            shp.line.color.rgb = line
-        shp.shadow.inherit = False
-        return shp
-    tb = slide.shapes.add_textbox(x, y, w, h)
-    return tb
-
-
-def write(tf, text, size, bold=False, color=DARKTXT, align=PP_ALIGN.LEFT,
-          anchor=MSO_ANCHOR.TOP, space_after=4, lang=EN, italic=False):
+def _prep(tf, anchor):
     tf.word_wrap = True
     tf.vertical_anchor = anchor
     tf.margin_left = 0
     tf.margin_right = 0
     tf.margin_top = 0
     tf.margin_bottom = 0
-    p = tf.paragraphs[0]
+
+
+def _para(tf, text, size, bold, color, align, space_after, lang, italic, first):
+    p = tf.paragraphs[0] if first else tf.add_paragraph()
     p.alignment = align
     p.space_after = Pt(space_after)
     r = p.add_run()
@@ -148,109 +145,161 @@ def write(tf, text, size, bold=False, color=DARKTXT, align=PP_ALIGN.LEFT,
     set_font(r, size, bold, color, lang=lang, italic=italic)
 
 
-def build(translated=False):
+def emit(tf, text, size, bold=False, color=DARKTXT, align=PP_ALIGN.LEFT,
+         anchor=MSO_ANCHOR.TOP, space_after=4, italic=False):
+    """Write one logical string according to the active MODE."""
+    _prep(tf, anchor)
+    if MODE == "en":
+        _para(tf, text, size, bold, color, align, space_after, EN, italic, True)
+    elif MODE == "zh":
+        _para(tf, TR.get(text, text), size, bold, color, align, space_after,
+              ZH, italic, True)
+    else:  # bilingual: Chinese above, English below
+        _para(tf, TR.get(text, text), size, bold, color, align, 1.5, ZH,
+              italic, True)
+        _para(tf, text, size * 0.94, bold, color, align, space_after, EN,
+              italic, False)
+
+
+def cell_emit(cell, text, size, bold=False, color=DARKTXT, sub_color=None):
+    tf = cell.text_frame
+    _prep(tf, MSO_ANCHOR.MIDDLE)
+    p0 = tf.paragraphs[0]
+    p0.alignment = PP_ALIGN.LEFT
+    r = p0.add_run()
+    if MODE == "en":
+        r.text = text
+        set_font(r, size, bold, color, lang=EN)
+    elif MODE == "zh":
+        r.text = TR.get(text, text)
+        set_font(r, size, bold, color, lang=ZH)
+    else:
+        r.text = TR.get(text, text)
+        set_font(r, size, bold, color, lang=ZH)
+        p1 = tf.add_paragraph()
+        p1.alignment = PP_ALIGN.LEFT
+        p1.space_before = Pt(1)
+        r1 = p1.add_run()
+        r1.text = text
+        set_font(r1, size * 0.82, bold, sub_color or GRAY, lang=EN)
+
+
+def rect(slide, x, y, w, h, fill=None, line=None):
+    shp = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y, w, h)
+    if fill is None:
+        shp.fill.background()
+    else:
+        shp.fill.solid()
+        shp.fill.fore_color.rgb = fill
+    if line is None:
+        shp.line.fill.background()
+    else:
+        shp.line.color.rgb = line
+    shp.shadow.inherit = False
+    return shp
+
+
+# ---------------------------------------------------------------- deck builder
+def build(mode):
+    global MODE
+    MODE = mode
     prs = Presentation()
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
-    lang = ZH if translated else EN
-
-    def t(s):
-        return TR.get(s, s) if translated else s
 
     for spec in SLIDES:
         slide = prs.slides.add_slide(prs.slide_layouts[6])
 
-        # background band
-        add_box(slide, 0, 0, prs.slide_width, Inches(1.95),
-                shape_rect=True, fill=NAVY)
-        # accent bar
-        add_box(slide, 0, Inches(1.95), prs.slide_width, Inches(0.12),
-                shape_rect=True, fill=TEAL)
+        rect(slide, 0, 0, prs.slide_width, Inches(1.95), fill=NAVY)
+        rect(slide, 0, Inches(1.95), prs.slide_width, Inches(0.12), fill=TEAL)
 
-        # title  (fixed box, tight fit in EN -> overflows in ZH)
-        tb = slide.shapes.add_textbox(Inches(0.85), Inches(0.55),
-                                      Inches(10.2), Inches(0.95))
-        write(tb.text_frame, t(spec["title"]), 34, bold=True, color=WHITE,
-              anchor=MSO_ANCHOR.MIDDLE, lang=lang)
+        tb = slide.shapes.add_textbox(Inches(0.85), Inches(0.40),
+                                      Inches(10.6), Inches(1.05))
+        emit(tb.text_frame, spec["title"], S(34), bold=True, color=WHITE,
+             anchor=MSO_ANCHOR.MIDDLE)
 
         if "subtitle" in spec:
-            tb2 = slide.shapes.add_textbox(Inches(0.85), Inches(1.42),
-                                           Inches(9.6), Inches(0.45))
-            write(tb2.text_frame, t(spec["subtitle"]), 15, color=RGBColor(0xC9, 0xD6, 0xEA), lang=lang)
+            tb2 = slide.shapes.add_textbox(Inches(0.85), Inches(1.48),
+                                           Inches(9.6), Inches(0.42))
+            emit(tb2.text_frame, spec["subtitle"], S(15), color=SUBTXT)
 
-            # two stat cards (sized so ZH text wraps and grows but never overlaps)
             for i, (big, small) in enumerate(spec["blocks"]):
                 x = Inches(0.85 + i * 3.15)
-                add_box(slide, x, Inches(2.58), Inches(2.95), Inches(2.05),
-                        shape_rect=True, fill=LIGHT, line=RGBColor(0xD8, 0xDF, 0xEA))
+                rect(slide, x, Inches(2.58), Inches(2.95), Inches(2.05),
+                     fill=LIGHT, line=RGBColor(0xD8, 0xDF, 0xEA))
                 tb3 = slide.shapes.add_textbox(x + Inches(0.24), Inches(2.78),
-                                               Inches(2.5), Inches(0.95))
-                write(tb3.text_frame, t(big), 26, bold=True, color=NAVY, lang=lang)
-                tb4 = slide.shapes.add_textbox(x + Inches(0.24), Inches(3.86),
+                                               Inches(2.5), Inches(1.0))
+                emit(tb3.text_frame, big, S(26), bold=True, color=NAVY)
+                tb4 = slide.shapes.add_textbox(x + Inches(0.24), Inches(3.88),
                                                Inches(2.5), Inches(0.62))
-                write(tb4.text_frame, t(small), 12, bold=True, color=GRAY, lang=lang)
+                emit(tb4.text_frame, small, S(12), bold=True, color=GRAY)
 
             tb5 = slide.shapes.add_textbox(Inches(0.85), Inches(5.05),
                                            Inches(9.0), Inches(0.5))
-            write(tb5.text_frame, t(spec["foot"]), 12, color=GRAY, lang=lang)
+            emit(tb5.text_frame, spec["foot"], S(12), color=GRAY)
 
         if "cards" in spec:
             for i, (head, body) in enumerate(spec["cards"]):
-                y = Inches(2.45 + i * 1.62)
-                add_box(slide, Inches(0.85), y, Inches(0.09), Inches(1.22),
-                        shape_rect=True, fill=AMBER)
+                y = Inches(2.42 + i * 1.64)
+                rect(slide, Inches(0.85), y, Inches(0.09), Inches(1.26),
+                     fill=AMBER)
                 tbh = slide.shapes.add_textbox(Inches(1.15), y - Inches(0.02),
-                                               Inches(9.5), Inches(0.5))
-                write(tbh.text_frame, t(head), 20, bold=True, color=NAVY, lang=lang)
-                tbb = slide.shapes.add_textbox(Inches(1.15), y + Inches(0.5),
-                                               Inches(9.5), Inches(0.7))
-                write(tbb.text_frame, t(body), 14, bold=True, italic=True, color=GRAY, lang=lang)
+                                               Inches(9.6), Inches(0.56))
+                emit(tbh.text_frame, head, S(20), bold=True, color=NAVY)
+                tbb = slide.shapes.add_textbox(Inches(1.15), y + Inches(0.52),
+                                               Inches(9.6), Inches(0.72))
+                emit(tbb.text_frame, body, S(14), bold=True, italic=True,
+                     color=GRAY)
 
         if "table" in spec:
-            spec_t = spec["table"]
-            rows, cols = len(spec_t["rows"]) + 1, len(spec_t["head"])
-            left, top = Inches(0.85), Inches(2.45)
-            width, height = Inches(7.1), Inches(3.4)
-            table = slide.shapes.add_table(rows, cols, left, top, width, height).table
-            for c, htxt in enumerate(spec_t["head"]):
+            tspec = spec["table"]
+            rows, cols = len(tspec["rows"]) + 1, len(tspec["head"])
+            table = slide.shapes.add_table(
+                rows, cols, Inches(0.85), Inches(2.42),
+                Inches(7.1), Inches(3.4)).table
+            for c, htxt in enumerate(tspec["head"]):
                 cell = table.cell(0, c)
                 cell.text = ""
-                p = cell.text_frame.paragraphs[0]
-                r = p.add_run()
-                r.text = t(htxt)
-                set_font(r, 14, bold=True, color=WHITE, lang=lang)
+                cell_emit(cell, htxt, S(14), bold=True, color=WHITE,
+                          sub_color=SUBTXT)
                 cell.fill.solid()
                 cell.fill.fore_color.rgb = NAVY
-            for ri, row in enumerate(spec_t["rows"], start=1):
+            for ri, row in enumerate(tspec["rows"], start=1):
                 for ci, val in enumerate(row):
                     cell = table.cell(ri, ci)
                     cell.text = ""
-                    p = cell.text_frame.paragraphs[0]
-                    r = p.add_run()
-                    r.text = t(val)
-                    set_font(r, 13, bold=(ci == 0), color=DARKTXT, lang=lang)
+                    cell_emit(cell, val, S(13), bold=(ci == 0))
                     cell.fill.solid()
                     cell.fill.fore_color.rgb = LIGHT if ri % 2 else WHITE
 
-            # right-hand takeaways (tight two-line box -> wraps in ZH)
-            tbn = slide.shapes.add_textbox(Inches(8.35), Inches(2.45),
-                                           Inches(4.15), Inches(3.4))
-            tf = tbn.text_frame
-            tf.word_wrap = True
-            for i, note in enumerate(spec["notes"]):
-                p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-                p.space_after = Pt(12)
-                r = p.add_run()
-                r.text = t(note)
-                set_font(r, 13, bold=True, italic=True, color=GRAY, lang=lang)
+            tbn = slide.shapes.add_textbox(Inches(8.35), Inches(2.42),
+                                           Inches(4.15), Inches(3.5))
+            _prep(tbn.text_frame, MSO_ANCHOR.TOP)
+            first = True
+            for note in spec["notes"]:
+                if MODE == "bilingual":
+                    _para(tbn.text_frame, TR.get(note, note), S(13), True, GRAY,
+                          PP_ALIGN.LEFT, 1.5, ZH, True, first)
+                    first = False
+                    _para(tbn.text_frame, note, S(13) * 0.92, True, GRAY,
+                          PP_ALIGN.LEFT, 9, EN, True, False)
+                else:
+                    txt = note if MODE == "en" else TR.get(note, note)
+                    lang = EN if MODE == "en" else ZH
+                    _para(tbn.text_frame, txt, S(13), True, GRAY, PP_ALIGN.LEFT,
+                          9, lang, True, first)
+                    first = False
 
     return prs
 
 
 if __name__ == "__main__":
-    en_path = os.path.join(OUT, "demo-original-en.pptx")
-    zh_path = os.path.join(OUT, "demo-translated-zh.pptx")
-    build(translated=False).save(en_path)
-    build(translated=True).save(zh_path)
-    print("saved:", en_path)
-    print("saved:", zh_path)
+    targets = {
+        "en": "demo-original-en.pptx",
+        "zh": "demo-translated-zh.pptx",
+        "bilingual": "demo-bilingual-zh-en.pptx",
+    }
+    for mode, name in targets.items():
+        path = os.path.join(OUT, name)
+        build(mode).save(path)
+        print("saved:", path)
