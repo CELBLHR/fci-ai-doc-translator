@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 import json
 import base64
 import os
@@ -550,8 +550,8 @@ if __name__ == "__main__":
     API_KEY = os.getenv("QWEN_API_KEY")
     
     # 设置文件夹路径和JSON文件路径
-    folder_path = "/home/a937911378/AIGC/ppt_ocr_8vu7ritd"  # 替换为你的图片文件夹路径
-    json_path = "/home/a937911378/AIGC/ppt_ocr_8vu7ritd/image_mapping.json"  # 替换为你的JSON文件路径
+    folder_path = "./samples/ppt_ocr"  # 替换为你的图片文件夹路径
+    json_path = "./samples/ppt_ocr/image_mapping.json"  # 替换为你的JSON文件路径
     
     # 执行批量处理
     process_folder_with_mapping(folder_path, json_path, API_KEY)

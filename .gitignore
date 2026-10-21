@@ -1,7 +1,52 @@
+# ---- Python ----
 __pycache__/
-*.pyc
-*.log
-logs/
+*.py[cod]
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ---- 密钥与本地配置（严禁提交） ----
 .env
-app/Ingredient_Search/data
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ---- 数据库与数据导出 ----
+*.db
+*.sqlite
+*.sql
+*.dump
+
+# ---- 运行时产物 ----
+logs/
+*.log
 uploads/
+instance/
+temp/
+test_temp/
+test_ppt_temp/
+.tmp/
+*.tmp
+samples/
+
+# ---- 编辑器 / 系统 ----
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+*Zone.Identifier
+
+# ---- 模型 / 大文件 ----
+*.pptx
+*.ppt
+*.pdf
+*.docx
+!docs/**/*.png
