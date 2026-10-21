@@ -11,13 +11,42 @@
 
 ## 效果
 
-翻译后的 PPT 在文本长度变化后仍保持原有版式，字体、字号、主题色、文本框位置均被还原：
+下方全部为**合成演示数据**（虚构公司 *Northwind Labs*、虚构指标），不含任何客户内容。演示刻意让中文字符数明显多于英文——这正是通用机翻最容易把版式撑坏的情形——可以看到：文本框位置、卡片边界、主题色与字体层级全部保持原样，只有文字自身换行。
 
-| 原文档（英） | 译文（中，版式保持） |
-| :---: | :---: |
-| ![original](docs/images/demo-before.png) | ![translated](docs/images/demo-after.png) |
+### Slide 1 · 标题页与数据卡片
 
-> 📷 截图占位：请补充真实的前后对比图（脱敏后放入 `docs/images/`）。
+![slide 1 comparison](docs/images/demo-1-compare.png)
+
+英文字幕换行位置在中文里变成单行、卡片内"3 core products"变成两行，但卡片尺寸、圆角、配色和字体层级没有变化。
+
+### Slide 2 · 多行正文与强调色块
+
+![slide 2 comparison](docs/images/demo-2-compare.png)
+
+横幅色块（琥珀色竖条）宽度与位置不动，正文的粗体/斜体样式在译文里被完整继承。
+
+### Slide 3 · 表格单元格
+
+![slide 3 comparison](docs/images/demo-3-compare.png)
+
+表头底纹、隔行底色、列宽与单元格内边距保持不变；右侧要点文本按原有文本框宽度重新换行。
+
+> 完整 PDF：[`docs/translation-comparison.pdf`](docs/translation-comparison.pdf)
+> 演示源文件：[`docs/demo/demo-original-en.pptx`](docs/demo/demo-original-en.pptx) / [`docs/demo/demo-translated-zh.pptx`](docs/demo/demo-translated-zh.pptx)
+
+<details>
+<summary>如何复现这组对比图（<code>tools/</code>）</summary>
+
+```bash
+pip install python-pptx pymupdf
+python tools/make_demo.py                      # 生成两份合成 PPT 到 tools/_out/
+soffice --headless --convert-to pdf --outdir tools/_out tools/_out/*.pptx
+python tools/render.py                         # 合成对比图到 tools/figures/
+```
+
+之所以用合成数据而不是真实文档：客户内部资料不能公开，而本项目的展示重点恰好是**版式对文本内容不敏感**——用虚构内容演示，结论相同且零风险。
+
+</details>
 
 ---
 

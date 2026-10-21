@@ -49,4 +49,12 @@ Thumbs.db
 *.ppt
 *.pdf
 *.docx
+
+# ---- 例外：对外展示所需的小体积素材 ----
 !docs/**/*.png
+!docs/**/*.pdf
+!docs/**/*.pptx
+
+# ---- 演示脚本的中间产物 ----
+tools/_out/
+tools/figures/
