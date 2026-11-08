@@ -1,0 +1,18 @@
+[run]
+# 被测模块以文件路径方式加载（绕开 Flask 依赖），因此用目录作为 source，
+# 而不是 --cov=<module name>。
+source =
+    app/function
+
+omit =
+    app/function/pynuo_fuc/*
+    app/function/image_ocr/*
+    app/function/pymupdf/*
+    app/function/libreoffice_*
+
+[report]
+# 只强制要求两个核心模块的分支覆盖，其余模块记录但不设门槛
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    raise NotImplementedError

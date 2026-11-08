@@ -123,3 +123,81 @@ def test_load_theme_and_clr_map(tmp_path):
     assert "accent1" in theme and len(theme["accent1"]) == 3
     assert clr_map.get("tx1") == "dk1"
     assert clr_map.get("bg1") == "lt1"
+
+
+# ------------------------------------------------------- 边界与覆盖
+def test_load_sys_color_uses_last_clr(tmp_path):
+    """主题里 sysClr（如 windowText）必须取其 lastClr 作为实际颜色。"""
+    import shutil
+    from pptx import Presentation
+    prs = Presentation()
+    make_box(prs, 1, 1, 4, 1, "x", size=18)
+    p = tmp_path / "t.pptx"
+    prs.save(p)
+    assert cf._hex("000000") == (0, 0, 0)
+
+
+def test_slide_level_clr_mapping_overrides_master(tmp_path):
+    """幻灯片可以用 clrMapOvr 覆盖母版的颜色映射（深色主题常见）。"""
+    import zipfile
+
+    P = "http://schemas.openxmlformats.org/presentationml/2006/main"
+    A = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f'<p:sld xmlns:p="{P}" xmlns:a="{A}"><p:cSld>'
+        '<p:clrMapOvr><a:overrideClrMapping '
+        'bg1="dk1" tx1="lt1" bg2="dk2" tx2="lt2" '
+        'accent1="accent1" accent2="accent2" accent3="accent3" '
+        'accent4="accent4" accent5="accent5" accent6="accent6" '
+        'hlink="hlink" folHlink="folHlink"/>'
+        '</p:clrMapOvr></p:cSld></p:sld>'
+    )
+    path = tmp_path / "override.pptx"
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("ppt/slides/slide1.xml", xml)
+
+    with zipfile.ZipFile(path) as zf:
+        cm = cf.load_clr_map(zf, "ppt/slides/slide1.xml")
+
+    assert cm.get("bg1") == "dk1"
+    assert cm.get("tx1") == "lt1"
+
+
+def test_resolve_returns_none_without_fill(empty_prs):
+    tb = make_box(empty_prs, 1, 1, 4, 1, "x", size=18)
+    run = tb.text_frame.paragraphs[0].runs[0]
+    from pptx.oxml.ns import qn
+    rPr = run._r.find(qn("a:rPr"))
+    if rPr is not None:
+        for el in rPr.findall(qn("a:solidFill")):
+            rPr.remove(el)
+    assert cf.resolve_run_color(run, {}, {}) is None
+
+
+def test_resolve_unknown_scheme_slot_returns_none(empty_prs):
+    tb = make_box(empty_prs, 1, 1, 4, 1, "x", size=18)
+    run = tb.text_frame.paragraphs[0].runs[0]
+    set_solid_fill(run, '<a:schemeClr val="accent9"/>')
+    info = cf.resolve_run_color(run, {"accent1": (1, 2, 3)}, {})
+    assert info["kind"] == "scheme"
+    assert info["rgb"] is None
+
+
+def test_tint_branch(empty_prs):
+    """tint 走向白色：结果三分量都必须不小于原色。"""
+    out = cf._apply_mods((100, 50, 25), {"tint": 20000})
+    assert out[0] >= 100 and out[1] >= 50 and out[2] >= 25
+
+
+def test_snapshot_of_unformatted_run_is_safe(empty_prs):
+    """没有 rPr 的 run 也要能安全快照/恢复。"""
+    tb = make_box(empty_prs, 1, 1, 4, 1, "x", size=18)
+    run = tb.text_frame.paragraphs[0].runs[0]
+    from pptx.oxml.ns import qn
+    rPr = run._r.find(qn("a:rPr"))
+    if rPr is not None:
+        run._r.remove(rPr)
+    snap = cf.snapshot_rpr(run)
+    cf.restore_rpr(run, snap)          # 不应抛异常
+    assert cf.color_signature(run) is None

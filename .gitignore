@@ -58,3 +58,9 @@ Thumbs.db
 # ---- 演示脚本的中间产物 ----
 tools/_out/
 tools/figures/
+
+# ---- 测试产物 ----
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/

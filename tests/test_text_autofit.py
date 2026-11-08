@@ -105,3 +105,77 @@ def test_theme_parts_untouched(tmp_path, stub_metrics):
     with zipfile.ZipFile(dst) as z:
         new_slide = z.read("ppt/slides/slide1.xml")
     assert old_slide != new_slide
+
+
+# ------------------------------------------------------- 组合缩放 / 断行 / 覆盖
+def test_group_scale_halves_available_space(empty_prs, stub_metrics):
+    """组内形状的实际渲染尺寸 = 自身尺寸 × 组变换比，必须被计入。"""
+    from pptx.util import Inches
+    from pptx.oxml.ns import qn
+
+    slide = empty_prs.slides.add_slide(empty_prs.slide_layouts[6])
+    group = slide.shapes.add_group_shape()
+    inner = group.shapes.add_textbox(Inches(0), Inches(0), Inches(4), Inches(1))
+
+    xfrm = group._element.grpSpPr.xfrm
+    ext = xfrm.find(qn("a:ext"))
+    ch = xfrm.find(qn("a:chExt"))
+    # 子坐标空间是外部的 2 倍 → 实际显示缩小一半
+    ch.set("cx", str(int(ext.get("cx")) * 2))
+    ch.set("cy", str(int(ext.get("cy")) * 2))
+
+    sx, sy = ta._group_scale(inner)
+    assert sx == pytest.approx(0.5)
+    assert sy == pytest.approx(0.5)
+
+    _, _, avail_h, _ = ta.measure_frame(inner.text_frame, inner, stub_metrics)
+    # 1 inch × 0.5 = 36pt，减去上下边距（各 0.05 inch）≈ 28.8pt
+    assert avail_h == pytest.approx(28.8, abs=1.0)
+
+
+def test_tokenize_splits_cjk_per_char_and_latin_per_word():
+    """CJK 逐字断，拉丁按词断（词尾空格随词一起带走）。"""
+    assert ta.tokenize("中文") == ["中", "文"]
+    assert ta.tokenize("hello world") == ["hello ", "world"]
+    assert ta.tokenize("A中") == ["A", "中"]
+
+
+def test_write_replaces_existing_autofit_element(empty_prs):
+    """写入前必须先清掉旧的 spAutoFit/noAutofit，否则 PowerPoint 行为不确定。"""
+    from lxml import etree
+    from pptx.oxml.ns import qn
+
+    tb = make_box(empty_prs, 1, 1, 4, 2, "文本", size=14)
+    tf = tb.text_frame
+    bodyPr = tf._txBody.find(qn("a:bodyPr"))
+    for tag in ("a:normAutofit", "a:spAutoFit", "a:noAutofit"):
+        for el in bodyPr.findall(qn(tag)):
+            bodyPr.remove(el)
+    etree.SubElement(bodyPr, qn("a:spAutoFit"))
+
+    ta.write_norm_autofit(tf, 0.85)
+    assert bodyPr.find(qn("a:spAutoFit")) is None
+    norm = bodyPr.find(qn("a:normAutofit"))
+    assert norm is not None
+    assert norm.get("fontScale") == "85000"
+
+
+def test_table_cells_processed_only_when_enabled(empty_prs, stub_metrics):
+    """表格单元格默认跳过（行高会自适应），显式开启后才处理。"""
+    from pptx.util import Inches
+
+    slide = empty_prs.slides.add_slide(empty_prs.slide_layouts[6])
+    tbl = slide.shapes.add_table(1, 1, Inches(1), Inches(1),
+                                 Inches(3), Inches(0.6)).table
+    tbl.cell(0, 0).text = "很长的表格内容" * 8
+
+    assert ta.autofit_presentation(empty_prs, metrics=stub_metrics) == []
+
+    empty_prs2 = __import__("pptx").Presentation()
+    slide2 = empty_prs2.slides.add_slide(empty_prs2.slide_layouts[6])
+    tbl2 = slide2.shapes.add_table(1, 1, Inches(1), Inches(1),
+                                   Inches(3), Inches(0.6)).table
+    tbl2.cell(0, 0).text = "很长的表格内容" * 8
+    rep = ta.autofit_presentation(empty_prs2, metrics=stub_metrics,
+                                  include_cells=True)
+    assert len(rep) == 1

@@ -122,13 +122,15 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-19 个单元测试，全部在内存里构造样本、不依赖系统字体与 Office，CI（GitHub Actions）
+55 个测试，全部在内存里构造样本、不依赖系统字体与 Office，模型调用全部 mock，CI（GitHub Actions）
 在 Python 3.10 / 3.11 上执行。测试覆盖的重点不是"跑通"，而是**不变量**：
 
 - 缩放比必须落在 5% 步进上，且缩小后确实放得下
 - `spAutoFit`（形状随文字长高）不得被缩排
 - 主题色恢复后颜色子树**字节级不变**（`shade` 必须走线性空间，否则会变色）
-- 处理后 `theme / slideMaster / media` 的哈希必须与原文件相同
+- 表格单元格全部被收集、模型漏段时保留原文、异常时返回空而不是崩
+
+> 写测试时钉住了两个真实缺陷（文本框未被收集、重复段落只翻一段），已用 `xfail(strict=True)` 记录，详见 [`docs/TESTING.md`](docs/TESTING.md)
 
 ---
 
