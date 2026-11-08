@@ -139,6 +139,13 @@ class FontMetrics:
                  for ch in text)
         return em * size_pt
 
+    def cjk_line_height_pt(self, font_name: Optional[str], size_pt: float,
+                           bold: bool) -> float:
+        """中文：行高取决于字体本身（微软雅黑约 1.32em，高于 1.2）。"""
+        info = self._load(font_name, bold)
+        natural = (info["ascent_em"] + info["descent_em"]) * size_pt
+        return max(LINE_HEIGHT_FACTOR * size_pt, natural)
+
     def line_height_pt(self, font_name: Optional[str], size_pt: float,
                        bold: bool) -> float:
         """PowerPoint 单倍行距 = 1.2 × 字号（已用 COM 基准实测校验）。"""
@@ -146,6 +153,14 @@ class FontMetrics:
 
 
 # ------------------------------------------------------------------ 断行
+def _line_h(metrics, fname, size, bold, text: str) -> float:
+    """按内容选择行高：含中文用字体真实行高，纯西文用 1.2×字号。"""
+    if CJK_RE.search(text or ""):
+        fn = getattr(metrics, "cjk_line_height_pt", None)
+        if fn is not None:
+            return fn(fname, size, bold)
+    return metrics.line_height_pt(fname, size, bold)
+
 def tokenize(text: str) -> List[str]:
     """把一行拆成不可再分的排版单元：CJK 单字，拉丁词（含尾随空格）。"""
     units: List[str] = []
@@ -177,10 +192,19 @@ def wrap_segments(segments, max_w_pt: float, metrics: FontMetrics) -> List[float
     cur_h = 0.0
     started = False
 
-    for text, fname, size, bold in segments:
+    last_size = 0.0
+    for seg in segments:
+        if seg is None:                     # a:br 强制换行
+            lines.append(cur_h if started else last_size * LINE_HEIGHT_FACTOR)
+            cur_w = 0.0
+            cur_h = 0.0
+            started = False
+            continue
+        text, fname, size, bold = seg
+        last_size = size
         for unit in tokenize(text):
             w = metrics.width_pt(unit, fname, size, bold)
-            h = metrics.line_height_pt(fname, size, bold)
+            h = _line_h(metrics, fname, size, bold, unit)
             if started and cur_w + w > max_w_pt:
                 lines.append(cur_h)
                 cur_w = 0.0
@@ -232,7 +256,47 @@ def _group_scale(shape) -> Tuple[float, float]:
     return sx, sy
 
 
-def measure_frame(tf, shape, metrics: FontMetrics, scale: float = 1.0):
+def _paragraph_segments(para, scale: float, default_size: float):
+    """把段落拆成排版单元，正确处理 <a:br/> 软换行与逐 run 字号。
+
+    换行是 run 的**兄弟节点**（`<a:p><a:r/><a:br/><a:r/></a:p>`），
+    不在 run.text 里，所以必须遍历段落 XML 子元素，不能只看 para.runs。
+    """
+    segs = []
+    for child in para._p:
+        tag = etree.QName(child).localname
+        if tag == "br":
+            segs.append(None)                 # 强制换行
+            continue
+        if tag not in ("r", "fld"):
+            continue
+        t_el = child.find(qn("a:t"))
+        text = (t_el.text or "") if t_el is not None else ""
+        if not text:
+            continue
+        rPr = child.find(qn("a:rPr"))
+        size = None
+        bold = False
+        fname = None
+        if rPr is not None:
+            sz = rPr.get("sz")
+            if sz:
+                try:
+                    size = int(sz) / 100.0
+                except ValueError:
+                    size = None
+            bold = rPr.get("b") in ("1", "true")
+            latin = rPr.find(qn("a:latin"))
+            if latin is not None:
+                fname = latin.get("typeface")
+        if size is None:
+            size = default_size
+        segs.append((text, fname, size * scale, bold))
+    return segs
+
+
+def measure_frame(tf, shape, metrics: FontMetrics, scale: float = 1.0,
+                  default_size: float = 18.0):
     """返回 (所需高度pt, 可用宽度pt, 可用高度pt, 实际行数)。"""
     sx, sy = _group_scale(shape)
     avail_w = (_emu_to_pt(shape.width) * sx
@@ -246,21 +310,10 @@ def measure_frame(tf, shape, metrics: FontMetrics, scale: float = 1.0):
     total_lines = 0
 
     for para in tf.paragraphs:
-        segments = []
-        for run in para.runs:
-            text = run.text or ""
-            if not text:
-                continue
-            size = None
-            if run.font.size is not None:
-                size = run.font.size.pt
-            elif para.font.size is not None:
-                size = para.font.size.pt
-            else:
-                size = 18.0
-            bold = bool(run.font.bold)
-            fname = run.font.name or para.font.name
-            segments.append((text, fname, size * scale, bold))
+        size_hint = default_size
+        if para.font.size is not None:
+            size_hint = para.font.size.pt
+        segments = _paragraph_segments(para, scale, size_hint)
 
         if not segments:
             # 空段落仍占一行高度
@@ -271,16 +324,18 @@ def measure_frame(tf, shape, metrics: FontMetrics, scale: float = 1.0):
         if wrap:
             line_hs = wrap_segments(segments, avail_w * WRAP_TOLERANCE, metrics)
         else:
-            line_hs = [max(metrics.line_height_pt(f, s, b)
-                           for _, f, s, b in segments)]
-
-        # 行距倍数
+            heights = [metrics.line_height_pt(seg[1], seg[2], seg[3])
+                       for seg in segments if seg is not None]
+            line_hs = [max(heights)] if heights else [
+                metrics.line_height_pt(None, default_size * scale, False)]
+        # 行距：倍数（spcPct）按倍数缩放；固定值（spcPts）直接取该高度
         ls = para.line_spacing
-        mult = 1.0
         if isinstance(ls, float):
-            mult = ls
-
-        block = sum(line_hs) * mult
+            block = sum(line_hs) * ls
+        elif ls is not None and hasattr(ls, "pt"):
+            block = len(line_hs) * float(ls.pt) * scale
+        else:
+            block = sum(line_hs)
         if para.space_before is not None:
             block += _emu_to_pt(para.space_before) * scale
         if para.space_after is not None:
@@ -289,6 +344,7 @@ def measure_frame(tf, shape, metrics: FontMetrics, scale: float = 1.0):
         total_lines += len(line_hs)
 
     return total_h, avail_w, avail_h, total_lines
+
 
 
 def compute_scale(tf, shape, metrics: FontMetrics,
