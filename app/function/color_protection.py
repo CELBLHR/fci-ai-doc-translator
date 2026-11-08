@@ -151,12 +151,12 @@ class ColorProtector:
                 color_info['type'] = 'rgb'
                 color_info['value'] = (rgb.r, rgb.g, rgb.b)
 
-            elif color.type == MSO_COLOR_TYPE.THEME:
+            elif color.type == MSO_COLOR_TYPE.SCHEME:
                 # 主题颜色
                 color_info['type'] = 'theme'
                 color_info['value'] = color.theme_color
 
-            elif color.type == MSO_COLOR_TYPE.AUTO:
+            elif color.type is None:
                 # 自动颜色
                 color_info['type'] = 'auto'
                 color_info['value'] = None
@@ -199,10 +199,10 @@ class ColorProtector:
                                     rgb = highlight.rgb
                                     highlight_info['type'] = 'rgb'
                                     highlight_info['value'] = (rgb.r, rgb.g, rgb.b)
-                                elif highlight.type == MSO_COLOR_TYPE.THEME:
+                                elif highlight.type == MSO_COLOR_TYPE.SCHEME:
                                     highlight_info['type'] = 'theme'
                                     highlight_info['value'] = highlight.theme_color
-                                elif highlight.type == MSO_COLOR_TYPE.AUTO:
+                                elif highlight.type is None:
                                     highlight_info['type'] = 'auto'
                                     highlight_info['value'] = None
                                 break
@@ -236,14 +236,30 @@ class ColorProtector:
                 return True
 
             elif color_type == 'auto':
-                # 应用自动颜色
-                run.font.color.type = MSO_COLOR_TYPE.AUTO
-                return True
+                # 恢复"自动颜色"：移除 solidFill，让颜色继承主题
+                return self._clear_fill(run, "a:solidFill")
 
             return False
 
         except Exception as e:
             logger.debug(f"应用颜色失败: {e}")
+            return False
+
+
+    @staticmethod
+    def _clear_fill(run, tag: str) -> bool:
+        """移除 run 的指定填充元素（用于恢复"自动颜色"）。"""
+        try:
+            from pptx.oxml.ns import qn
+            rPr = run._r.find(qn("a:rPr"))
+            if rPr is None:
+                return False
+            removed = False
+            for el in rPr.findall(qn(tag)):
+                rPr.remove(el)
+                removed = True
+            return removed
+        except Exception:
             return False
 
     def _apply_run_highlight(self, run, highlight_info: Optional[Dict[str, Any]]) -> bool:
@@ -271,8 +287,7 @@ class ColorProtector:
                                 highlight.theme_color = highlight_value
                                 return True
                             elif highlight_type == 'auto':
-                                highlight.type = MSO_COLOR_TYPE.AUTO
-                                return True
+                                return self._clear_fill(run, "a:highlight")
                         except:
                             continue
 
@@ -393,9 +408,9 @@ def safe_replace_paragraph_text(paragraph, new_text, preserve_formatting=True) -
                         if color.type == MSO_COLOR_TYPE.RGB:
                             rgb = color.rgb
                             run_format['color'] = ('rgb', (rgb.r, rgb.g, rgb.b))
-                        elif color.type == MSO_COLOR_TYPE.THEME:
+                        elif color.type == MSO_COLOR_TYPE.SCHEME:
                             run_format['color'] = ('theme', color.theme_color)
-                        elif color.type == MSO_COLOR_TYPE.AUTO:
+                        elif color.type is None:
                             run_format['color'] = ('auto', None)
                     except:
                         pass
@@ -411,7 +426,7 @@ def safe_replace_paragraph_text(paragraph, new_text, preserve_formatting=True) -
                     #                     rgb = highlight.rgb
                     #                     run_format['highlight'] = ('rgb', (rgb.r, rgb.g, rgb.b))
                     #                     break
-                    #                 elif highlight.type == MSO_COLOR_TYPE.THEME:
+                    #                 elif highlight.type == MSO_COLOR_TYPE.SCHEME:
                     #                     run_format['highlight'] = ('theme', highlight.theme_color)
                     #                     break
                     # except:
@@ -451,10 +466,7 @@ def safe_replace_paragraph_text(paragraph, new_text, preserve_formatting=True) -
                     elif color_type == 'theme' and color_value:
                         run.font.color.theme_color = color_value
                     elif color_type == 'auto':
-                        run.font.color.type = MSO_COLOR_TYPE.AUTO
-
-
-
+                        self._clear_fill(run, "a:solidFill")
             except Exception as e:
                 logger.debug(f"恢复段落格式失败: {e}")
 

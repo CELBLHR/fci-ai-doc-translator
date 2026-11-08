@@ -1,0 +1,4 @@
+# 测试与开发依赖（与运行时依赖分离：CI 不需要 mysqlclient / easyocr 这些重型包）
+pytest>=7.4
+python-pptx==0.6.23
+lxml>=4.9

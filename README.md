@@ -94,6 +94,44 @@ python tools/render_pptx.py        # 渲染出 en-slide*.png / bi-slide*.png 与
 
 ---
 
+## 版式保真：把 LibreOffice 从关键路径上摘掉
+
+早期实现里，"文本溢出时缩排"和"主题色提取"都必须靠一次 LibreOffice 格式转换来驱动渲染器。
+而 LibreOffice 是**整包反序列化再序列化**，它没有完整建模的部分（主题色板、图片背景、
+渐变/图案填充、SmartArt）就会丢——这是长期遗留的版式崩坏来源。
+
+现已改为纯 Python 就地修改：
+
+| 能力 | 实现 | 与 PowerPoint 的一致性 |
+|---|---|---|
+| 文本框自适应 | 自己算 `fontScale` 写入 `<a:normAutofit>` | 文字高度估算 6/8 形状完全一致，其余差一行 |
+| 字体颜色保真 | 深拷贝 `<a:rPr>` 颜色子树（不经过颜色 API） | 7/7 颜色字节级不变 |
+| 主题色 → RGB | 解析 `clrScheme` + `clrMap` + 修饰符 | **7/7 与 PowerPoint COM 读数完全一致** |
+
+实测副作用：处理后 `ppt/theme/*`、`ppt/slideMasters/*`、`ppt/media/*` 的哈希
+**零变化**，只有包含文本的 slide XML 被修改。耗时 **34.7 ms**（对照 LibreOffice 路径的秒级）。
+
+> 细节、校准过程与验证数据见 [`docs/NO_LIBREOFFICE.md`](docs/NO_LIBREOFFICE.md)
+
+---
+
+## 测试
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+19 个单元测试，全部在内存里构造样本、不依赖系统字体与 Office，CI（GitHub Actions）
+在 Python 3.10 / 3.11 上执行。测试覆盖的重点不是"跑通"，而是**不变量**：
+
+- 缩放比必须落在 5% 步进上，且缩小后确实放得下
+- `spAutoFit`（形状随文字长高）不得被缩排
+- 主题色恢复后颜色子树**字节级不变**（`shade` 必须走线性空间，否则会变色）
+- 处理后 `theme / slideMaster / media` 的哈希必须与原文件相同
+
+---
+
 ## 处理流程
 
 ```
